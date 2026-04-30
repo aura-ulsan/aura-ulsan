@@ -553,13 +553,17 @@ function fetchKMA(manual) {
   }
   setBanner('kma', 'load', manual ? '수동 갱신 중...' : '기상청 API 호출 중...');
   var dt = getBaseDT();
-  // ★ API 키를 인코딩하지 않고 그대로 사용 (공공데이터포털 키는 인코딩 불필요)
-  var url = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst' +
-    '?serviceKey=' + KEY +
+
+  // 공공데이터포털 키: 인코딩 없이 그대로 사용
+  // (키에 +, = 등 특수문자가 있어도 serviceKey 파라미터는 Raw 전송)
+  var base = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst';
+  var params = 'serviceKey=' + KEY +
     '&pageNo=1&numOfRows=100&dataType=JSON' +
     '&base_date=' + dt.baseDate + '&base_time=' + dt.baseTime +
     '&nx=' + NX + '&ny=' + NY;
-  fetch(url)
+  var url = base + '?' + params;
+
+  fetch(url, { mode: 'cors' })
     .then(function(res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return res.json();
@@ -599,7 +603,13 @@ function fetchKMA(manual) {
       renderAll();
     })
     .catch(function(err) {
-      setBanner('kma', 'err', '기상청 오류: ' + err.message);
+      // 401이면 키 문제, CORS면 네트워크 문제
+      var msg = err.message || '';
+      if (msg.indexOf('401') >= 0 || msg.indexOf('Unauthorized') >= 0) {
+        setBanner('kma', 'err', '기상청 API 키 오류(401) — API 설정에서 키를 다시 확인해주세요');
+      } else {
+        setBanner('kma', 'err', '기상청 연결 실패: ' + (msg || '네트워크 오류') + ' — 시뮬레이션 모드로 전환');
+      }
       document.getElementById('kmaBdg').textContent = '오류';
       document.getElementById('kmaBdg').className = 'bdg bdg-err';
       simFluct(); renderAll();
@@ -704,34 +714,60 @@ function parseMetarInput() {
 }
 
 function fetchMetarAuto() {
-  // ★ CORS 우회: corsproxy.io 사용
-  var target = 'https://aviationweather.gov/api/data/metar?ids=RKPU&format=raw';
-  var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(target);
-  fetch(proxyUrl, { signal: AbortSignal.timeout(8000) })
-    .then(function(res) { if (!res.ok) throw new Error(); return res.text(); })
-    .then(function(text) {
-      var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.indexOf('RKPU') === 0; });
-      if (lines.length) {
-        document.getElementById('metarInput').value = lines[0];
-        applyMetar(parseMetar(lines[0]));
-      }
+  // METAR 자동수신은 CORS 문제로 실패가 잦음 → 수동 입력을 기본으로 안내
+  // 대신 open-meteo 공개 API로 기온/풍속 보완 시도 (CORS 허용)
+  var lat = 35.5985, lon = 129.3522; // 울산공항 좌표
+  var url = 'https://api.open-meteo.com/v1/forecast' +
+    '?latitude=' + lat + '&longitude=' + lon +
+    '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,cloud_cover,precipitation' +
+    '&timezone=Asia%2FSeoul&forecast_days=1';
+
+  fetch(url, { signal: AbortSignal.timeout(6000) })
+    .then(function(res) { if (!res.ok) throw new Error(); return res.json(); })
+    .then(function(data) {
+      var c = data && data.current;
+      if (!c) throw new Error('데이터 없음');
+      var airTemp   = c.temperature_2m;
+      var humidity  = c.relative_humidity_2m;
+      var windSpeed = parseFloat((c.wind_speed_10m / 3.6).toFixed(1)); // km/h → m/s
+      var windDir   = c.wind_direction_10m;
+      var cloud     = c.cloud_cover; // 0~100%
+      var rain      = c.precipitation || 0;
+
+      // 하늘상태 변환 (cloud cover % → 1~4)
+      var skyNum = cloud < 10 ? 1 : cloud < 40 ? 2 : cloud < 75 ? 3 : 4;
+
+      wx.airTemp   = airTemp;
+      wx.humidity  = humidity;
+      wx.windSpeed = windSpeed;
+      wx.windDir   = windDir;
+      wx.sky       = skyNum;
+      wx.rain      = rain;
+      wx.paveTemp  = mlModel ? predictPave() : estimatePave(airTemp, wx.solar, skyNum, windSpeed);
+
+      var now = new Date();
+      var t = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('metarDot').className = 'dot dot-live';
+      document.getElementById('metarTxt').textContent =
+        'Open-Meteo 실측 연동 ✅ 기온 ' + airTemp + '℃ | 습도 ' + humidity +
+        '% | 풍속 ' + windSpeed + 'm/s | 구름 ' + cloud + '%';
+      document.getElementById('metarUpd').textContent = '갱신: ' + t;
+      document.getElementById('metarBdg').textContent = 'Open-Meteo';
+      document.getElementById('metarBdg').className = 'bdg bdg-metar';
+
+      // METAR 패널도 업데이트
+      document.getElementById('m-temp').textContent = airTemp + '℃ / —';
+      document.getElementById('m-vis').textContent = rain > 0 ? '강수중' : '양호';
+      document.getElementById('m-cloud').textContent = ['맑음','구름조금','구름많음','흐림'][skyNum-1];
+      document.getElementById('m-wx').textContent = rain > 0 ? '강수 ' + rain + 'mm' : '없음';
+
+      logs.push({ type: 'metar', time: t, msg: 'Open-Meteo 갱신 — 기온 ' + airTemp + '℃ | 풍속 ' + windSpeed + 'm/s | 구름 ' + cloud + '%' });
+      renderAll();
     })
     .catch(function() {
-      // 프록시 실패 시 두 번째 프록시 시도
-      var proxy2 = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(target);
-      fetch(proxy2, { signal: AbortSignal.timeout(8000) })
-        .then(function(res) { return res.text(); })
-        .then(function(text) {
-          var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.indexOf('RKPU') === 0; });
-          if (lines.length) {
-            document.getElementById('metarInput').value = lines[0];
-            applyMetar(parseMetar(lines[0]));
-          }
-        })
-        .catch(function() {
-          document.getElementById('metarDot').className = 'dot dot-err';
-          document.getElementById('metarTxt').textContent = 'METAR 자동수신 실패 — 하단 수동 입력란에 직접 붙여넣기';
-        });
+      document.getElementById('metarDot').className = 'dot dot-err';
+      document.getElementById('metarTxt').textContent =
+        'Open-Meteo 연결 실패 — 하단 METAR 수동 입력란 사용 (aviationweather.gov → RKPU 검색)';
     });
 }
 
