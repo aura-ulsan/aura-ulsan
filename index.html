@@ -6,218 +6,203 @@
 <title>A.U.R.A - 울산공항 활주로 살수 자동화</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  :root {
-    --navy:#1F4E79;--navy-light:#2E6DA4;--navy-dark:#153856;
-    --green:#1a7a4a;--green-bg:#e8f5ee;
-    --yellow:#c47a00;--yellow-bg:#fff8e1;
-    --red:#b71c1c;--red-bg:#fdecea;
-    --gray:#f4f6f9;--border:#d0d9e4;--text:#1a2332;--subtext:#5a6a7e;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'Segoe UI','Apple SD Gothic Neo',sans-serif;background:var(--gray);color:var(--text);min-height:100vh;}
+:root{
+  --navy:#1F4E79;--navy-light:#2E6DA4;--navy-dark:#153856;
+  --green:#1a7a4a;--green-bg:#e8f5ee;
+  --yellow:#c47a00;--yellow-bg:#fff8e1;
+  --red:#b71c1c;--red-bg:#fdecea;
+  --gray:#f4f6f9;--border:#d0d9e4;--text:#1a2332;--subtext:#5a6a7e;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI','Apple SD Gothic Neo',sans-serif;background:var(--gray);color:var(--text);min-height:100vh;}
 
-  header{
-    background:linear-gradient(135deg,var(--navy-dark) 0%,var(--navy) 60%,var(--navy-light) 100%);
-    color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;
-    flex-wrap:wrap;gap:10px;box-shadow:0 3px 12px rgba(0,0,0,0.3);position:sticky;top:0;z-index:100;
-  }
-  .logo-area{display:flex;align-items:center;gap:14px;}
-  .logo-badge{
-    background:#fff;color:var(--navy);font-weight:900;font-size:1.3rem;
-    width:52px;height:52px;border-radius:12px;display:flex;align-items:center;
-    justify-content:center;letter-spacing:-1px;box-shadow:0 2px 8px rgba(0,0,0,0.2);
-  }
-  .logo-text h1{font-size:1.1rem;font-weight:800;letter-spacing:1px;}
-  .logo-text p{font-size:0.72rem;opacity:0.85;margin-top:2px;}
-  .header-right{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
-  .traffic-light{display:flex;gap:7px;background:rgba(0,0,0,0.25);padding:8px 12px;border-radius:20px;}
-  .tl{width:18px;height:18px;border-radius:50%;opacity:0.3;transition:all 0.4s;}
-  .tl.active{opacity:1;box-shadow:0 0 10px currentColor;}
-  .tl-r{background:#ff4444;color:#ff4444;}
-  .tl-y{background:#ffcc00;color:#ffcc00;}
-  .tl-g{background:#44dd88;color:#44dd88;}
-  #clock{font-size:0.95rem;font-weight:600;opacity:0.95;white-space:nowrap;}
+header{
+  background:linear-gradient(135deg,var(--navy-dark) 0%,var(--navy) 60%,var(--navy-light) 100%);
+  color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:10px;box-shadow:0 3px 12px rgba(0,0,0,0.3);position:sticky;top:0;z-index:100;
+}
+.logo-area{display:flex;align-items:center;gap:14px;}
+.logo-badge{background:#fff;color:var(--navy);font-weight:900;font-size:1.3rem;width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-1px;box-shadow:0 2px 8px rgba(0,0,0,0.2);}
+.logo-text h1{font-size:1.1rem;font-weight:800;letter-spacing:1px;}
+.logo-text p{font-size:0.72rem;opacity:0.85;margin-top:2px;}
+.header-right{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.traffic-light{display:flex;gap:7px;background:rgba(0,0,0,0.25);padding:8px 12px;border-radius:20px;}
+.tl{width:18px;height:18px;border-radius:50%;opacity:0.3;transition:all 0.4s;}
+.tl.active{opacity:1;box-shadow:0 0 10px currentColor;}
+.tl-r{background:#ff4444;color:#ff4444;}
+.tl-y{background:#ffcc00;color:#ffcc00;}
+.tl-g{background:#44dd88;color:#44dd88;}
+#clock{font-size:0.95rem;font-weight:600;opacity:0.95;white-space:nowrap;}
 
-  /* API 상태 표시 */
-  #apiStatusBar{
-    display:flex;align-items:center;gap:8px;padding:6px 20px;
-    font-size:0.75rem;font-weight:600;background:var(--navy-dark);color:#aac8e8;
-    flex-wrap:wrap;
-  }
-  .api-dot{width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0;}
-  .api-dot.live{background:#44dd88;box-shadow:0 0 6px #44dd88;animation:blink 2s infinite;}
-  .api-dot.error{background:#ff4444;}
-  .api-dot.loading{background:#ffcc00;animation:blink 0.8s infinite;}
-  @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
-  #apiLastUpdate{margin-left:auto;opacity:0.7;}
+/* 상태 배너들 */
+.banner{display:flex;align-items:flex-start;gap:8px;padding:7px 20px;font-size:0.75rem;font-weight:600;flex-wrap:wrap;}
+#apiStatusBar{background:var(--navy-dark);color:#aac8e8;}
+#metarStatusBar{background:#1a3a1a;color:#a8d8a8;}
+.api-dot{width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0;margin-top:2px;}
+.api-dot.live{background:#44dd88;box-shadow:0 0 6px #44dd88;animation:blink 2s infinite;}
+.api-dot.error{background:#ff4444;}
+.api-dot.loading{background:#ffcc00;animation:blink 0.8s infinite;}
+.api-dot.manual{background:#88aaff;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.banner-right{margin-left:auto;opacity:0.7;font-size:0.7rem;}
 
-  #statusBar{
-    padding:10px 20px;font-weight:700;font-size:0.9rem;
-    display:flex;align-items:center;gap:10px;transition:background 0.5s,color 0.5s;
-  }
-  .status-icon{font-size:1.1rem;}
-  #statusBar.normal{background:#c8f0dc;color:#0d5c30;}
-  #statusBar.caution{background:#fff3c4;color:#7a4f00;}
-  #statusBar.warning{background:#ffd6d6;color:#8b0000;}
-  #statusBar.activated{background:#c8f0dc;color:#0d5c30;}
+#statusBar{padding:10px 20px;font-weight:700;font-size:0.9rem;display:flex;align-items:center;gap:10px;transition:background 0.5s,color 0.5s;}
+#statusBar.normal{background:#c8f0dc;color:#0d5c30;}
+#statusBar.caution{background:#fff3c4;color:#7a4f00;}
+#statusBar.warning{background:#ffd6d6;color:#8b0000;}
+#statusBar.activated{background:#c8f0dc;color:#0d5c30;}
 
-  .main{display:grid;grid-template-columns:300px 1fr;gap:14px;padding:14px;}
-  @media(max-width:860px){.main{grid-template-columns:1fr;}}
+/* API 키 경고 */
+#apiKeyWarning{background:#fff3c4;border-bottom:2px solid #ffe082;padding:8px 20px;font-size:0.78rem;color:#7a4f00;display:flex;align-items:flex-start;gap:8px;}
+#apiKeyWarning.hidden{display:none;}
 
-  .card{
-    background:#fff;border-radius:14px;padding:16px;
-    box-shadow:0 2px 8px rgba(0,0,0,0.07);border:1px solid var(--border);
-  }
-  .card-title{
-    font-size:0.78rem;font-weight:700;color:var(--navy);
-    text-transform:uppercase;letter-spacing:0.5px;
-    border-bottom:2px solid var(--navy);padding-bottom:8px;margin-bottom:14px;
-    display:flex;align-items:center;gap:6px;
-  }
+.main{display:grid;grid-template-columns:300px 1fr;gap:14px;padding:14px;}
+@media(max-width:900px){.main{grid-template-columns:1fr;}}
 
-  /* 기상청 뱃지 */
-  .kma-badge{
-    display:inline-flex;align-items:center;gap:4px;
-    background:#e3f0fb;color:#1565c0;border:1px solid #90caf9;
-    font-size:0.6rem;font-weight:700;padding:2px 6px;border-radius:8px;
-    margin-left:auto;white-space:nowrap;
-  }
-  .kma-badge.error{background:#fdecea;color:#b71c1c;border-color:#ef9a9a;}
-  .kma-badge.loading{background:#fff8e1;color:#7a4f00;border-color:#ffe082;}
+.card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border:1px solid var(--border);}
+.card-title{font-size:0.78rem;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid var(--navy);padding-bottom:8px;margin-bottom:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 
-  .sensor-item{
-    display:flex;justify-content:space-between;align-items:flex-start;
-    padding:10px 0;border-bottom:1px solid #eef0f4;
-  }
-  .sensor-item:last-child{border-bottom:none;}
-  .sensor-left{flex:1;}
-  .sensor-label-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
-  .sensor-label{font-size:0.82rem;color:var(--subtext);}
-  .sensor-bar{width:100%;height:6px;background:#e0e6ef;border-radius:3px;margin-top:5px;}
-  .sensor-bar-fill{height:100%;border-radius:3px;transition:width 1s;}
-  .sensor-right{text-align:right;padding-left:10px;flex-shrink:0;}
-  .sensor-val{font-size:1.4rem;font-weight:800;}
-  .sensor-unit{font-size:0.7rem;color:var(--subtext);margin-left:2px;}
-  .sky-label{font-size:0.75rem;margin-top:2px;color:var(--subtext);}
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:0.6rem;font-weight:700;padding:2px 6px;border-radius:8px;white-space:nowrap;}
+.badge-kma{background:#e3f0fb;color:#1565c0;border:1px solid #90caf9;}
+.badge-metar{background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;}
+.badge-error{background:#fdecea;color:#b71c1c;border:1px solid #ef9a9a;}
+.badge-loading{background:#fff8e1;color:#7a4f00;border:1px solid #ffe082;}
+.badge-manual{background:#ede7f6;color:#4a148c;border:1px solid #ce93d8;}
 
-  .chart-wrap{position:relative;height:220px;}
+/* 센서 */
+.sensor-item{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px solid #eef0f4;}
+.sensor-item:last-child{border-bottom:none;}
+.sensor-left{flex:1;}
+.sensor-label-row{display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap;}
+.sensor-label{font-size:0.8rem;color:var(--subtext);}
+.sensor-bar{width:100%;height:5px;background:#e0e6ef;border-radius:3px;margin-top:4px;}
+.sensor-bar-fill{height:100%;border-radius:3px;transition:width 1s;}
+.sensor-right{text-align:right;padding-left:8px;flex-shrink:0;}
+.sensor-val{font-size:1.35rem;font-weight:800;}
+.sensor-unit{font-size:0.68rem;color:var(--subtext);margin-left:1px;}
+.sensor-sub{font-size:0.68rem;color:var(--subtext);margin-top:1px;}
 
-  .zones-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px;}
-  @media(max-width:600px){.zones-grid{grid-template-columns:repeat(2,1fr);}}
-  .zone-card{border-radius:10px;padding:10px 12px;text-align:center;border:2px solid transparent;transition:all 0.4s;}
-  .zone-card.normal{background:var(--green-bg);border-color:#a0d8b8;}
-  .zone-card.caution{background:var(--yellow-bg);border-color:#ffe082;}
-  .zone-card.warning{background:var(--red-bg);border-color:#ef9a9a;animation:pulse 1.5s infinite;}
-  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(183,28,28,0.3)}50%{box-shadow:0 0 0 6px rgba(183,28,28,0)}}
-  .zone-name{font-size:0.72rem;color:var(--subtext);margin-bottom:4px;}
-  .zone-temp{font-size:1.5rem;font-weight:900;}
-  .zone-card.normal .zone-temp{color:var(--green);}
-  .zone-card.caution .zone-temp{color:var(--yellow);}
-  .zone-card.warning .zone-temp{color:var(--red);}
-  .zone-label{font-size:0.65rem;font-weight:700;margin-top:3px;}
-  .zone-card.normal .zone-label{color:var(--green);}
-  .zone-card.caution .zone-label{color:var(--yellow);}
-  .zone-card.warning .zone-label{color:var(--red);}
+/* METAR 패널 */
+.metar-panel{margin-top:14px;}
+.metar-raw{
+  background:#0d1117;color:#58d68d;font-family:'Courier New',monospace;
+  font-size:0.75rem;padding:10px 12px;border-radius:8px;word-break:break-all;
+  line-height:1.6;min-height:36px;
+}
+.metar-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.metar-item{background:#f8fafc;border-radius:8px;padding:8px 10px;border:1px solid var(--border);}
+.metar-item-label{font-size:0.65rem;color:var(--subtext);margin-bottom:3px;font-weight:600;text-transform:uppercase;}
+.metar-item-val{font-size:1.05rem;font-weight:800;color:var(--navy);}
+.metar-item-sub{font-size:0.65rem;color:var(--subtext);margin-top:1px;}
 
-  #aiText{
-    font-size:0.84rem;line-height:1.75;color:#2c3e50;
-    background:#f0f4fa;border-left:4px solid var(--navy);
-    padding:12px 14px;border-radius:0 8px 8px 0;
-  }
-  .ai-badge{display:inline-block;background:var(--navy);color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;margin-bottom:8px;}
+/* METAR 수동입력 폼 */
+.metar-form{margin-top:10px;}
+.metar-input-row{display:flex;gap:6px;}
+.metar-input{
+  flex:1;padding:8px 10px;border:2px solid var(--border);border-radius:8px;
+  font-family:'Courier New',monospace;font-size:0.78rem;color:var(--text);
+  background:#f8fafc;
+}
+.metar-input:focus{outline:none;border-color:var(--navy-light);}
+.btn-parse{
+  padding:8px 14px;background:var(--navy);color:#fff;border:none;
+  border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+.btn-parse:hover{background:var(--navy-light);}
+.metar-hint{font-size:0.68rem;color:var(--subtext);margin-top:5px;line-height:1.5;}
 
-  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
-  .btn{
-    flex:1;min-width:120px;padding:12px 10px;border:none;border-radius:10px;
-    font-size:0.82rem;font-weight:700;cursor:pointer;transition:all 0.2s;
-    display:flex;align-items:center;justify-content:center;gap:6px;
-  }
-  .btn:active{transform:scale(0.97);}
-  .btn-activate{background:var(--red);color:#fff;}
-  .btn-activate:hover{background:#8b0000;}
-  .btn-activate.done{background:var(--green);}
-  .btn-manual{background:var(--yellow-bg);color:#7a4f00;border:2px solid #ffe082;}
-  .btn-manual:hover{background:#ffe082;}
-  .btn-log{background:#e8edf5;color:var(--navy);border:2px solid var(--border);}
-  .btn-log:hover{background:#d0dcea;}
-  .btn-refresh{background:#e3f0fb;color:#1565c0;border:2px solid #90caf9;}
-  .btn-refresh:hover{background:#bbdefb;}
+/* 차트 */
+.chart-wrap{position:relative;height:220px;}
 
-  .modal-overlay{
-    display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);
-    z-index:999;align-items:center;justify-content:center;padding:20px;
-  }
-  .modal-overlay.open{display:flex;}
-  .modal{
-    background:#fff;border-radius:16px;width:100%;max-width:540px;
-    max-height:80vh;display:flex;flex-direction:column;
-    box-shadow:0 10px 40px rgba(0,0,0,0.3);
-  }
-  .modal-header{
-    padding:16px 20px;background:var(--navy);color:#fff;
-    border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center;
-  }
-  .modal-header h2{font-size:1rem;}
-  .modal-close{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;}
-  .modal-body{padding:16px 20px;overflow-y:auto;}
-  .log-item{padding:9px 12px;border-radius:8px;margin-bottom:8px;font-size:0.8rem;border-left:4px solid;}
-  .log-item.info{background:#e8f4fd;border-color:#2196F3;color:#0d47a1;}
-  .log-item.warn{background:var(--yellow-bg);border-color:#ffc107;color:#7a4f00;}
-  .log-item.alert{background:var(--red-bg);border-color:var(--red);color:var(--red);}
-  .log-item.ok{background:var(--green-bg);border-color:var(--green);color:var(--green);}
-  .log-item.api{background:#f3e5f5;border-color:#9c27b0;color:#4a148c;}
-  .log-time{font-weight:700;margin-right:8px;}
+/* 구역 */
+.zones-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px;}
+@media(max-width:600px){.zones-grid{grid-template-columns:repeat(2,1fr);}}
+.zone-card{border-radius:10px;padding:10px 12px;text-align:center;border:2px solid transparent;transition:all 0.4s;}
+.zone-card.normal{background:var(--green-bg);border-color:#a0d8b8;}
+.zone-card.caution{background:var(--yellow-bg);border-color:#ffe082;}
+.zone-card.warning{background:var(--red-bg);border-color:#ef9a9a;animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(183,28,28,0.3)}50%{box-shadow:0 0 0 6px rgba(183,28,28,0)}}
+.zone-name{font-size:0.72rem;color:var(--subtext);margin-bottom:4px;}
+.zone-temp{font-size:1.5rem;font-weight:900;}
+.zone-card.normal .zone-temp{color:var(--green);}
+.zone-card.caution .zone-temp{color:var(--yellow);}
+.zone-card.warning .zone-temp{color:var(--red);}
+.zone-label{font-size:0.65rem;font-weight:700;margin-top:3px;}
+.zone-card.normal .zone-label{color:var(--green);}
+.zone-card.caution .zone-label{color:var(--yellow);}
+.zone-card.warning .zone-label{color:var(--red);}
 
-  .bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-  @media(max-width:860px){.bottom-grid{grid-template-columns:1fr;}}
-  .manual-badge{
-    display:none;background:#fff3c4;color:#7a4f00;
-    border:1px solid #ffe082;border-radius:6px;padding:6px 12px;
-    font-size:0.78rem;font-weight:600;margin-top:8px;
-  }
+#aiText{font-size:0.84rem;line-height:1.75;color:#2c3e50;background:#f0f4fa;border-left:4px solid var(--navy);padding:12px 14px;border-radius:0 8px 8px 0;}
+.ai-badge{display:inline-block;background:var(--navy);color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px;margin-bottom:8px;}
 
-  /* API 키 미입력 경고 배너 */
-  #apiKeyWarning{
-    background:#fff3c4;border-bottom:2px solid #ffe082;
-    padding:10px 20px;font-size:0.8rem;color:#7a4f00;
-    display:flex;align-items:flex-start;gap:8px;
-  }
-  #apiKeyWarning.hidden{display:none;}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
+.btn{flex:1;min-width:110px;padding:11px 10px;border:none;border-radius:10px;font-size:0.8rem;font-weight:700;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:5px;}
+.btn:active{transform:scale(0.97);}
+.btn-activate{background:var(--red);color:#fff;}
+.btn-activate:hover{background:#8b0000;}
+.btn-activate.done{background:var(--green);}
+.btn-manual{background:var(--yellow-bg);color:#7a4f00;border:2px solid #ffe082;}
+.btn-log{background:#e8edf5;color:var(--navy);border:2px solid var(--border);}
+.btn-refresh{background:#e3f0fb;color:#1565c0;border:2px solid #90caf9;}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.3);}
+.modal-header{padding:16px 20px;background:var(--navy);color:#fff;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center;}
+.modal-header h2{font-size:1rem;}
+.modal-close{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;}
+.modal-body{padding:16px 20px;overflow-y:auto;}
+.log-item{padding:9px 12px;border-radius:8px;margin-bottom:8px;font-size:0.78rem;border-left:4px solid;}
+.log-item.info{background:#e8f4fd;border-color:#2196F3;color:#0d47a1;}
+.log-item.warn{background:var(--yellow-bg);border-color:#ffc107;color:#7a4f00;}
+.log-item.alert{background:var(--red-bg);border-color:var(--red);color:var(--red);}
+.log-item.ok{background:var(--green-bg);border-color:var(--green);color:var(--green);}
+.log-item.api{background:#f3e5f5;border-color:#9c27b0;color:#4a148c;}
+.log-item.metar{background:#e8f5e9;border-color:#388e3c;color:#1b5e20;}
+.log-time{font-weight:700;margin-right:6px;}
+
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:900px){.bottom-grid{grid-template-columns:1fr;}}
+.manual-badge{display:none;background:#fff3c4;color:#7a4f00;border:1px solid #ffe082;border-radius:6px;padding:6px 12px;font-size:0.78rem;font-weight:600;margin-top:8px;}
+
+/* 구분선 */
+.section-divider{height:1px;background:var(--border);margin:12px 0;}
 </style>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════════════════
-  A.U.R.A — Automated Utility for Runway Aspersion
-  울산공항 활주로 살수 자동화 시스템 v2.0
-  기상청 단기예보 API 연동 버전
+<!--
+════════════════════════════════════════════════════════
+  A.U.R.A v3.0 — 기상청 API + METAR 연동 버전
+  울산공항 (ICAO: RKPU) 활주로 살수 자동화 시스템
 
-  ▣ 기상청 API 키 발급 방법
-  ─────────────────────────────────────────────────────
-  1. https://www.data.go.kr 접속 → 회원가입/로그인
-  2. 검색창에 "기상청_단기예보 ((구)_동네예보) 조회서비스" 검색
-  3. 해당 API 상세 페이지에서 [활용신청] 버튼 클릭
-  4. 활용목적 입력 후 신청 (자동 승인, 즉시 발급)
-  5. 마이페이지 > API 활용현황에서 "일반 인증키(Encoding)" 복사
-  6. 아래 API_KEY 변수에 붙여넣기
+  ▣ 기상청 단기예보 API 키 발급
+  ─────────────────────────────
+  1. https://www.data.go.kr 접속 → 회원가입
+  2. "기상청_단기예보 조회서비스" 검색 → 활용신청
+  3. 마이페이지 > API 활용현황 > 일반 인증키(Encoding) 복사
+  4. 아래 API_KEY 변수에 붙여넣기
 
-  ▣ 울산 격자 좌표
-  - nx: 102, ny: 84 (기상청 단기예보 격자 기준)
-  - 울산공항 관측소 코드: 152
+  ▣ METAR 자동 수신 (항공기상청 오픈API)
+  ─────────────────────────────
+  - 항공기상청 오픈API 미제공 시 수동 입력 폼 사용
+  - METAR 출처: https://www.kama.go.kr (항공기상청)
+  - 또는 국제 미러: https://aviationweather.gov/metar?ids=RKPU
 
-  ▣ 호출 제한
-  - 무료 트래픽: 일 10,000회
-  - 15분마다 자동 갱신 → 일 96회 사용 (여유 충분)
-════════════════════════════════════════════════════ -->
+  ▣ METAR 형식 예시
+  ─────────────────────────────
+  RKPU 220600Z 18005KT 9999 SKC 32/22 Q1010
+  RKPU 220600Z 18005KT 3000 -RA BKN020 28/24 Q1008
+════════════════════════════════════════════════════════
+-->
 
 <!-- API KEY 미입력 경고 -->
 <div id="apiKeyWarning">
   <span>⚠️</span>
   <span>
-    <strong>기상청 API 키가 입력되지 않았습니다.</strong>
-    index.html 파일을 열어 상단 <code>API_KEY</code> 변수에 발급받은 키를 입력하면 실시간 기상 데이터가 연동됩니다.
-    현재는 시뮬레이션 데이터로 동작 중입니다.
-    <a href="https://www.data.go.kr" target="_blank" style="color:#1565c0;font-weight:700;">→ data.go.kr에서 무료 발급</a>
+    <strong>기상청 API 키 미입력</strong> — 현재 시뮬레이션 모드로 동작 중.
+    <code>API_KEY</code> 변수에 키를 입력하면 실시간 연동됩니다.
+    <a href="https://www.data.go.kr" target="_blank" style="color:#1565c0;font-weight:700;">→ data.go.kr 무료 발급</a>
   </span>
 </div>
 
@@ -226,8 +211,8 @@
   <div class="logo-area">
     <div class="logo-badge">A.U<br>.R.A</div>
     <div class="logo-text">
-      <h1>A.U.R.A SYSTEM</h1>
-      <p>Automated Utility for Runway Aspersion · 울산공항 활주로 살수 자동화</p>
+      <h1>A.U.R.A SYSTEM v3.0</h1>
+      <p>Automated Utility for Runway Aspersion · 울산공항 RKPU</p>
     </div>
   </div>
   <div class="header-right">
@@ -240,33 +225,88 @@
   </div>
 </header>
 
-<!-- API 상태바 -->
-<div id="apiStatusBar">
+<!-- API 상태 배너 -->
+<div class="banner" id="apiStatusBar">
   <div class="api-dot loading" id="apiDot"></div>
-  <span id="apiStatusText">기상청 API 연결 대기 중...</span>
-  <span id="apiLastUpdate"></span>
+  <span id="apiStatusText">기상청 API 연결 중...</span>
+  <span class="banner-right" id="apiLastUpdate"></span>
+</div>
+
+<!-- METAR 상태 배너 -->
+<div class="banner" id="metarStatusBar">
+  <div class="api-dot manual" id="metarDot"></div>
+  <span id="metarStatusText">RKPU METAR — 수동 입력 대기 중</span>
+  <span class="banner-right" id="metarLastUpdate"></span>
 </div>
 
 <!-- STATUS BAR -->
 <div id="statusBar" class="warning">
-  <span class="status-icon">🔴</span>
+  <span>🔴</span>
   <span id="statusText">⚠ 경고: 구역 1, 5 포장온도 60℃ 이상 — 즉시 살수 검토 요망 (토목시설물 유지관리지침 제9조)</span>
 </div>
 
-<!-- MAIN -->
+<!-- MAIN GRID -->
 <div class="main">
-  <div>
+
+  <!-- 좌측: 센서 + METAR -->
+  <div style="display:flex;flex-direction:column;gap:14px;">
+
+    <!-- 기상청 센서 -->
     <div class="card">
       <div class="card-title">
-        📡 실시간 센서 데이터
-        <span class="kma-badge loading" id="kmaBadgeMain">⟳ 불러오는 중</span>
+        📡 실시간 센서
+        <span class="badge badge-kma badge-loading" id="kmaBadge">⟳ 로딩</span>
       </div>
       <div id="sensorPanel"></div>
-      <div style="font-size:0.7rem;color:var(--subtext);margin-top:10px;text-align:right;">
-        ※ 포장온도 = 기온 기반 추정값 (실측 센서 대비 +15~25℃ 적용)
+      <div style="font-size:0.68rem;color:var(--subtext);margin-top:8px;text-align:right;">
+        ※ 포장온도 = 기온 기반 추정 (+15~25℃)
+      </div>
+    </div>
+
+    <!-- METAR 패널 -->
+    <div class="card">
+      <div class="card-title">
+        ✈️ 항공기상 (METAR · RKPU)
+        <span class="badge badge-manual" id="metarBadge">수동 입력</span>
+      </div>
+
+      <!-- METAR Raw -->
+      <div style="font-size:0.72rem;color:var(--subtext);margin-bottom:5px;">최근 수신 전문</div>
+      <div class="metar-raw" id="metarRaw">— METAR 미수신 —</div>
+
+      <!-- METAR 파싱 결과 -->
+      <div class="metar-grid" id="metarGrid">
+        <div class="metar-item"><div class="metar-item-label">🌬 지상풍</div><div class="metar-item-val" id="m-wind">—</div><div class="metar-item-sub" id="m-wind-sub"></div></div>
+        <div class="metar-item"><div class="metar-item-label">👁 시정</div><div class="metar-item-val" id="m-vis">—</div><div class="metar-item-sub" id="m-vis-sub"></div></div>
+        <div class="metar-item"><div class="metar-item-label">☁️ 전운량</div><div class="metar-item-val" id="m-cloud">—</div><div class="metar-item-sub" id="m-cloud-sub"></div></div>
+        <div class="metar-item"><div class="metar-item-label">🌡 기온/이슬점</div><div class="metar-item-val" id="m-temp">—</div><div class="metar-item-sub" id="m-temp-sub"></div></div>
+        <div class="metar-item"><div class="metar-item-label">🔵 기압 (QNH)</div><div class="metar-item-val" id="m-qnh">—</div><div class="metar-item-sub"></div></div>
+        <div class="metar-item"><div class="metar-item-label">🌧 현재날씨</div><div class="metar-item-val" id="m-wx">—</div><div class="metar-item-sub" id="m-wx-sub"></div></div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <!-- 수동 입력 폼 -->
+      <div class="metar-form">
+        <div style="font-size:0.72rem;font-weight:700;color:var(--navy);margin-bottom:6px;">
+          📝 METAR 수동 입력
+        </div>
+        <div class="metar-input-row">
+          <input class="metar-input" id="metarInput"
+            placeholder="RKPU 220600Z 18005KT 9999 SKC 32/22 Q1010"
+            value="RKPU 220600Z 18005KT 9999 SKC 32/22 Q1010" />
+          <button class="btn-parse" onclick="parseMetarInput()">파싱</button>
+        </div>
+        <div class="metar-hint">
+          💡 항공기상청(<a href="https://www.kama.go.kr" target="_blank" style="color:var(--navy-light)">kama.go.kr</a>) 또는
+          <a href="https://aviationweather.gov/metar?ids=RKPU" target="_blank" style="color:var(--navy-light)">aviationweather.gov</a>
+          에서 RKPU METAR를 복사 후 붙여넣고 [파싱] 클릭
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- 우측: 차트 -->
   <div>
     <div class="card">
       <div class="card-title">📈 포장온도 예측 그래프 (과거 2h + 현재 + 미래 3h)</div>
@@ -275,11 +315,14 @@
   </div>
 </div>
 
+<!-- 구역 + AI + 버튼 -->
 <div style="padding:0 14px 14px;">
+
   <div class="card" style="margin-bottom:14px;">
     <div class="card-title">🛬 구역별 포장온도 현황</div>
     <div class="zones-grid" id="zonesGrid"></div>
   </div>
+
   <div class="bottom-grid">
     <div class="card">
       <div class="card-title">🤖 AI 분석 제언</div>
@@ -287,16 +330,14 @@
         <span class="ai-badge">AI ANALYSIS</span><br>
         현재 <strong>구역 1(활주로 36번단)</strong> 및 <strong>구역 5(활주로 18번단)</strong>의 포장온도가 60℃를 초과하였습니다.<br><br>
         ① 구역 1·5는 착륙·이륙·회전 빈도가 높아 포장 손상 위험 최우선 구역입니다.<br>
-        ② 구역 6(계류장)은 58.3℃로 경계치에 근접 중이며, STRIKER 소방차 사전 대기를 권고합니다.<br>
-        ③ 현재 일사량 및 저풍속 조건상 향후 1시간 내 추가 구역의 경고 상태 진입이 예상됩니다.<br><br>
+        ② METAR 데이터 입력 후 이슬점 차이(기온-이슬점)가 5℃ 미만이면 습도 관련 주의가 추가됩니다.<br>
+        ③ 구역 6(계류장)은 STRIKER 소방차 사전 대기를 권고합니다.<br><br>
         <strong>→ 살수 즉시 실시를 권고합니다.</strong>
       </div>
     </div>
     <div class="card">
       <div class="card-title">⚙️ 운영 제어</div>
-      <p style="font-size:0.78rem;color:var(--subtext);margin-bottom:12px;">
-        살수 승인 후 조치 이력이 로그에 자동 기록됩니다.
-      </p>
+      <p style="font-size:0.78rem;color:var(--subtext);margin-bottom:12px;">살수 승인 후 조치 이력이 로그에 자동 기록됩니다.</p>
       <div class="btn-row">
         <button class="btn btn-activate" id="btnActivate" onclick="activateSprinkler()">💧 살수 승인 (Activate)</button>
       </div>
@@ -305,7 +346,7 @@
         <button class="btn btn-log" onclick="openLog()">📋 로그 기록 확인</button>
       </div>
       <div class="btn-row" style="margin-top:10px;">
-        <button class="btn btn-refresh" onclick="fetchWeather(true)">🔄 기상 데이터 즉시 갱신</button>
+        <button class="btn btn-refresh" onclick="fetchWeather(true)">🔄 기상 데이터 갱신</button>
       </div>
       <div class="manual-badge" id="manualBadge">⚠ 수동 모드 활성화 중 — 자동 살수 일시 중지</div>
     </div>
@@ -324,45 +365,37 @@
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════
-//  ★ 여기에 기상청 API 키를 입력하세요
-//  발급처: https://www.data.go.kr
-//  → "기상청_단기예보 조회서비스" 검색 후 활용신청
-//  → 마이페이지 > API 활용현황 > 일반 인증키(Encoding) 복사
-// ═══════════════════════════════════════════════════════
-const API_KEY = '8646577052f9dbc55b12b2ce295111261d28c8f26515ddee74f2c288f9c3a0bb';
+// ═══════════════════════════════════════════════
+//  ★ 기상청 API 키 입력 (data.go.kr 발급)
+// ═══════════════════════════════════════════════
+const API_KEY = '여기에입력';
 
-// 울산 기상청 단기예보 격자 좌표
-const NX = 102, NY = 84;
-// 자동 갱신 주기 (밀리초) — 15분
-const REFRESH_INTERVAL = 15 * 60 * 1000;
+const NX = 102, NY = 84;                  // 울산 격자좌표
+const REFRESH_INTERVAL = 15 * 60 * 1000; // 15분 자동갱신
 
-// ── 상태 변수 ─────────────────────────────────────────
-let weatherData = {
-  airTemp: 36.4, humidity: 44, windSpeed: 2.1,
-  solar: 823, sky: 1, paveTemp: 62.1
-};
-let lastFetchSuccess = null;
+// ── 전역 상태 ────────────────────────────────────
+let wx = { airTemp:36.4, humidity:44, windSpeed:2.1, solar:823, sky:1, paveTemp:62.1 };
+let metar = { raw:'', wind:'', vis:'', cloud:'', temp:null, dewpt:null, qnh:null, wxCode:'' };
+let lastKmaUpdate = null;
 let activated = false, manualOn = false;
-let chartInstance = null;
+let chartInst = null;
 
 const zones = [
-  { id:1, name:'구역 1', sub:'활주로 36번단', tempOffset:+1.5 },
-  { id:2, name:'구역 2', sub:'활주로 중앙(북)', tempOffset:-3.2 },
-  { id:3, name:'구역 3', sub:'활주로 중앙', tempOffset:-3.6 },
-  { id:4, name:'구역 4', sub:'활주로 중앙(남)', tempOffset:-2.8 },
-  { id:5, name:'구역 5', sub:'활주로 18번단', tempOffset:+3.2 },
-  { id:6, name:'구역 6', sub:'계류장 (STRIKER)', tempOffset:-1.5 },
+  { id:1, name:'구역 1', sub:'활주로 36번단',    offset:+1.5 },
+  { id:2, name:'구역 2', sub:'활주로 중앙(북)',  offset:-3.2 },
+  { id:3, name:'구역 3', sub:'활주로 중앙',      offset:-3.6 },
+  { id:4, name:'구역 4', sub:'활주로 중앙(남)',  offset:-2.8 },
+  { id:5, name:'구역 5', sub:'활주로 18번단',    offset:+3.2 },
+  { id:6, name:'구역 6', sub:'계류장 (STRIKER)', offset:-1.5 },
 ];
 
 let logs = [
-  { type:'info', time:'시스템 시작', msg:'A.U.R.A v2.0 초기화 — 기상청 API 연동 모드' },
-  { type:'alert', time:'09:42', msg:'구역 5 포장온도 60℃ 초과 감지 — 경고 발령' },
-  { type:'warn', time:'09:51', msg:'구역 1 포장온도 60℃ 초과 감지 — 경고 발령' },
-  { type:'warn', time:'10:03', msg:'구역 6 포장온도 58℃ 초과 — 주의 상태 진입' },
+  { type:'info',  time:'시스템', msg:'A.U.R.A v3.0 초기화 — 기상청 API + METAR 연동 모드' },
+  { type:'alert', time:'09:42', msg:'구역 5 포장온도 60℃ 초과 — 경고 발령' },
+  { type:'warn',  time:'09:51', msg:'구역 1 포장온도 60℃ 초과 — 경고 발령' },
 ];
 
-// ── 시계 ──────────────────────────────────────────────
+// ── 시계 ────────────────────────────────────────
 function updateClock() {
   const n = new Date();
   document.getElementById('clock').textContent =
@@ -371,159 +404,304 @@ function updateClock() {
 }
 setInterval(updateClock, 1000); updateClock();
 
-// ── 기상청 API ────────────────────────────────────────
-function getBaseDateTime() {
-  // 단기예보는 매 3시간(0200,0500,0800,1100,1400,1700,2000,2300) 발표
-  // 발표 후 10분 뒤 제공 → 안전하게 30분 여유
-  const now = new Date();
-  const times = [2,5,8,11,14,17,20,23];
-  let baseHour = times[0];
-  for (const h of times) {
-    const pub = new Date(now);
-    pub.setHours(h, 30, 0, 0);
-    if (now >= pub) baseHour = h;
+// ══════════════════════════════════════════════════
+//  METAR 파서
+// ══════════════════════════════════════════════════
+const WX_CODES = {
+  'RA':'비', '-RA':'약한비', '+RA':'강한비',
+  'SN':'눈', '-SN':'약한눈', '+SN':'강한눈',
+  'TS':'뇌우', 'FG':'안개', 'BR':'박무',
+  'HZ':'연무', 'DZ':'이슬비', 'TSRA':'뇌우+비',
+};
+const CLOUD_CODES = { SKC:'하늘맑음', CLR:'맑음', NSC:'구름없음', CAVOK:'시정양호', FEW:'소량', SCT:'산재', BKN:'많음', OVC:'흐림' };
+const CLOUD_OKTA = { FEW:'1-2/8', SCT:'3-4/8', BKN:'5-7/8', OVC:'8/8' };
+
+function parseMetar(raw) {
+  if (!raw || raw.trim().length < 10) return null;
+  const s = raw.trim().toUpperCase();
+  const r = { raw:s, wind:'—', windDir:null, windSpd:null, vis:'—', cloud:'—', cloudCode:'',
+               temp:null, dewpt:null, qnh:null, wxCode:'', wxText:'—' };
+
+  // 지상풍: 18005KT / 18005G12KT / VRB03KT
+  const wm = s.match(/\b(VRB|\d{3})(\d{2,3})(G\d{2,3})?KT\b/);
+  if (wm) {
+    const dir = wm[1]==='VRB' ? '가변' : wm[1]+'°';
+    const spd = parseInt(wm[2]);
+    const gust = wm[3] ? ` 돌풍 ${wm[3].slice(1)}kt` : '';
+    r.wind = `${dir} ${spd}kt${gust}`;
+    r.windDir = wm[1]==='VRB' ? null : parseInt(wm[1]);
+    r.windSpd = spd;
   }
-  const pad = n => String(n).padStart(2,'0');
-  const dateStr = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`;
-  const timeStr = `${pad(baseHour)}00`;
-  return { baseDate: dateStr, baseTime: timeStr };
+
+  // 시정: 9999 / 3000 / 0800
+  const vm = s.match(/\b(\d{4})\b/);
+  if (vm) {
+    const v = parseInt(vm[1]);
+    if (v >= 100 && v <= 9999) {
+      r.vis = v === 9999 ? '10km 이상' : `${v}m`;
+    }
+  }
+  // CAVOK
+  if (s.includes('CAVOK')) r.vis = 'CAVOK (10km↑)';
+
+  // 현재날씨 코드
+  const wxKeys = Object.keys(WX_CODES).sort((a,b)=>b.length-a.length);
+  for (const k of wxKeys) {
+    if (s.includes(' '+k+' ') || s.includes(' '+k+'/')) {
+      r.wxCode = k; r.wxText = WX_CODES[k]; break;
+    }
+  }
+  if (!r.wxCode) {
+    if (s.includes('SKC')||s.includes('CLR')||s.includes('NSC')) r.wxText = '현재날씨 없음';
+  }
+
+  // 전운량: SKC / CAVOK / FEW020 / SCT015 / BKN025 / OVC010
+  const cloudTokens = [];
+  const cm = s.matchAll(/\b(SKC|CLR|NSC|FEW|SCT|BKN|OVC)(\d{3})?(CB|TCU)?\b/g);
+  for (const c of cm) {
+    const code = c[1], ht = c[2] ? parseInt(c[2])*100+'ft' : '', cb = c[3]||'';
+    cloudTokens.push(`${CLOUD_CODES[code]||code}${ht?' '+ht:''}${cb?' '+cb:''}`);
+    if (!r.cloudCode && ['FEW','SCT','BKN','OVC','SKC','CLR','NSC'].includes(code)) r.cloudCode = code;
+  }
+  if (s.includes('CAVOK')) { cloudTokens.push('CAVOK'); r.cloudCode = 'CLR'; }
+  r.cloud = cloudTokens.length ? cloudTokens.join(' / ') : '—';
+
+  // 기온/이슬점: 32/22 or M02/M08
+  const tm = s.match(/\b(M?\d{2})\/(M?\d{2})\b/);
+  if (tm) {
+    const parseT = t => t.startsWith('M') ? -parseInt(t.slice(1)) : parseInt(t);
+    r.temp  = parseT(tm[1]);
+    r.dewpt = parseT(tm[2]);
+  }
+
+  // QNH: Q1010
+  const qm = s.match(/\bQ(\d{4})\b/);
+  if (qm) r.qnh = parseInt(qm[1]);
+
+  return r;
 }
 
-async function fetchWeather(manual = false) {
-  const isKeySet = API_KEY && API_KEY !== '여기에입력' && API_KEY.length > 10;
+function applyMetar(r) {
+  if (!r) return;
+  metar = r;
 
-  setApiStatus('loading', manual ? '수동 갱신 중...' : '기상청 API 호출 중...');
+  document.getElementById('metarRaw').textContent = r.raw;
 
-  if (!isKeySet) {
-    setApiStatus('error', 'API 키 미입력 — 시뮬레이션 모드로 동작 중');
+  // 지상풍
+  document.getElementById('m-wind').textContent = r.wind;
+  document.getElementById('m-wind-sub').textContent = r.windDir!=null ? `풍향 ${r.windDir}°` : '';
+
+  // 시정
+  document.getElementById('m-vis').textContent = r.vis;
+  document.getElementById('m-vis-sub').textContent = '';
+
+  // 전운량
+  document.getElementById('m-cloud').textContent =
+    r.cloudCode ? (CLOUD_OKTA[r.cloudCode]||'') : '';
+  document.getElementById('m-cloud-sub').textContent = r.cloud.length > 20 ? r.cloud.slice(0,20)+'…' : r.cloud;
+
+  // 기온/이슬점
+  if (r.temp !== null) {
+    const spread = r.temp - r.dewpt;
+    document.getElementById('m-temp').textContent = `${r.temp}℃ / ${r.dewpt}℃`;
+    document.getElementById('m-temp-sub').textContent = `온도-이슬점 차: ${spread.toFixed(0)}℃`;
+    // 기온을 센서 데이터에도 반영
+    wx.airTemp = r.temp;
+    const solarBonus = wx.solar > 600 ? 22 : wx.solar > 300 ? 16 : 10;
+    wx.paveTemp = +(r.temp + solarBonus + (Math.random()-0.5)*1.2).toFixed(1);
+  } else {
+    document.getElementById('m-temp').textContent = '—';
+    document.getElementById('m-temp-sub').textContent = '';
+  }
+
+  // 기압
+  document.getElementById('m-qnh').textContent = r.qnh ? `${r.qnh} hPa` : '—';
+
+  // 현재날씨
+  document.getElementById('m-wx').textContent = r.wxText;
+  document.getElementById('m-wx-sub').textContent = r.wxCode ? `코드: ${r.wxCode}` : '';
+
+  // 풍속 센서 반영
+  if (r.windSpd !== null) wx.windSpeed = +(r.windSpd * 0.514).toFixed(1); // kt→m/s
+
+  // METAR 상태바 업데이트
+  const now = new Date();
+  document.getElementById('metarDot').className = 'api-dot live';
+  document.getElementById('metarStatusText').textContent =
+    `RKPU METAR 파싱 완료 — 풍향 ${r.wind} | 시정 ${r.vis} | ${r.cloud}`;
+  document.getElementById('metarLastUpdate').textContent =
+    `입력: ${now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+  document.getElementById('metarBadge').textContent = '✅ METAR 연동';
+  document.getElementById('metarBadge').className = 'badge badge-metar';
+
+  const t = now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+  logs.push({ type:'metar', time:t,
+    msg:`METAR 파싱 완료 — 기온 ${r.temp}℃ | 이슬점 ${r.dewpt}℃ | 풍향풍속 ${r.wind} | 시정 ${r.vis}` });
+
+  updateAI();
+  renderAll();
+}
+
+function parseMetarInput() {
+  const raw = document.getElementById('metarInput').value.trim();
+  if (!raw) { alert('METAR 전문을 입력해주세요.'); return; }
+  const result = parseMetar(raw);
+  if (!result || result.temp === null) {
+    alert('METAR 파싱 실패: 형식을 확인해주세요.\n예시: RKPU 220600Z 18005KT 9999 SKC 32/22 Q1010');
+    return;
+  }
+  applyMetar(result);
+}
+
+// ── 자동 METAR 시도 (aviationweather.gov CORS 프록시) ──
+async function fetchMetarAuto() {
+  try {
+    const url = `https://aviationweather.gov/api/data/metar?ids=RKPU&format=raw`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const text = await res.text();
+    const lines = text.split('\n').map(l=>l.trim()).filter(l=>l.startsWith('RKPU'));
+    if (lines.length > 0) {
+      document.getElementById('metarInput').value = lines[0];
+      applyMetar(parseMetar(lines[0]));
+      document.getElementById('metarStatusText').textContent =
+        `RKPU METAR 자동 수신 완료 (aviationweather.gov)`;
+    }
+  } catch(e) {
+    // 자동 수신 실패 시 수동 입력 폼 유지 — 콘솔에만 기록
+    console.log('METAR 자동 수신 실패 (수동 입력 사용):', e.message);
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  기상청 단기예보 API
+// ══════════════════════════════════════════════════
+function getBaseDateTime() {
+  const now = new Date();
+  const hours = [2,5,8,11,14,17,20,23];
+  let baseHour = hours[0];
+  for (const h of hours) {
+    const pub = new Date(now); pub.setHours(h,30,0,0);
+    if (now >= pub) baseHour = h;
+  }
+  const p = n => String(n).padStart(2,'0');
+  return {
+    baseDate:`${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}`,
+    baseTime:`${p(baseHour)}00`
+  };
+}
+
+async function fetchWeather(manual=false) {
+  const keyOk = API_KEY && API_KEY !== '여기에입력' && API_KEY.length > 10;
+  setKmaStatus('loading', manual ? '수동 갱신 중...' : '기상청 API 호출 중...');
+
+  if (!keyOk) {
+    setKmaStatus('error','API 키 미입력 — 시뮬레이션 모드');
     document.getElementById('apiKeyWarning').classList.remove('hidden');
-    simulateSensorFluctuation();
+    simulateFluctuation();
     renderAll();
     return;
   }
-
   document.getElementById('apiKeyWarning').classList.add('hidden');
 
   try {
     const { baseDate, baseTime } = getBaseDateTime();
     const url = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst`
-      + `?serviceKey=${encodeURIComponent(API_KEY)}`
-      + `&pageNo=1&numOfRows=100&dataType=JSON`
-      + `&base_date=${baseDate}&base_time=${baseTime}`
-      + `&nx=${NX}&ny=${NY}`;
+      + `?serviceKey=${encodeURIComponent(API_KEY)}&pageNo=1&numOfRows=100&dataType=JSON`
+      + `&base_date=${baseDate}&base_time=${baseTime}&nx=${NX}&ny=${NY}`;
 
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
-
     const items = json?.response?.body?.items?.item;
-    if (!items || !Array.isArray(items)) throw new Error('응답 데이터 형식 오류');
+    if (!items) throw new Error('응답 형식 오류');
 
-    // 현재 시각에 가장 가까운 예보 추출
     const now = new Date();
-    const pad = n => String(n).padStart(2,'0');
-    const targetTime = `${pad(now.getHours())}00`;
-
-    const get = (cat) => {
-      const found = items.find(i => i.category === cat && i.fcstTime === targetTime)
-        || items.find(i => i.category === cat);
-      return found ? parseFloat(found.fcstValue) : null;
+    const p = n => String(n).padStart(2,'0');
+    const tgt = `${p(now.getHours())}00`;
+    const get = cat => {
+      const f = items.find(i=>i.category===cat && i.fcstTime===tgt) || items.find(i=>i.category===cat);
+      return f ? parseFloat(f.fcstValue) : null;
     };
 
-    const airTemp   = get('TMP');   // 기온 (℃)
-    const humidity  = get('REH');   // 습도 (%)
-    const windSpeed = get('WSD');   // 풍속 (m/s)
-    const sky       = get('SKY');   // 하늘상태 (1맑음 3구름 4흐림)
-    const pty       = get('PTY');   // 강수형태
+    const airTemp  = get('TMP');
+    const humidity = get('REH');
+    const windSpd  = get('WSD');
+    const sky      = get('SKY');
 
-    if (airTemp === null) throw new Error('기온 데이터 없음');
+    if (airTemp===null) throw new Error('기온 데이터 없음');
 
-    // 일사량 추정: 하늘상태 + 시각 기반
     const hr = now.getHours();
-    const dayFactor = Math.max(0, Math.sin((hr - 6) / 12 * Math.PI));
-    const skyFactor = sky === 1 ? 1.0 : sky === 3 ? 0.55 : 0.2;
-    const solar = Math.round(1050 * dayFactor * skyFactor);
+    const dayF = Math.max(0, Math.sin((hr-6)/12*Math.PI));
+    const skyF = sky===1?1.0:sky===3?0.55:0.2;
+    const solar = Math.round(1050*dayF*skyF);
+    const bonus = solar>600?22:solar>300?16:10;
+    const paveTemp = +(airTemp+bonus+(Math.random()-0.5)*1.5).toFixed(1);
 
-    // 포장온도 추정: 기온 + 일사 기반 보정
-    const solarBonus = solar > 600 ? 22 : solar > 300 ? 16 : 10;
-    const paveTemp = +(airTemp + solarBonus + (Math.random()-0.5)*1.5).toFixed(1);
+    // METAR 기온이 있으면 METAR 우선
+    wx = {
+      airTemp: metar.temp!==null ? metar.temp : airTemp,
+      humidity: humidity||44, windSpeed: metar.windSpd!==null ? +(metar.windSpd*0.514).toFixed(1) : (windSpd||2.0),
+      solar, sky:sky||1,
+      paveTemp: metar.temp!==null ? +(metar.temp+bonus+(Math.random()-0.5)*1.2).toFixed(1) : paveTemp
+    };
 
-    weatherData = { airTemp, humidity, windSpeed: windSpeed||2.0, solar, sky: sky||1, paveTemp };
-    lastFetchSuccess = new Date();
-
-    const t = now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-    logs.push({ type:'api', time: t, msg:`기상청 API 갱신 성공 — 기온 ${airTemp}℃, 습도 ${humidity}%, 풍속 ${windSpeed}m/s` });
-
-    setApiStatus('live', `기상청 단기예보 연동 중 (울산 NX:${NX} NY:${NY})`);
+    lastKmaUpdate = new Date();
+    const t = lastKmaUpdate.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    logs.push({ type:'api', time:t, msg:`기상청 API 갱신 — 기온 ${airTemp}℃, 습도 ${humidity}%, 풍속 ${windSpd}m/s` });
+    setKmaStatus('live',`기상청 단기예보 연동 중 (울산 NX:${NX} NY:${NY})`);
     renderAll();
 
   } catch(err) {
-    console.error('기상청 API 오류:', err);
     const t = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-    logs.push({ type:'warn', time: t, msg:`API 호출 실패: ${err.message} — 마지막 성공 데이터 유지` });
-    setApiStatus('error', `API 오류: ${err.message} — 이전 데이터 유지 중`);
-    // 마지막 성공 데이터로 미세 변동 유지
-    simulateSensorFluctuation();
+    logs.push({ type:'warn', time:t, msg:`기상청 API 실패: ${err.message} — 이전 데이터 유지` });
+    setKmaStatus('error',`오류: ${err.message} — 이전 데이터 유지 중`);
+    simulateFluctuation();
     renderAll();
   }
 }
 
-function setApiStatus(state, msg) {
-  const dot = document.getElementById('apiDot');
-  const txt = document.getElementById('apiStatusText');
-  const upd = document.getElementById('apiLastUpdate');
-  const badge = document.getElementById('kmaBadgeMain');
-
-  dot.className = `api-dot ${state}`;
-  txt.textContent = msg;
-
-  if (lastFetchSuccess) {
-    upd.textContent = `마지막 갱신: ${lastFetchSuccess.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
-  }
-
-  if (state === 'live') {
-    badge.textContent = '✅ 기상청 API 연동';
-    badge.className = 'kma-badge';
-  } else if (state === 'error') {
-    badge.textContent = '⚠ API 오류';
-    badge.className = 'kma-badge error';
-  } else {
-    badge.textContent = '⟳ 불러오는 중';
-    badge.className = 'kma-badge loading';
-  }
+function setKmaStatus(state, msg) {
+  document.getElementById('apiDot').className = `api-dot ${state}`;
+  document.getElementById('apiStatusText').textContent = msg;
+  if (lastKmaUpdate)
+    document.getElementById('apiLastUpdate').textContent =
+      `마지막 갱신: ${lastKmaUpdate.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+  const b = document.getElementById('kmaBadge');
+  if (state==='live')    { b.textContent='✅ 기상청 연동'; b.className='badge badge-kma'; }
+  else if (state==='error') { b.textContent='⚠ API 오류'; b.className='badge badge-error'; }
+  else                   { b.textContent='⟳ 로딩'; b.className='badge badge-loading'; }
 }
 
-function simulateSensorFluctuation() {
-  weatherData.airTemp    = +(weatherData.airTemp + (Math.random()-0.5)*0.2).toFixed(1);
-  weatherData.solar      = Math.max(0, Math.round(weatherData.solar + (Math.random()-0.5)*15));
-  weatherData.humidity   = Math.min(100, Math.max(0, Math.round(weatherData.humidity + (Math.random()-0.5))));
-  weatherData.windSpeed  = +(Math.max(0, weatherData.windSpeed + (Math.random()-0.5)*0.15)).toFixed(1);
-  weatherData.paveTemp   = +(weatherData.paveTemp + (Math.random()-0.5)*0.3).toFixed(1);
+function simulateFluctuation() {
+  wx.airTemp    = +(wx.airTemp+(Math.random()-0.5)*0.2).toFixed(1);
+  wx.solar      = Math.max(0,Math.round(wx.solar+(Math.random()-0.5)*15));
+  wx.humidity   = Math.min(100,Math.max(0,Math.round(wx.humidity+(Math.random()-0.5))));
+  wx.windSpeed  = +(Math.max(0,wx.windSpeed+(Math.random()-0.5)*0.15)).toFixed(1);
+  wx.paveTemp   = +(wx.paveTemp+(Math.random()-0.5)*0.3).toFixed(1);
 }
 
-// ── 렌더링 ─────────────────────────────────────────────
-const SKY_LABELS = { 1:'☀️ 맑음', 2:'⛅ 구름조금', 3:'🌥 구름많음', 4:'☁️ 흐림' };
+// ══════════════════════════════════════════════════
+//  렌더링
+// ══════════════════════════════════════════════════
+const SKY_LBL = {1:'☀️ 맑음',2:'⛅ 구름조금',3:'🌥 구름많음',4:'☁️ 흐림'};
 
 function renderSensors() {
-  const d = weatherData;
+  const d = wx;
   const items = [
     { label:'포장온도 (추정)', value:d.paveTemp, unit:'℃', max:80, color:'#e53935' },
-    { label:'기온', value:d.airTemp, unit:'℃', max:50, color:'#fb8c00',
-      sub: SKY_LABELS[d.sky] || '' },
+    { label:'기온', value:d.airTemp, unit:'℃', max:50, color:'#fb8c00', sub:SKY_LBL[d.sky]||'' },
     { label:'일사량 (추정)', value:d.solar, unit:'W/m²', max:1200, color:'#f9a825' },
     { label:'습도', value:d.humidity, unit:'%', max:100, color:'#1e88e5' },
-    { label:'풍속', value:d.windSpeed, unit:'m/s', max:15, color:'#43a047' },
+    { label:'풍속', value:d.windSpeed, unit:'m/s', max:15, color:'#43a047',
+      sub: metar.wind && metar.wind!=='—' ? `METAR: ${metar.wind}` : '' },
   ];
-  document.getElementById('sensorPanel').innerHTML = items.map(s => `
+  document.getElementById('sensorPanel').innerHTML = items.map(s=>`
     <div class="sensor-item">
       <div class="sensor-left">
-        <div class="sensor-label-row">
-          <span class="sensor-label">${s.label}</span>
-        </div>
-        ${s.sub ? `<div class="sky-label">${s.sub}</div>` : ''}
-        <div class="sensor-bar">
-          <div class="sensor-bar-fill" style="width:${Math.min(100,s.value/s.max*100)}%;background:${s.color}"></div>
-        </div>
+        <div class="sensor-label-row"><span class="sensor-label">${s.label}</span></div>
+        ${s.sub?`<div class="sensor-sub">${s.sub}</div>`:''}
+        <div class="sensor-bar"><div class="sensor-bar-fill" style="width:${Math.min(100,s.value/s.max*100)}%;background:${s.color}"></div></div>
       </div>
       <div class="sensor-right">
         <span class="sensor-val" style="color:${s.color}">${s.value}</span>
@@ -533,115 +711,99 @@ function renderSensors() {
 }
 
 function getZoneTemps() {
-  return zones.map(z => +(weatherData.paveTemp + z.tempOffset).toFixed(1));
+  return zones.map(z=>+(wx.paveTemp+z.offset).toFixed(1));
 }
-
-function getZoneStatus(t) {
-  return t >= 60 ? 'warning' : t >= 58 ? 'caution' : 'normal';
-}
+function zoneSt(t){ return t>=60?'warning':t>=58?'caution':'normal'; }
 
 function renderZones() {
   const temps = getZoneTemps();
-  const labels = { warning:'🔴 경고', caution:'🟡 주의', normal:'🟢 정상' };
-  document.getElementById('zonesGrid').innerHTML = zones.map((z,i) => {
-    const st = getZoneStatus(temps[i]);
+  const lbl = {warning:'🔴 경고',caution:'🟡 주의',normal:'🟢 정상'};
+  document.getElementById('zonesGrid').innerHTML = zones.map((z,i)=>{
+    const st=zoneSt(temps[i]);
     return `<div class="zone-card ${st}">
       <div class="zone-name">${z.name}<br><small>${z.sub}</small></div>
       <div class="zone-temp">${temps[i]}℃</div>
-      <div class="zone-label">${labels[st]}</div>
+      <div class="zone-label">${lbl[st]}</div>
     </div>`;
   }).join('');
 }
 
 function buildChart() {
-  const now = new Date();
-  const labels = [], past = [], future = [], nowLine = [];
-  const offsets = [-120,-90,-60,-30,0,30,60,90,120,150,180];
-  const base = weatherData.paveTemp;
-  const curve = [-7.9,-6.3,-4.8,-2.4,0,+1.3,+2.7,+2.0,+0.6,-1.7,-3.8];
-
-  offsets.forEach((m,i) => {
-    const t = new Date(now.getTime()+m*60000);
-    const lbl = (m>0?'▶ ':'')+t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');
-    labels.push(lbl);
-    const v = +(base+curve[i]).toFixed(1);
-    past.push(i<=4 ? v : null);
-    future.push(i>=4 ? v : null);
-    nowLine.push(i===4 ? v : null);
+  const now = new Date(), base = wx.paveTemp;
+  const offsets=[-120,-90,-60,-30,0,30,60,90,120,150,180];
+  const curve=[-7.9,-6.3,-4.8,-2.4,0,+1.3,+2.7,+2.0,+0.6,-1.7,-3.8];
+  const labels=[],past=[],future=[];
+  offsets.forEach((m,i)=>{
+    const t=new Date(now.getTime()+m*60000);
+    labels.push((m>0?'▶ ':'')+t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0'));
+    const v=+(base+curve[i]).toFixed(1);
+    past.push(i<=4?v:null); future.push(i>=4?v:null);
   });
-
-  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
-  chartInstance = new Chart(document.getElementById('tempChart'), {
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  chartInst=new Chart(document.getElementById('tempChart'),{
     type:'line',
-    data:{
-      labels,
-      datasets:[
-        { label:'실측/현재 (℃)', data:past, borderColor:'#888', backgroundColor:'rgba(100,100,100,0.06)',
-          pointBackgroundColor: past.map((_,i)=>i===4?'#1F4E79':'#aaa'),
-          pointRadius: past.map((_,i)=>i===4?8:4), tension:0.4, fill:true, borderWidth:2 },
-        { label:'예측 (℃)', data:future, borderColor:'#e53935', backgroundColor:'rgba(229,57,53,0.07)',
-          borderDash:[5,4], pointBackgroundColor: future.map(v=>v===null?'transparent':v>=60?'#e53935':v>=58?'#fb8c00':'#43a047'),
-          pointRadius:future.map(v=>v===null?0:5), tension:0.4, fill:true, borderWidth:2 },
-        { label:'경보 기준 (60℃)', data:Array(labels.length).fill(60),
-          borderColor:'#e5393580', borderDash:[8,4], borderWidth:1.5, pointRadius:0, fill:false }
-      ]
-    },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:14}},
-               tooltip:{callbacks:{label:c=>` ${c.parsed.y}℃`}}},
-      scales:{
-        y:{min:50,max:72,ticks:{callback:v=>v+'℃',font:{size:11}},grid:{color:'#eef0f4'}},
-        x:{ticks:{font:{size:10}},grid:{color:'#eef0f4'}}
-      }
-    }
+    data:{labels,datasets:[
+      {label:'실측/현재 (℃)',data:past,borderColor:'#888',backgroundColor:'rgba(100,100,100,0.06)',
+       pointBackgroundColor:past.map((_,i)=>i===4?'#1F4E79':'#aaa'),pointRadius:past.map((_,i)=>i===4?8:4),tension:0.4,fill:true,borderWidth:2},
+      {label:'예측 (℃)',data:future,borderColor:'#e53935',backgroundColor:'rgba(229,57,53,0.07)',
+       borderDash:[5,4],pointBackgroundColor:future.map(v=>v===null?'transparent':v>=60?'#e53935':v>=58?'#fb8c00':'#43a047'),
+       pointRadius:future.map(v=>v===null?0:5),tension:0.4,fill:true,borderWidth:2},
+      {label:'경보 기준 (60℃)',data:Array(labels.length).fill(60),borderColor:'#e5393580',borderDash:[8,4],borderWidth:1.5,pointRadius:0,fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:14}},tooltip:{callbacks:{label:c=>` ${c.parsed.y}℃`}}},
+      scales:{y:{min:50,max:72,ticks:{callback:v=>v+'℃',font:{size:11}},grid:{color:'#eef0f4'}},
+              x:{ticks:{font:{size:10}},grid:{color:'#eef0f4'}}}}
   });
 }
 
-function getOverallStatus() {
-  if (activated) return 'activated';
-  const temps = getZoneTemps();
-  if (temps.some(t=>t>=60)) return 'warning';
-  if (temps.some(t=>t>=58)) return 'caution';
+function getOverallSt() {
+  if(activated) return 'activated';
+  const t=getZoneTemps();
+  if(t.some(v=>v>=60)) return 'warning';
+  if(t.some(v=>v>=58)) return 'caution';
   return 'normal';
 }
-
 function applyStatus(s) {
-  const bar = document.getElementById('statusBar');
-  document.getElementById('tl-r').classList.toggle('active', s==='warning');
-  document.getElementById('tl-y').classList.toggle('active', s==='caution');
-  document.getElementById('tl-g').classList.toggle('active', s==='normal'||s==='activated');
-  const warningZones = getZoneTemps().map((t,i)=>t>=60?`구역 ${zones[i].id}`:null).filter(Boolean).join(', ');
-  if (s==='warning') {
-    bar.className='warning';
-    bar.innerHTML=`<span class="status-icon">🔴</span><span>⚠ 경고: ${warningZones||'구역 1, 5'} 포장온도 60℃ 이상 — 즉시 살수 검토 요망 (토목시설물 유지관리지침 제9조)</span>`;
-  } else if (s==='caution') {
-    bar.className='caution';
-    bar.innerHTML=`<span class="status-icon">🟡</span><span>주의: 일부 구역 포장온도 58℃ 이상 — 상황 모니터링 강화</span>`;
-  } else if (s==='activated') {
-    bar.className='activated';
-    bar.innerHTML=`<span class="status-icon">🟢</span><span>✅ 살수 승인 완료 — 구역 1·5·6 살수 실시 중 | STRIKER 소방차 계류장 대기 중</span>`;
-  } else {
-    bar.className='normal';
-    bar.innerHTML=`<span class="status-icon">🟢</span><span>정상: 모든 구역 포장온도 60℃ 미만 — 이상 없음</span>`;
-  }
+  const bar=document.getElementById('statusBar');
+  document.getElementById('tl-r').classList.toggle('active',s==='warning');
+  document.getElementById('tl-y').classList.toggle('active',s==='caution');
+  document.getElementById('tl-g').classList.toggle('active',s==='normal'||s==='activated');
+  const wz=getZoneTemps().map((t,i)=>t>=60?`구역 ${zones[i].id}`:null).filter(Boolean).join(', ');
+  if(s==='warning'){bar.className='warning';bar.innerHTML=`<span>🔴</span><span>⚠ 경고: ${wz||'구역 1, 5'} 포장온도 60℃ 이상 — 즉시 살수 검토 요망 (토목시설물 유지관리지침 제9조)</span>`;}
+  else if(s==='caution'){bar.className='caution';bar.innerHTML=`<span>🟡</span><span>주의: 일부 구역 포장온도 58℃ 이상 — 모니터링 강화</span>`;}
+  else if(s==='activated'){bar.className='activated';bar.innerHTML=`<span>🟢</span><span>✅ 살수 승인 완료 — 구역 1·5·6 살수 실시 중 | STRIKER 소방차 계류장 대기 중</span>`;}
+  else{bar.className='normal';bar.innerHTML=`<span>🟢</span><span>정상: 모든 구역 60℃ 미만 — 이상 없음</span>`;}
+}
+
+function updateAI() {
+  if(activated) return;
+  const spread = metar.temp!==null && metar.dewpt!==null ? metar.temp-metar.dewpt : null;
+  const spreadWarn = spread!==null && spread<5 ? `<br>⚠ <strong>온도-이슬점 차 ${spread.toFixed(0)}℃</strong> — 습도 높음, 냉각 효율 저하 주의.` : '';
+  const wxWarn = metar.wxCode && ['RA','-RA','TSRA','TS'].includes(metar.wxCode)
+    ? `<br>🌧 현재 <strong>${metar.wxText}</strong> 관측 중 — 살수 전 항공기 운항 상태 확인 요망.` : '';
+  document.getElementById('aiText').innerHTML=`
+    <span class="ai-badge">AI ANALYSIS</span><br>
+    현재 <strong>구역 1(활주로 36번단)</strong> 및 <strong>구역 5(활주로 18번단)</strong>의 포장온도가 60℃를 초과하였습니다.${spreadWarn}${wxWarn}<br><br>
+    ① 구역 1·5는 착륙·이륙·회전 빈도가 높아 포장 손상 위험 최우선 구역입니다.<br>
+    ② 구역 6(계류장)은 STRIKER 소방차 사전 대기를 권고합니다.<br>
+    ③ 현재 일사량(${wx.solar} W/m²) 및 풍속(${wx.windSpeed} m/s) 조건상 향후 1시간 내 추가 구역 경고 진입 예상.<br><br>
+    <strong>→ 살수 즉시 실시를 권고합니다.</strong>`;
 }
 
 function renderAll() {
-  renderSensors();
-  renderZones();
-  buildChart();
-  if (!activated) applyStatus(getOverallStatus());
+  renderSensors(); renderZones(); buildChart();
+  if(!activated) applyStatus(getOverallSt());
 }
 
-// ── 버튼 동작 ──────────────────────────────────────────
+// ── 버튼 ──────────────────────────────────────────
 function activateSprinkler() {
-  if (activated) return;
-  activated = true;
-  const btn = document.getElementById('btnActivate');
-  btn.textContent = '✅ 살수 승인 완료'; btn.classList.add('done'); btn.disabled = true;
+  if(activated) return;
+  activated=true;
+  const btn=document.getElementById('btnActivate');
+  btn.textContent='✅ 살수 승인 완료'; btn.classList.add('done'); btn.disabled=true;
   applyStatus('activated');
-  document.getElementById('aiText').innerHTML = `
+  document.getElementById('aiText').innerHTML=`
     <span class="ai-badge">AI ANALYSIS — 조치 완료</span><br>
     <strong>살수 승인이 완료되었습니다.</strong><br><br>
     ✅ 구역 1 (활주로 36번단) — 살수 실시 중<br>
@@ -650,43 +812,42 @@ function activateSprinkler() {
     예상 냉각 시간: 약 <strong>15~20분</strong> 후 60℃ 이하 복귀 전망.<br>
     살수 종료 후 재측정 및 상태 재평가를 실시하십시오.<br><br>
     <strong>→ 모든 조치가 로그에 기록되었습니다.</strong>`;
-  const t = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-  logs.push({ type:'ok', time:t, msg:'살수 승인 완료 — 구역 1·5·6 살수 실시. STRIKER 계류장 대기.' });
+  const t=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+  logs.push({type:'ok',time:t,msg:'살수 승인 완료 — 구역 1·5·6 살수 실시. STRIKER 계류장 대기.'});
 }
 
 function toggleManual() {
-  manualOn = !manualOn;
-  document.getElementById('manualBadge').style.display = manualOn ? 'block' : 'none';
-  const t = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-  logs.push({ type:manualOn?'warn':'info', time:t,
-    msg:manualOn?'수동 모드 전환 — 자동 살수 일시 중지':'수동 모드 해제 — 자동 모드 복귀' });
+  manualOn=!manualOn;
+  document.getElementById('manualBadge').style.display=manualOn?'block':'none';
+  const t=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+  logs.push({type:manualOn?'warn':'info',time:t,msg:manualOn?'수동 모드 전환 — 자동 살수 일시 중지':'수동 모드 해제 — 자동 모드 복귀'});
 }
 
 function openLog() {
-  document.getElementById('logBody').innerHTML =
-    logs.slice().reverse().map(l=>`
-      <div class="log-item ${l.type}">
-        <span class="log-time">${l.time}</span>${l.msg}
-      </div>`).join('');
+  document.getElementById('logBody').innerHTML=
+    logs.slice().reverse().map(l=>`<div class="log-item ${l.type}"><span class="log-time">${l.time}</span>${l.msg}</div>`).join('');
   document.getElementById('logModal').classList.add('open');
 }
-function closeLog() { document.getElementById('logModal').classList.remove('open'); }
-document.getElementById('logModal').addEventListener('click', e => {
-  if (e.target===document.getElementById('logModal')) closeLog();
+function closeLog(){ document.getElementById('logModal').classList.remove('open'); }
+document.getElementById('logModal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('logModal')) closeLog();
 });
 
-// ── 초기 실행 + 주기적 갱신 ─────────────────────────────
+// ── 초기 실행 ─────────────────────────────────────
 fetchWeather();
-setInterval(() => fetchWeather(), REFRESH_INTERVAL);
+fetchMetarAuto();
+setInterval(()=>fetchWeather(), REFRESH_INTERVAL);
+setInterval(()=>fetchMetarAuto(), REFRESH_INTERVAL); // METAR도 15분 갱신 시도
 
-// 시뮬레이션 모드일 때만 미세 변동 (3초)
-setInterval(() => {
-  if (API_KEY === '여기에입력' || !API_KEY) {
-    simulateSensorFluctuation();
-    renderSensors();
-    renderZones();
+// 시뮬레이션 모드 미세변동
+setInterval(()=>{
+  if(!API_KEY || API_KEY==='여기에입력'){
+    simulateFluctuation(); renderSensors(); renderZones();
   }
-}, 3000);
+},3000);
+
+// 기본 METAR 예시 즉시 파싱 (시작 시 화면 채우기)
+applyMetar(parseMetar('RKPU 220600Z 18005KT 9999 SKC 32/22 Q1010'));
 </script>
 </body>
 </html>
