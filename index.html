@@ -764,34 +764,46 @@ function loadExcelFile(file){
 }
 
 // 컬럼명 정규화 매핑
-const COL_MAP = {
-  time:     ['측정시간','시간'],
-  zone:     ['구역코드','구역'],
-  airTemp:  ['대기온도'],
-  solar:    ['일사량'],
-  humidity: ['습도'],
-  windSpd:  ['풍속'],
-  paveTemp: ['포장온도'],
-  sprinkle: ['살수여부','살수 여부'],
-  sprVol:   ['살수량','살수 량'],
-  tempAfter:['살수후 표면온도','살수후표면온도','살수 후 표면온도','살수후온도'],
+// 실제 컬럼명 그대로 매핑
+const COL_EXACT = {
+  time:     '측정시간',
+  zone:     '구역코드',
+  airTemp:  '대기온도(℃)',
+  solar:    '일사량(MJ/㎡)',
+  humidity: '습도(%)',
+  windSpd:  '풍속(KT)',
+  paveTemp: '포장온도(℃)',
+  sprinkle: '살수여부',
+  sprVol:   '살수량(L)',
+  tempAfter:'살수후 표면온도(℃)',
 };
 
-// 컬럼명 정규화: 괄호·단위·공백·특수문자 제거 후 비교
-function normCol(s){ return String(s).replace(/[\s\(\)℃%㎡\/MJmsktkKT·]+/g,'').toLowerCase(); }
+// 정규화 비교: 괄호·단위·공백 제거 후 매칭
+function normCol(s){ return String(s).replace(/[\s\(\)℃%㎡\/\.\,·LMJKT]+/gi,'').toLowerCase(); }
 
 function findCol(sample, aliases){
   const rawKeys = Object.keys(sample);
+  // 1차: 정확히 일치
+  for(const a of aliases){
+    const found = rawKeys.find(k => k.trim() === a);
+    if(found) return found;
+  }
+  // 2차: 정규화 후 포함 관계
   for(const a of aliases){
     const na = normCol(a);
-    const matched = rawKeys.find(k => {
+    const found = rawKeys.find(k => {
       const nk = normCol(k);
-      return nk.includes(na) || na.includes(nk);
+      return nk === na || nk.includes(na) || na.includes(nk);
     });
-    if(matched) return matched;
+    if(found) return found;
   }
   return null;
 }
+
+// COL_MAP을 COL_EXACT 기반으로 생성
+const COL_MAP = Object.fromEntries(
+  Object.entries(COL_EXACT).map(([k,v])=>[k,[v]])
+);
 function n2(v){return parseFloat(String(v).replace(/[^0-9.\-]/g,''));}
 
 // 시간 파싱 (10:00, 1000, 10 등 대응)
@@ -850,8 +862,14 @@ function processAndTrain(rows){
   document.getElementById('mlBanner').style.display='flex';
   document.getElementById('mlTxt').textContent=`AI 모델 — R²=${model.r2.toFixed(3)}, RMSE=${model.rmse.toFixed(2)}℃, ${model.n}건`;
   buildChart(); updateAI();
+
+  // 학습 완료 알림 (탭 상단으로 스크롤)
+  document.getElementById('tab-ml').scrollIntoView({behavior:'smooth', block:'start'});
   const t=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
   logs.push({type:'ml',time:t,msg:`AI 모델 학습 완료 — ${model.n}건, R²=${model.r2.toFixed(3)}, RMSE=${model.rmse.toFixed(2)}℃`});
+
+  // 완료 토스트 메시지
+  showToast(`✅ AI 학습 완료! 학습 ${model.n}건 · R²=${model.r2.toFixed(3)} · RMSE=${model.rmse.toFixed(2)}℃`);
 }
 
 // 선형회귀 (정규방정식)
