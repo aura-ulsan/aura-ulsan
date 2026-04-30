@@ -875,7 +875,7 @@ function renderSensors(){
     </div>`).join('');
 }
 
-function getZoneTemps(){return zones.map(z=>+(（mlModel?predictPave():wx.paveTemp）+z.off).toFixed(1));}
+function getZoneTemps(){const base=mlModel?predictPave():wx.paveTemp;return zones.map(z=>+(base+z.off).toFixed(1));}
 function zSt(t){return t>=60?'warning':t>=58?'caution':'normal';}
 function renderZones(){
   const temps=getZoneTemps(),lbl={warning:'🔴 경고',caution:'🟡 주의',normal:'🟢 정상'};
@@ -946,11 +946,7 @@ function toggleManual(){manualOn=!manualOn;document.getElementById('manBdg').sty
 function openLog(){document.getElementById('logBody').innerHTML=logs.slice().reverse().map(l=>`<div class="log-item ${l.type}"><span class="lt">${l.time}</span>${l.msg}</div>`).join('');document.getElementById('logModal').classList.add('open');}
 function closeLog(){document.getElementById('logModal').classList.remove('open');}
 
-// getZoneTemps 전역 함수 수정 (괄호 오타 수정)
-function getZoneTemps(){
-  const base=mlModel?predictPave():wx.paveTemp;
-  return zones.map(z=>+(base+z.off).toFixed(1));
-}
+
 
 // ════════════════════════════════════════
 //  초기 실행
