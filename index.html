@@ -857,41 +857,36 @@ function processAndTrain(rows, fileName) {
     return parseInt(s) || 12;
   }
 
-  var fNames = ['대기온도(℃)', '일사량(MJ/㎡)', '습도(%)', '풍속(KT)', '시간(cos)', '시간(sin)'];
+  // ★ 특징 변수: 시간 삼각함수 제거, 실질 영향 변수만 사용
+  // 포장온도 = f(기온, 일사량, 습도, 풍속)
+  // 시간(cos/sin)은 다중공선성 문제로 제거
+  var fNames = ['대기온도(℃)', '일사량(MJ/㎡)', '습도(%)', '풍속(m/s)'];
   var X = [], Y = [], rawRows = [];
   var skipCount = 0;
 
   for (var ri = 0; ri < rows.length; ri++) {
     var row = rows[ri];
-    var at  = n2(cols.airTemp  ? row[cols.airTemp]  : NaN);
-    var sol = n2(cols.solar    ? row[cols.solar]    : NaN);
-    var hum = n2(cols.humidity ? row[cols.humidity] : NaN);
-    var wsKt= n2(cols.windSpd  ? row[cols.windSpd]  : NaN); // KT 단위
-    var pt  = n2(cols.paveTemp ? row[cols.paveTemp] : NaN);
-    var hr  = cols.time ? parseHour(row[cols.time]) : 12;
-    var zone = n2(cols.zone ? row[cols.zone] : NaN);
-    var spk = cols.sprinkle ? (n2(row[cols.sprinkle]) > 0 ? 1 : 0) : 0;
-    var ta  = cols.tempAfter ? n2(row[cols.tempAfter]) : NaN;
+    var at   = n2(cols.airTemp  ? row[cols.airTemp]  : NaN);
+    var sol  = n2(cols.solar    ? row[cols.solar]    : NaN);
+    var hum  = n2(cols.humidity ? row[cols.humidity] : NaN);
+    var wsKt = n2(cols.windSpd  ? row[cols.windSpd]  : NaN);
+    var pt   = n2(cols.paveTemp ? row[cols.paveTemp] : NaN);
+    var hr   = cols.time ? parseHour(row[cols.time]) : 12;
+    var zone = n2(cols.zone     ? row[cols.zone]     : NaN);
+    var spk  = cols.sprinkle ? (n2(row[cols.sprinkle]) > 0 ? 1 : 0) : 0;
+    var ta   = cols.tempAfter ? n2(row[cols.tempAfter]) : NaN;
 
     if (isNaN(at) || isNaN(sol) || isNaN(hum) || isNaN(wsKt) || isNaN(pt) ||
         !isFinite(at) || !isFinite(sol) || !isFinite(hum) || !isFinite(wsKt) || !isFinite(pt)) {
       skipCount++; continue;
     }
 
-    // ★ 풍속 KT → m/s 변환 (1KT = 0.514 m/s)
+    // KT → m/s
     var ws = parseFloat((wsKt * 0.514).toFixed(2));
 
-    // ★ 일사량 MJ/㎡ → 정규화 (모델 내부 단위 통일)
-    // MJ/㎡ 그대로 사용 (0~4 범위, 실시간도 동일 단위로 변환)
-    var solNorm = sol;
-
-    var hcos = Math.cos(2 * Math.PI * hr / 24);
-    var hsin = Math.sin(2 * Math.PI * hr / 24);
-
-    // 시간대 가중치는 예측 시에만 적용 (학습 시엔 미적용 → 과적합 방지)
-    X.push([at, solNorm, hum, ws, hcos, hsin]);
+    X.push([at, sol, hum, ws]);
     Y.push(pt);
-    rawRows.push({ at: at, sol: solNorm, hum: hum, ws: ws, hr: hr, pt: pt, zone: zone, spk: spk, ta: ta });
+    rawRows.push({ at: at, sol: sol, hum: hum, ws: ws, hr: hr, pt: pt, zone: zone, spk: spk, ta: ta });
   }
 
   // 파일 정보 표시
@@ -948,9 +943,7 @@ function processAndTrain(rows, fileName) {
       var zX = [], zY = [];
       for (var zi = 0; zi < zRows.length; zi++) {
         var r = zRows[zi];
-        var hr2 = r.hr;
-        var solarW = applyTimeWeight(r.sol, hr2);
-        zX.push([r.at, solarW, r.hum, r.ws, Math.cos(2 * Math.PI * hr2 / 24), Math.sin(2 * Math.PI * hr2 / 24)]);
+        zX.push([r.at, r.sol, r.hum, r.ws]); // 시간 변수 제거
         zY.push(r.pt);
       }
       var zm = fitLR(zX, zY);
@@ -958,7 +951,7 @@ function processAndTrain(rows, fileName) {
       var zyMean = zY.reduce(function(a, b) { return a + b; }, 0) / zY.length;
       var zSsTot = zY.reduce(function(a, v) { return a + (v - zyMean) * (v - zyMean); }, 0);
       var zSsRes = zY.reduce(function(a, v, i) { return a + (v - zpreds[i]) * (v - zpreds[i]); }, 0);
-      zm.r2 = Math.max(0, 1 - zSsRes / zSsTot);
+      zm.r2 = zSsTot > 0 ? Math.max(0, 1 - zSsRes / zSsTot) : 0;
       zm.n = zRows.length;
       zoneModels[z] = zm;
     }
