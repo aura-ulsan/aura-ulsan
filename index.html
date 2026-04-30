@@ -238,8 +238,49 @@ header{background:linear-gradient(135deg,var(--navy-d),var(--navy) 60%,var(--nav
       <div class="tl tl-g" id="tl-g"></div>
     </div>
     <div id="clock">--:--:--</div>
+    <button onclick="openSettings()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:6px 13px;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;">⚙️ API 설정</button>
   </div>
 </header>
+
+<!-- 설정 모달 -->
+<div class="modal-ov" id="settingModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-hdr">
+      <h2>⚙️ 기상청 API 키 설정</h2>
+      <button class="modal-cls" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:.8rem;color:var(--sub);margin-bottom:14px;line-height:1.7;">
+        API 키는 이 기기의 브라우저에만 저장되며,<br>
+        GitHub 코드에는 절대 노출되지 않습니다. 🔒
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <label style="font-size:.76rem;font-weight:700;color:var(--navy);display:block;margin-bottom:5px;">기상청 API 키 (data.go.kr)</label>
+        <input id="apiKeyInput" type="password"
+          placeholder="발급받은 API 키 붙여넣기"
+          style="width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-size:.82rem;font-family:var(--font-mono,'Courier New');"
+          onkeydown="if(event.key==='Enter')saveSettings()"/>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+          <div id="apiKeyStatus" style="font-size:.74rem;font-weight:600;">확인 중...</div>
+          <button onclick="clearSettings()" style="font-size:.72rem;color:#b71c1c;background:none;border:none;cursor:pointer;text-decoration:underline;">키 삭제</button>
+        </div>
+      </div>
+
+      <div style="background:#f0f4fa;border-radius:8px;padding:10px 12px;font-size:.75rem;color:var(--sub);margin-bottom:16px;line-height:1.7;">
+        💡 <strong>발급 방법</strong><br>
+        1. <a href="https://www.data.go.kr" target="_blank" style="color:var(--navy-l);">data.go.kr</a> 접속 → 로그인<br>
+        2. "기상청_단기예보 조회서비스" 검색 → 활용신청<br>
+        3. 마이페이지 → 일반 인증키(Encoding) 복사
+      </div>
+
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveSettings()" style="flex:1;padding:11px;background:var(--navy);color:#fff;border:none;border-radius:10px;font-size:.84rem;font-weight:700;cursor:pointer;">💾 저장 및 적용</button>
+        <button onclick="closeSettings()" style="flex:1;padding:11px;background:#e8edf5;color:var(--navy);border:2px solid var(--border);border-radius:10px;font-size:.84rem;font-weight:700;cursor:pointer;">취소</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="banner" id="apiBanner"><div class="dot dot-load" id="apiDot"></div><span id="apiTxt">기상청 API 연결 중...</span><span class="ban-r" id="apiUpd"></span></div>
 <div class="banner" id="metarBanner"><div class="dot dot-man" id="metarDot"></div><span id="metarTxt">RKPU METAR — 수동 입력 대기</span><span class="ban-r" id="metarUpd"></span></div>
@@ -432,10 +473,49 @@ header{background:linear-gradient(135deg,var(--navy-d),var(--navy) 60%,var(--nav
 
 <script>
 // ═══════════════════════════════════
-//  ★ 기상청 API 키 입력
+//  API 키 — 설정창에서 입력 후 저장
 // ═══════════════════════════════════
-const API_KEY = '8646577052f9dbc55b12b2ce295111261d28c8f26515ddee74f2c288f9c3a0bb';
+function getApiKey(){ return localStorage.getItem('aura_api_key')||''; }
+function API_KEY(){ return getApiKey(); }
+let API_KEY = getApiKey();
 const NX=102, NY=84, REFRESH=15*60*1000;
+
+// ── 설정 모달 ──────────────────────
+function openSettings(){
+  document.getElementById('settingModal').classList.add('open');
+  document.getElementById('apiKeyInput').value=getApiKey();
+  updateApiKeyStatus();
+}
+function closeSettings(){ document.getElementById('settingModal').classList.remove('open'); }
+function saveSettings(){
+  const k=document.getElementById('apiKeyInput').value.trim();
+  if(!k){ alert('API 키를 입력해주세요.'); return; }
+  localStorage.setItem('aura_api_key', k);
+  API_KEY = k;
+  updateApiKeyStatus();
+  document.getElementById('apiKeyWarn').classList.add('hidden');
+  alert('✅ API 키가 저장되었습니다.\n기상 데이터를 새로 불러옵니다.');
+  closeSettings();
+  fetchWeather(true);
+}
+function clearSettings(){
+  if(!confirm('저장된 API 키를 삭제하시겠습니까?')) return;
+  localStorage.removeItem('aura_api_key');
+  API_KEY = '';
+  document.getElementById('apiKeyInput').value='';
+  updateApiKeyStatus();
+}
+function updateApiKeyStatus(){
+  const k=getApiKey();
+  const el=document.getElementById('apiKeyStatus');
+  if(k && k.length>10){
+    el.textContent=`✅ API 키 저장됨 (${k.slice(0,6)}···${k.slice(-4)})`;
+    el.style.color='#1b5e20';
+  } else {
+    el.textContent='⚠ API 키 미입력';
+    el.style.color='#b71c1c';
+  }
+}
 
 // ── 전역 상태 ──────────────────────
 let wx={airTemp:36.4,humidity:44,windSpeed:2.1,solar:823,sky:1,paveTemp:62.1};
@@ -540,7 +620,7 @@ function getBaseDT(){
   return{baseDate:`${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}`,baseTime:`${p(bh)}00`};
 }
 async function fetchWeather(manual=false){
-  const ok=API_KEY&&API_KEY!=='8646577052f9dbc55b12b2ce295111261d28c8f26515ddee74f2c288f9c3a0bb'&&API_KEY.length>10;
+  const ok=API_KEY&&API_KEY.length>10;
   setKma('loading',manual?'수동 갱신 중...':'기상청 API 호출 중...');
   if(!ok){setKma('error','API 키 미입력 — 시뮬레이션 모드');document.getElementById('apiKeyWarn').classList.remove('hidden');simFluct();renderAll();return;}
   document.getElementById('apiKeyWarn').classList.add('hidden');
@@ -979,11 +1059,14 @@ function closeLog(){document.getElementById('logModal').classList.remove('open')
 document.getElementById('logModal').addEventListener('click',e=>{if(e.target===document.getElementById('logModal'))closeLog();});
 
 // ── 초기 실행 ──────────────────────
+API_KEY = getApiKey(); // 저장된 키 불러오기
+if(!API_KEY) document.getElementById('apiKeyWarn').classList.remove('hidden');
+else document.getElementById('apiKeyWarn').classList.add('hidden');
 fetchWeather();
 fetchMetarAuto();
 setInterval(fetchWeather,REFRESH);
 setInterval(fetchMetarAuto,REFRESH);
-setInterval(()=>{if(!API_KEY||API_KEY==='8646577052f9dbc55b12b2ce295111261d28c8f26515ddee74f2c288f9c3a0bb'){simFluct();renderSensors();renderZones();}},3000);
+setInterval(()=>{if(!API_KEY||API_KEY==='여기에입력'){simFluct();renderSensors();renderZones();}},3000);
 applyMetar(parseMetar('RKPU 220600Z 18005KT 9999 SKC 32/22 Q1010'));
 renderAll();
 </script>
