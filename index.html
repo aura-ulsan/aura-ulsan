@@ -540,7 +540,7 @@ function getBaseDT(){
   return{baseDate:`${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}`,baseTime:`${p(bh)}00`};
 }
 async function fetchWeather(manual=false){
-  const ok=API_KEY&&API_KEY!=='여기에입력'&&API_KEY.length>10;
+  const ok=API_KEY&&API_KEY!=='8646577052f9dbc55b12b2ce295111261d28c8f26515ddee74f2c288f9c3a0bb'&&API_KEY.length>10;
   setKma('loading',manual?'수동 갱신 중...':'기상청 API 호출 중...');
   if(!ok){setKma('error','API 키 미입력 — 시뮬레이션 모드');document.getElementById('apiKeyWarn').classList.remove('hidden');simFluct();renderAll();return;}
   document.getElementById('apiKeyWarn').classList.add('hidden');
@@ -983,7 +983,7 @@ fetchWeather();
 fetchMetarAuto();
 setInterval(fetchWeather,REFRESH);
 setInterval(fetchMetarAuto,REFRESH);
-setInterval(()=>{if(!API_KEY||API_KEY==='여기에입력'){simFluct();renderSensors();renderZones();}},3000);
+setInterval(()=>{if(!API_KEY||API_KEY==='8646577052f9dbc55b12b2ce295111261d28c8f26515ddee74f2c288f9c3a0bb'){simFluct();renderSensors();renderZones();}},3000);
 applyMetar(parseMetar('RKPU 220600Z 18005KT 9999 SKC 32/22 Q1010'));
 renderAll();
 </script>
