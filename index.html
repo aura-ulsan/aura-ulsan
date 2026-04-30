@@ -1526,9 +1526,9 @@ function getZoneTempById(zoneId) {
 refreshKeyStatus();
 renderAll();
 fetchKMA(false);
-fetchMetarAuto();
+fetchMetarAuto(); // Open-Meteo 자동 호출
 setInterval(function() { fetchKMA(false); }, REFRESH);
-setInterval(fetchMetarAuto, 30 * 60 * 1000);
+setInterval(fetchMetarAuto, 10 * 60 * 1000); // 10분마다 갱신
 setInterval(function() {
   if (!getKey()) { simFluct(); renderSensors(); renderZones(); }
   recordTempHistory();
