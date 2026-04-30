@@ -185,6 +185,9 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
 <div class="banner ban-metar"><div class="dot dot-man" id="metarDot"></div><span id="metarTxt">RKPU METAR 대기 중</span><span class="ban-r" id="metarUpd"></span></div>
 <div class="banner ban-ml" id="mlBanner"><div class="dot dot-live"></div><span id="mlTxt">AI 모델 대기</span></div>
 
+<!-- 60℃ 도달 예상 경보 배너 -->
+<div id="alertBanner" style="display:none;align-items:center;gap:10px;padding:10px 20px;color:#fff;font-size:.82rem;font-weight:700;flex-wrap:wrap;transition:background .5s;"></div>
+
 <div id="statusBar" class="warning">
   <span>&#128308;</span>
   <span id="statusText">&#9888; 경고: 포장온도 60℃ 이상 — 즉시 살수 검토 요망 (토목시설물 유지관리지침 제9조)</span>
@@ -252,6 +255,12 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
         </div>
       </div>
       <div class="card">
+        <div class="card-title">&#128167; 살수 우선순위 (자동 정렬)</div>
+        <div id="priorityPanel"><div style="text-align:center;padding:14px;color:var(--sub);font-size:.78rem;">데이터 로딩 중...</div></div>
+      </div>
+    </div>
+    <div class="bg-grid" style="margin-top:14px;">
+      <div class="card">
         <div class="card-title">&#9881;&#65039; 운영 제어</div>
         <p style="font-size:.74rem;color:var(--sub);margin-bottom:9px;">살수 승인 후 조치 이력이 로그에 자동 기록됩니다.</p>
         <div class="br"><button class="btn btn-act" id="btnAct" onclick="activateSprinkler()">&#128167; 살수 승인 (Activate)</button></div>
@@ -264,6 +273,13 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
           <button class="btn btn-ml" onclick="showTab('ml')">&#129302; AI 학습</button>
         </div>
         <div class="man-bdg" id="manBdg">&#9888; 수동 모드 활성화 중</div>
+      </div>
+      <div class="card">
+        <div class="card-title">&#127777;&#65039; 살수 후 예상 온도</div>
+        <div style="font-size:.73rem;color:var(--sub);margin-bottom:8px;">학습 데이터 기반 살수 효과 적용 (구역별 개별 계산)</div>
+        <div id="postSprinklePanel">
+          <div style="text-align:center;padding:10px;color:var(--sub);font-size:.78rem;">AI 학습 후 표시됩니다.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -324,8 +340,13 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
       <div id="mlStats" style="display:none;">
         <div class="ml-stat">
           <div class="ml-stat-item"><div class="ml-stat-lbl">학습 데이터</div><div class="ml-stat-val" id="stat-n">—</div><div style="font-size:.63rem;color:var(--sub)">건</div></div>
-          <div class="ml-stat-item"><div class="ml-stat-lbl">모델 정확도 R²</div><div class="ml-stat-val" id="stat-r2" style="color:#7b1fa2">—</div></div>
+          <div class="ml-stat-item"><div class="ml-stat-lbl">전체 모델 R²</div><div class="ml-stat-val" id="stat-r2" style="color:#7b1fa2">—</div></div>
           <div class="ml-stat-item"><div class="ml-stat-lbl">RMSE</div><div class="ml-stat-val" id="stat-rmse">—</div><div style="font-size:.63rem;color:var(--sub)">℃</div></div>
+        </div>
+        <!-- 구역별 모델 정보 -->
+        <div id="zoneModelWrap" style="display:none;margin-bottom:12px;">
+          <div class="card-title" style="margin-bottom:6px;">&#127968; 구역별 개별 모델 (시간대 가중치 적용)</div>
+          <div id="zoneModelInfo"></div>
         </div>
         <div class="card-title">&#128208; 회귀 계수 (변수 중요도)</div>
         <div id="mlCoef"></div>
@@ -405,7 +426,10 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
 var NX = 102, NY = 84, REFRESH = 15 * 60 * 1000;
 var wx = { airTemp: 16.0, dewpt: 8.0, humidity: 60, windDir: 180, windSpeed: 2.5, solar: 2.0, paveTemp: 32.0, sky: 1, qnh: 1015 };
 var metarData = { raw: '', wind: '—', windDir: null, windSpd: null, vis: '—', cloud: '—', cloudCode: '', temp: null, dewpt: null, qnh: null, wxText: '—', wxCode: '', skyNum: 1 };
-var mlModel = null;
+var mlModel = null;       // 전체 모델 (fallback)
+var zoneModels = {};      // 구역별 개별 모델 {1: model, 2: model, ...}
+var sprinkleEffect = {};  // 구역별 살수 효과 {1: avgReduction, ...}
+var tempHistory = [];     // 최근 온도 이력 [{time, paveTemp}]
 var anaData = null;
 var activated = false;
 var manualOn = false;
@@ -844,15 +868,80 @@ function processAndTrain(rows, fileName) {
   setProg(false);
   mlModel = model;
   anaData = { rawRows: rawRows, preds: preds, Y: Y };
+
+  // ── 구역별 개별 모델 학습 ──
+  zoneModels = {};
+  sprinkleEffect = {};
+  var totalEffect = [], totalEffectN = 0;
+  for (var z = 1; z <= 6; z++) {
+    var zRows = rawRows.filter(function(r) { return r.zone === z; });
+    if (zRows.length >= 5) {
+      var zX = [], zY = [];
+      for (var zi = 0; zi < zRows.length; zi++) {
+        var r = zRows[zi];
+        var hr2 = r.hr;
+        var solarW = applyTimeWeight(r.sol, hr2);
+        zX.push([r.at, solarW, r.hum, r.ws, Math.cos(2 * Math.PI * hr2 / 24), Math.sin(2 * Math.PI * hr2 / 24)]);
+        zY.push(r.pt);
+      }
+      var zm = fitLR(zX, zY);
+      var zpreds = zX.map(function(x) { return predict(zm, x); });
+      var zyMean = zY.reduce(function(a, b) { return a + b; }, 0) / zY.length;
+      var zSsTot = zY.reduce(function(a, v) { return a + (v - zyMean) * (v - zyMean); }, 0);
+      var zSsRes = zY.reduce(function(a, v, i) { return a + (v - zpreds[i]) * (v - zpreds[i]); }, 0);
+      zm.r2 = Math.max(0, 1 - zSsRes / zSsTot);
+      zm.n = zRows.length;
+      zoneModels[z] = zm;
+    }
+    // 살수 효과 계산
+    var spkZ = rawRows.filter(function(r) { return r.zone === z && r.spk && !isNaN(r.ta) && isFinite(r.ta); });
+    if (spkZ.length > 0) {
+      var redZ = spkZ.map(function(r) { return r.pt - r.ta; });
+      var avgZ = redZ.reduce(function(a, b) { return a + b; }, 0) / redZ.length;
+      sprinkleEffect[z] = parseFloat(avgZ.toFixed(1));
+      for (var si = 0; si < redZ.length; si++) totalEffect.push(redZ[si]);
+    }
+  }
+  if (totalEffect.length > 0) {
+    sprinkleEffect['all'] = parseFloat((totalEffect.reduce(function(a, b) { return a + b; }, 0) / totalEffect.length).toFixed(1));
+  }
+
   showMLResults(model, X, Y, preds);
   updateAnalysis(rawRows);
   document.getElementById('chartModelBdg').style.display = 'inline-flex';
   document.getElementById('mlBanner').style.display = 'flex';
-  document.getElementById('mlTxt').textContent = 'AI 모델 — R²=' + model.r2.toFixed(3) + ', RMSE=' + model.rmse.toFixed(2) + '℃, ' + model.n + '건';
+
+  // 모델 요약 배너
+  var zModelCount = Object.keys(zoneModels).length;
+  document.getElementById('mlTxt').textContent =
+    'AI 모델 — 전체 R²=' + model.r2.toFixed(3) +
+    ', RMSE=' + model.rmse.toFixed(2) + '℃' +
+    ', 구역별 모델 ' + zModelCount + '개' +
+    ', 살수 저감 평균 ' + (sprinkleEffect['all'] || '—') + '℃';
+
+  // 구역별 모델 정보 표시
+  var zModelInfo = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;">';
+  for (var zm2 = 1; zm2 <= 6; zm2++) {
+    var zm2m = zoneModels[zm2];
+    var eff = sprinkleEffect[zm2];
+    zModelInfo += '<div style="background:#f0f4fa;border-radius:8px;padding:7px 9px;font-size:.72rem;">' +
+      '<div style="font-weight:700;color:var(--navy);">구역 ' + zm2 + '</div>' +
+      '<div style="color:var(--sub);">R²: ' + (zm2m ? zm2m.r2.toFixed(3) : '부족') + '</div>' +
+      '<div style="color:var(--sub);">데이터: ' + (zm2m ? zm2m.n + '건' : '5건 미만') + '</div>' +
+      '<div style="color:#1a7a4a;">살수효과: ' + (eff ? '▼' + eff + '℃' : '—') + '</div>' +
+      '</div>';
+  }
+  zModelInfo += '</div>';
+  document.getElementById('zoneModelInfo').innerHTML = zModelInfo;
+  document.getElementById('zoneModelWrap').style.display = 'block';
+
   buildChart(); updateAI();
   var t = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-  logs.push({ type: 'ml', time: t, msg: 'AI 학습 완료 — ' + model.n + '건, R²=' + model.r2.toFixed(3) + ', RMSE=' + model.rmse.toFixed(2) + '℃' });
-  showToast('AI 학습 완료! ' + model.n + '건 · R²=' + model.r2.toFixed(3), '#1a7a4a');
+  logs.push({ type: 'ml', time: t, msg: 'AI 학습 완료 — ' + model.n + '건, R²=' + model.r2.toFixed(3) + ', 구역별 모델 ' + Object.keys(zoneModels).length + '개, 살수효과 ▼' + (sprinkleEffect['all'] || '—') + '℃' });
+  showToast('AI 학습 완료! ' + model.n + '건 · 구역별 모델 ' + Object.keys(zoneModels).length + '개 · 살수효과 ▼' + (sprinkleEffect['all'] || '—') + '℃', '#1a7a4a');
+  recordTempHistory();
+  updateAlertBanner();
+  renderPriorityPanel();
 }
 
 function setProg(show, txt, pct) {
@@ -1061,8 +1150,7 @@ function renderSensors() {
 }
 
 function getZoneTemps() {
-  var base = mlModel ? predictPave() : wx.paveTemp;
-  return zones.map(function(z) { return parseFloat((base + z.off).toFixed(1)); });
+  return zones.map(function(z) { return getZoneTempById(z.id); });
 }
 
 function zSt(t) { return t >= 60 ? 'warning' : t >= 58 ? 'caution' : 'normal'; }
@@ -1166,7 +1254,38 @@ function updateAI() {
     '<strong>→ ' + (warn ? '살수 즉시 실시를 권고합니다.' : '현재 포장온도 정상 범위입니다.') + '</strong>';
 }
 
-function renderAll() { renderSensors(); renderZones(); buildChart(); if (!activated) applyStatus(getOverallSt()); }
+function renderAll() {
+  renderSensors(); renderZones(); buildChart();
+  if (!activated) applyStatus(getOverallSt());
+  recordTempHistory();
+  updateAlertBanner();
+  renderPriorityPanel();
+  renderPostSprinklePanel();
+}
+
+function renderPostSprinklePanel() {
+  var el = document.getElementById('postSprinklePanel');
+  if (!el) return;
+  var hasEffect = Object.keys(sprinkleEffect).length > 0;
+  if (!hasEffect) {
+    el.innerHTML = '<div style="text-align:center;padding:10px;color:var(--sub);font-size:.78rem;">AI 학습 후 표시됩니다.</div>';
+    return;
+  }
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">' +
+    zones.map(function(z) {
+      var cur = getZoneTempById(z.id);
+      var post = postSprinkleTemp(z.id);
+      var eff = sprinkleEffect[z.id] || sprinkleEffect['all'] || 0;
+      var color = cur >= 60 ? '#b71c1c' : cur >= 58 ? '#c47a00' : '#1a7a4a';
+      return '<div style="background:#f8fafc;border-radius:8px;padding:7px;text-align:center;border:1px solid var(--bdr);">' +
+        '<div style="font-size:.65rem;color:var(--sub);margin-bottom:2px;">' + z.name + '</div>' +
+        '<div style="font-size:.85rem;font-weight:800;color:' + color + ';">' + cur + '℃</div>' +
+        '<div style="font-size:.62rem;color:#1565c0;">▼' + eff.toFixed(1) + '℃</div>' +
+        '<div style="font-size:.82rem;font-weight:700;color:#1a7a4a;">' + post + '℃</div>' +
+        '</div>';
+    }).join('') + '</div>' +
+    '<div style="font-size:.67rem;color:var(--sub);margin-top:6px;text-align:right;">현재온도 → 살수효과 → 살수후 예상온도</div>';
+}
 
 function activateSprinkler() {
   if (activated) return;
@@ -1202,6 +1321,148 @@ function openLog() {
 }
 function closeLog() { document.getElementById('logModal').classList.remove('open'); }
 
+// ════════════════════════════════════════
+//  60℃ 도달 예상 시각 계산
+// ════════════════════════════════════════
+var TEMP_HISTORY_MAX = 10; // 최근 10개 이력 유지
+
+function recordTempHistory() {
+  var now = Date.now();
+  tempHistory.push({ time: now, paveTemp: wx.paveTemp });
+  if (tempHistory.length > TEMP_HISTORY_MAX) tempHistory.shift();
+}
+
+// 현재 온도 상승 속도(℃/분) 계산
+function calcRiseRate() {
+  if (tempHistory.length < 2) return 0;
+  var oldest = tempHistory[0];
+  var newest = tempHistory[tempHistory.length - 1];
+  var dtMin = (newest.time - oldest.time) / 60000;
+  if (dtMin < 0.5) return 0;
+  return (newest.paveTemp - oldest.paveTemp) / dtMin;
+}
+
+// 60℃ 도달까지 남은 분 계산 (null = 도달 불가 or 이미 초과)
+function minsTo60() {
+  var current = wx.paveTemp;
+  if (current >= 60) return 0;
+  var rate = calcRiseRate();
+  if (rate <= 0) return null;
+  return Math.round((60 - current) / rate);
+}
+
+// 살수 후 예상 온도
+function postSprinkleTemp(zoneId) {
+  var effect = sprinkleEffect[zoneId] || sprinkleEffect['all'] || 8.0;
+  var base = zoneId && zoneModels[zoneId] ? predictPaveZone(zoneId) : wx.paveTemp;
+  return parseFloat(Math.max(0, base - effect).toFixed(1));
+}
+
+// 구역별 살수 우선순위 정렬
+function getSprinklePriority() {
+  var list = zones.map(function(z) {
+    var temp = getZoneTempById(z.id);
+    return { id: z.id, name: z.name, sub: z.sub, temp: temp, status: zSt(temp) };
+  });
+  list.sort(function(a, b) { return b.temp - a.temp; });
+  return list;
+}
+
+// 사전 경보 (30분 이내 60℃ 도달 예상)
+function isPreAlert() {
+  var mins = minsTo60();
+  return mins !== null && mins > 0 && mins <= 30;
+}
+
+// 대시보드 상단 경보 배너 업데이트
+function updateAlertBanner() {
+  var el = document.getElementById('alertBanner');
+  if (!el) return;
+  var mins = minsTo60();
+  var current = wx.paveTemp;
+
+  if (current >= 60) {
+    el.style.display = 'flex';
+    el.style.background = '#b71c1c';
+    el.innerHTML = '<span style="font-size:1.1rem">&#128308;</span>' +
+      '<strong>경고: 포장온도 ' + current + '℃ 초과 — 즉시 살수 실시</strong>' +
+      '<span style="margin-left:auto;font-size:.8rem;">토목시설물 유지관리지침 제9조</span>';
+  } else if (mins !== null && mins <= 30) {
+    el.style.display = 'flex';
+    el.style.background = '#e65100';
+    el.innerHTML = '<span style="font-size:1.1rem">&#9888;</span>' +
+      '<strong>사전 경보: 약 ' + mins + '분 후 60℃ 도달 예상 — 살수 준비 요망</strong>' +
+      '<span style="margin-left:auto;font-size:.8rem;">현재 ' + current + '℃ | 상승속도 +' + calcRiseRate().toFixed(2) + '℃/분</span>';
+  } else if (current >= 58) {
+    el.style.display = 'flex';
+    el.style.background = '#f57f17';
+    var minsStr = mins !== null ? ' | 약 ' + mins + '분 후 60℃ 도달 예상' : '';
+    el.innerHTML = '<span style="font-size:1.1rem">&#128993;</span>' +
+      '<strong>주의: 포장온도 ' + current + '℃ — 살수 준비 권고</strong>' +
+      '<span style="margin-left:auto;font-size:.8rem;">' + minsStr + '</span>';
+  } else if (mins !== null) {
+    el.style.display = 'flex';
+    el.style.background = '#1565c0';
+    el.innerHTML = '<span style="font-size:1.1rem">&#128994;</span>' +
+      '정상 운영 중 | 현재 ' + current + '℃' +
+      '<span style="margin-left:auto;font-size:.8rem;">60℃까지 약 ' + mins + '분 여유</span>';
+  } else {
+    el.style.display = 'flex';
+    el.style.background = '#1a7a4a';
+    el.innerHTML = '<span style="font-size:1.1rem">&#128994;</span>' +
+      '정상 운영 중 | 현재 ' + current + '℃ — 60℃ 도달 예측 불가 (온도 하강 또는 데이터 부족)';
+  }
+}
+
+// 살수 우선순위 패널 렌더링
+function renderPriorityPanel() {
+  var el = document.getElementById('priorityPanel');
+  if (!el) return;
+  var list = getSprinklePriority();
+  var colors = { warning: '#b71c1c', caution: '#c47a00', normal: '#1a7a4a' };
+  var bgColors = { warning: '#fdecea', caution: '#fff8e1', normal: '#e8f5ee' };
+  el.innerHTML = list.map(function(z, i) {
+    var postTemp = postSprinkleTemp(z.id);
+    var effect = sprinkleEffect[z.id] || sprinkleEffect['all'] || 8.0;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;margin-bottom:5px;background:' + bgColors[z.status] + ';border:1px solid ' + colors[z.status] + '20;">' +
+      '<div style="width:22px;height:22px;border-radius:50%;background:' + colors[z.status] + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;">' + (i + 1) + '</div>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:.78rem;font-weight:700;">' + z.name + ' <span style="font-weight:400;color:var(--sub);font-size:.68rem;">· ' + z.sub + '</span></div>' +
+      '</div>' +
+      '<div style="text-align:right;flex-shrink:0;">' +
+        '<div style="font-size:1.05rem;font-weight:800;color:' + colors[z.status] + ';">' + z.temp + '℃</div>' +
+        '<div style="font-size:.65rem;color:var(--sub);">살수후 예상 ' + postTemp + '℃ (▼' + effect.toFixed(1) + ')</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ════════════════════════════════════════
+//  구역별 개별 모델 예측
+// ════════════════════════════════════════
+function predictPaveZone(zoneId) {
+  var m = zoneModels[zoneId] || mlModel;
+  if (!m) return wx.paveTemp + zones[zoneId - 1].off;
+  var hr = new Date().getHours();
+  var solarW = applyTimeWeight(wx.solar, hr);
+  var val = predict(m, [wx.airTemp, solarW, wx.humidity, wx.windSpeed,
+    Math.cos(2 * Math.PI * hr / 24), Math.sin(2 * Math.PI * hr / 24)]);
+  return parseFloat(val.toFixed(1));
+}
+
+// 시간대별 일사량 가중치 (11~14시 피크 1.5배)
+function applyTimeWeight(solar, hr) {
+  if (hr >= 11 && hr <= 14) return solar * 1.5;
+  if (hr >= 9 && hr <= 16) return solar * 1.1;
+  return solar;
+}
+
+function getZoneTempById(zoneId) {
+  if (mlModel || zoneModels[zoneId]) return predictPaveZone(zoneId);
+  var z = zones[zoneId - 1];
+  return parseFloat((wx.paveTemp + z.off).toFixed(1));
+}
+
 // ── 초기 실행 ──────────────────────────
 refreshKeyStatus();
 renderAll();
@@ -1211,6 +1472,9 @@ setInterval(function() { fetchKMA(false); }, REFRESH);
 setInterval(fetchMetarAuto, 30 * 60 * 1000);
 setInterval(function() {
   if (!getKey()) { simFluct(); renderSensors(); renderZones(); }
+  recordTempHistory();
+  updateAlertBanner();
+  renderPriorityPanel();
 }, 5000);
 </script>
 </body>
