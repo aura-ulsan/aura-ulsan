@@ -866,22 +866,32 @@ function processAndTrain(rows, fileName) {
     var at  = n2(cols.airTemp  ? row[cols.airTemp]  : NaN);
     var sol = n2(cols.solar    ? row[cols.solar]    : NaN);
     var hum = n2(cols.humidity ? row[cols.humidity] : NaN);
-    var ws  = n2(cols.windSpd  ? row[cols.windSpd]  : NaN);
+    var wsKt= n2(cols.windSpd  ? row[cols.windSpd]  : NaN); // KT 단위
     var pt  = n2(cols.paveTemp ? row[cols.paveTemp] : NaN);
     var hr  = cols.time ? parseHour(row[cols.time]) : 12;
     var zone = n2(cols.zone ? row[cols.zone] : NaN);
     var spk = cols.sprinkle ? (n2(row[cols.sprinkle]) > 0 ? 1 : 0) : 0;
     var ta  = cols.tempAfter ? n2(row[cols.tempAfter]) : NaN;
 
-    if (isNaN(at) || isNaN(sol) || isNaN(hum) || isNaN(ws) || isNaN(pt) ||
-        !isFinite(at) || !isFinite(sol) || !isFinite(hum) || !isFinite(ws) || !isFinite(pt)) {
+    if (isNaN(at) || isNaN(sol) || isNaN(hum) || isNaN(wsKt) || isNaN(pt) ||
+        !isFinite(at) || !isFinite(sol) || !isFinite(hum) || !isFinite(wsKt) || !isFinite(pt)) {
       skipCount++; continue;
     }
+
+    // ★ 풍속 KT → m/s 변환 (1KT = 0.514 m/s)
+    var ws = parseFloat((wsKt * 0.514).toFixed(2));
+
+    // ★ 일사량 MJ/㎡ → 정규화 (모델 내부 단위 통일)
+    // MJ/㎡ 그대로 사용 (0~4 범위, 실시간도 동일 단위로 변환)
+    var solNorm = sol;
+
     var hcos = Math.cos(2 * Math.PI * hr / 24);
     var hsin = Math.sin(2 * Math.PI * hr / 24);
-    X.push([at, sol, hum, ws, hcos, hsin]);
+
+    // 시간대 가중치는 예측 시에만 적용 (학습 시엔 미적용 → 과적합 방지)
+    X.push([at, solNorm, hum, ws, hcos, hsin]);
     Y.push(pt);
-    rawRows.push({ at: at, sol: sol, hum: hum, ws: ws, hr: hr, pt: pt, zone: zone, spk: spk, ta: ta });
+    rawRows.push({ at: at, sol: solNorm, hum: hum, ws: ws, hr: hr, pt: pt, zone: zone, spk: spk, ta: ta });
   }
 
   // 파일 정보 표시
