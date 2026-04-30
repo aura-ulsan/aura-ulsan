@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A.U.R.A v4.1 - 울산공항 활주로 살수 자동화</title>
+<title>A.U.R.A v5.0 - 울산공항 활주로 살수 자동화</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -16,27 +16,29 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
 .logo-badge{background:#fff;color:var(--navy);font-weight:900;font-size:1.2rem;width:50px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-1px;}
 .logo-text h1{font-size:1rem;font-weight:800;letter-spacing:1px;}
 .logo-text p{font-size:.7rem;opacity:.85;margin-top:2px;}
-.hdr-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.hdr-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .tl-wrap{display:flex;gap:6px;background:rgba(0,0,0,.25);padding:7px 11px;border-radius:20px;}
 .tl{width:16px;height:16px;border-radius:50%;opacity:.3;transition:all .4s;}
 .tl.on{opacity:1;box-shadow:0 0 8px currentColor;}
 .tl-r{background:#ff4444;color:#ff4444;}.tl-y{background:#ffcc00;color:#ffcc00;}.tl-g{background:#44dd88;color:#44dd88;}
-#clock{font-size:.88rem;font-weight:600;white-space:nowrap;}
-.btn-settings{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);color:#fff;padding:7px 14px;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;transition:background .2s;}
-.btn-settings:hover{background:rgba(255,255,255,.28);}
+#clock{font-size:.85rem;font-weight:600;white-space:nowrap;}
+.btn-hdr{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);color:#fff;padding:6px 12px;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;transition:background .2s;white-space:nowrap;}
+.btn-hdr:hover{background:rgba(255,255,255,.28);}
 
-.banner{display:flex;align-items:flex-start;gap:8px;padding:6px 20px;font-size:.73rem;font-weight:600;flex-wrap:wrap;}
-#apiBanner{background:var(--nd);color:#aac8e8;}
-#metarBanner{background:#1a3a1a;color:#a8d8a8;}
-#mlBanner{background:#2a1a3a;color:#c8a8e8;display:none;}
-.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:2px;}
+/* 배너 */
+.banners{display:flex;flex-direction:column;}
+.banner{display:flex;align-items:center;gap:8px;padding:5px 20px;font-size:.72rem;font-weight:600;flex-wrap:wrap;}
+.ban-amos{background:#0d2137;color:#7ec8e3;}
+.ban-asos{background:#0d2b0d;color:#7ee37e;}
+.ban-metar{background:#1a1a0d;color:#e3d87e;}
+.ban-ml{background:#1a0d2b;color:#c8a8e8;display:none;}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 .dot-live{background:#44dd88;animation:blink 2s infinite;}
 .dot-err{background:#ff4444;}
 .dot-load{background:#ffcc00;animation:blink .8s infinite;}
 .dot-man{background:#88aaff;}
-.dot-ml{background:#cc88ff;animation:blink 1.5s infinite;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-.ban-r{margin-left:auto;opacity:.7;font-size:.68rem;}
+.ban-r{margin-left:auto;opacity:.6;font-size:.67rem;}
 
 #statusBar{padding:9px 20px;font-weight:700;font-size:.88rem;display:flex;align-items:center;gap:10px;transition:background .5s,color .5s;}
 #statusBar.normal{background:#c8f0dc;color:#0d5c30;}
@@ -44,69 +46,70 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
 #statusBar.warning{background:#ffd6d6;color:#8b0000;}
 #statusBar.activated{background:#c8f0dc;color:#0d5c30;}
 
-#apiKeyWarn{background:#fff3c4;border-bottom:2px solid #ffe082;padding:7px 20px;font-size:.76rem;color:#7a4f00;display:flex;gap:8px;align-items:flex-start;}
-#apiKeyWarn.hidden{display:none;}
-
 .tabs{display:flex;background:#fff;border-bottom:2px solid var(--bdr);padding:0 20px;overflow-x:auto;}
-.tab{padding:11px 18px;font-size:.82rem;font-weight:700;color:var(--sub);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s;}
+.tab{padding:10px 16px;font-size:.8rem;font-weight:700;color:var(--sub);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s;}
 .tab.active{color:var(--navy);border-bottom-color:var(--navy);}
 .tab-panel{display:none;}.tab-panel.active{display:block;}
 
-.main{display:grid;grid-template-columns:300px 1fr;gap:14px;padding:14px;}
+.main{display:grid;grid-template-columns:290px 1fr;gap:14px;padding:14px;}
 @media(max-width:900px){.main{grid-template-columns:1fr;}}
-.card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid var(--bdr);}
-.card-title{font-size:.76rem;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--navy);padding-bottom:7px;margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.card{background:#fff;border-radius:14px;padding:15px;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid var(--bdr);}
+.card-title{font-size:.75rem;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--navy);padding-bottom:7px;margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 
-.bdg{display:inline-flex;align-items:center;gap:3px;font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:8px;white-space:nowrap;}
-.bdg-kma{background:#e3f0fb;color:#1565c0;border:1px solid #90caf9;}
-.bdg-metar{background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;}
+.bdg{display:inline-flex;align-items:center;gap:3px;font-size:.58rem;font-weight:700;padding:2px 6px;border-radius:8px;white-space:nowrap;}
+.bdg-amos{background:#e3f2fd;color:#0d47a1;border:1px solid #90caf9;}
+.bdg-asos{background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;}
+.bdg-metar{background:#fff8e1;color:#7a4f00;border:1px solid #ffe082;}
 .bdg-ml{background:#ede7f6;color:#4a148c;border:1px solid #ce93d8;}
 .bdg-err{background:#fdecea;color:#b71c1c;border:1px solid #ef9a9a;}
 .bdg-load{background:#fff8e1;color:#7a4f00;border:1px solid #ffe082;}
 
-.si{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #eef0f4;}
+/* 센서 */
+.si{display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid #eef0f4;}
 .si:last-child{border-bottom:none;}
-.sl{flex:1;}.slr{display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap;}
-.sl-lbl{font-size:.78rem;color:var(--sub);}
-.sbar{width:100%;height:5px;background:#e0e6ef;border-radius:3px;margin-top:4px;}
+.sl{flex:1;}.slr{display:flex;align-items:center;gap:5px;margin-bottom:2px;flex-wrap:wrap;}
+.sl-lbl{font-size:.77rem;color:var(--sub);}
+.sbar{width:100%;height:5px;background:#e0e6ef;border-radius:3px;margin-top:3px;}
 .sbar-f{height:100%;border-radius:3px;transition:width 1s;}
 .sr{text-align:right;padding-left:8px;flex-shrink:0;}
-.sv{font-size:1.3rem;font-weight:800;}
-.su{font-size:.68rem;color:var(--sub);}
-.ssub{font-size:.68rem;color:var(--sub);margin-top:1px;}
+.sv{font-size:1.25rem;font-weight:800;}
+.su{font-size:.67rem;color:var(--sub);}
+.ssub{font-size:.66rem;color:var(--sub);margin-top:1px;}
 
-.metar-raw{background:#0d1117;color:#58d68d;font-family:'Courier New',monospace;font-size:.73rem;padding:9px 11px;border-radius:8px;word-break:break-all;line-height:1.6;min-height:32px;}
-.mg{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px;}
-.mi{background:#f8fafc;border-radius:8px;padding:7px 9px;border:1px solid var(--bdr);}
-.mi-lbl{font-size:.62rem;color:var(--sub);margin-bottom:2px;font-weight:600;text-transform:uppercase;}
-.mi-val{font-size:1rem;font-weight:800;color:var(--navy);}
-.mi-sub{font-size:.62rem;color:var(--sub);margin-top:1px;}
-.sec-div{height:1px;background:var(--bdr);margin:11px 0;}
+/* METAR */
+.metar-raw{background:#0d1117;color:#58d68d;font-family:'Courier New',monospace;font-size:.72rem;padding:8px 10px;border-radius:8px;word-break:break-all;line-height:1.6;min-height:30px;}
+.mg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;}
+.mi{background:#f8fafc;border-radius:8px;padding:6px 8px;border:1px solid var(--bdr);}
+.mi-lbl{font-size:.6rem;color:var(--sub);margin-bottom:2px;font-weight:600;text-transform:uppercase;}
+.mi-val{font-size:.95rem;font-weight:800;color:var(--navy);}
+.mi-sub{font-size:.6rem;color:var(--sub);margin-top:1px;}
+.sec-div{height:1px;background:var(--bdr);margin:10px 0;}
 .mir{display:flex;gap:6px;}
-.mi-input{flex:1;padding:7px 9px;border:2px solid var(--bdr);border-radius:8px;font-family:'Courier New',monospace;font-size:.76rem;}
+.mi-input{flex:1;padding:6px 8px;border:2px solid var(--bdr);border-radius:8px;font-family:'Courier New',monospace;font-size:.74rem;}
 .mi-input:focus{outline:none;border-color:var(--nl);}
-.btn-parse{padding:7px 12px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:.76rem;font-weight:700;cursor:pointer;}
+.btn-parse{padding:6px 11px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:.74rem;font-weight:700;cursor:pointer;}
 
 .chart-wrap{position:relative;height:210px;}
 
-.zg{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:4px;}
+/* 구역 */
+.zg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px;}
 @media(max-width:600px){.zg{grid-template-columns:repeat(2,1fr);}}
-.zc{border-radius:10px;padding:9px 11px;text-align:center;border:2px solid transparent;transition:all .4s;}
+.zc{border-radius:10px;padding:8px 10px;text-align:center;border:2px solid transparent;transition:all .4s;}
 .zc.normal{background:var(--gbg);border-color:#a0d8b8;}
 .zc.caution{background:var(--ybg);border-color:#ffe082;}
 .zc.warning{background:var(--rbg);border-color:#ef9a9a;animation:pulse 1.5s infinite;}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(183,28,28,.3)}50%{box-shadow:0 0 0 6px rgba(183,28,28,0)}}
-.zn{font-size:.7rem;color:var(--sub);margin-bottom:3px;}
-.zt{font-size:1.4rem;font-weight:900;}
+.zn{font-size:.68rem;color:var(--sub);margin-bottom:2px;}
+.zt{font-size:1.35rem;font-weight:900;}
 .zc.normal .zt{color:var(--green);}.zc.caution .zt{color:var(--yellow);}.zc.warning .zt{color:var(--red);}
-.zl{font-size:.63rem;font-weight:700;margin-top:2px;}
+.zl{font-size:.62rem;font-weight:700;margin-top:2px;}
 .zc.normal .zl{color:var(--green);}.zc.caution .zl{color:var(--yellow);}.zc.warning .zl{color:var(--red);}
 
-#aiText{font-size:.82rem;line-height:1.75;color:#2c3e50;background:#f0f4fa;border-left:4px solid var(--navy);padding:11px 13px;border-radius:0 8px 8px 0;}
-.ai-bdg{display:inline-block;background:var(--navy);color:#fff;font-size:.63rem;font-weight:700;padding:2px 7px;border-radius:10px;margin-bottom:7px;}
+#aiText{font-size:.81rem;line-height:1.75;color:#2c3e50;background:#f0f4fa;border-left:4px solid var(--navy);padding:10px 12px;border-radius:0 8px 8px 0;}
+.ai-bdg{display:inline-block;background:var(--navy);color:#fff;font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:10px;margin-bottom:6px;}
 
-.br{display:flex;gap:9px;flex-wrap:wrap;margin-top:4px;}
-.btn{flex:1;min-width:100px;padding:10px 9px;border:none;border-radius:10px;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:5px;}
+.br{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.btn{flex:1;min-width:90px;padding:9px 8px;border:none;border-radius:10px;font-size:.77rem;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:4px;}
 .btn:active{transform:scale(.97);}
 .btn-act{background:var(--red);color:#fff;}.btn-act:hover{background:#8b0000;}.btn-act.done{background:var(--green);}
 .btn-man{background:var(--ybg);color:#7a4f00;border:2px solid #ffe082;}
@@ -114,89 +117,83 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
 .btn-ref{background:#e3f0fb;color:#1565c0;border:2px solid #90caf9;}
 .btn-ml{background:linear-gradient(135deg,#4a148c,#7b1fa2);color:#fff;}
 .btn-rpt{background:#e8f5e9;color:#1b5e20;border:2px solid #a5d6a7;}
-.man-bdg{display:none;background:#fff3c4;color:#7a4f00;border:1px solid #ffe082;border-radius:6px;padding:5px 11px;font-size:.76rem;font-weight:600;margin-top:7px;}
+.man-bdg{display:none;background:#fff3c4;color:#7a4f00;border:1px solid #ffe082;border-radius:6px;padding:5px 10px;font-size:.75rem;font-weight:600;margin-top:6px;}
 
-.ml-drop{border:2px dashed var(--bdr);border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:all .3s;margin-bottom:14px;}
+/* AI 학습 */
+.ml-drop{border:2px dashed var(--bdr);border-radius:12px;padding:22px;text-align:center;cursor:pointer;transition:all .3s;margin-bottom:12px;}
 .ml-drop:hover,.ml-drop.drag{border-color:var(--nl);background:#f0f4fa;}
-.ml-drop-icon{font-size:2rem;margin-bottom:8px;}
-.ml-drop-txt{font-size:.82rem;color:var(--sub);}
-.ml-drop-sub{font-size:.72rem;color:#aaa;margin-top:4px;}
-.ml-stat{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
-.ml-stat-item{background:#f8fafc;border-radius:10px;padding:12px;text-align:center;border:1px solid var(--bdr);}
-.ml-stat-lbl{font-size:.68rem;color:var(--sub);margin-bottom:4px;}
-.ml-stat-val{font-size:1.3rem;font-weight:800;color:var(--navy);}
-.ml-stat-unit{font-size:.65rem;color:var(--sub);}
-.ml-prog{background:#e0e6ef;border-radius:10px;height:8px;margin:8px 0;overflow:hidden;}
+.ml-drop-icon{font-size:2rem;margin-bottom:6px;}
+.ml-stat{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:12px;}
+.ml-stat-item{background:#f8fafc;border-radius:10px;padding:11px;text-align:center;border:1px solid var(--bdr);}
+.ml-stat-lbl{font-size:.67rem;color:var(--sub);margin-bottom:3px;}
+.ml-stat-val{font-size:1.25rem;font-weight:800;color:var(--navy);}
+.ml-prog{background:#e0e6ef;border-radius:10px;height:7px;margin:7px 0;overflow:hidden;}
 .ml-prog-f{height:100%;border-radius:10px;background:linear-gradient(90deg,#7b1fa2,#9c27b0);transition:width .5s;}
-.ml-coef-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #eef0f4;font-size:.78rem;}
+.ml-coef-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #eef0f4;font-size:.77rem;}
 .ml-coef-bar{height:4px;border-radius:2px;margin-top:2px;}
 
+/* 분석 */
 .ana-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px;}
 @media(max-width:700px){.ana-grid{grid-template-columns:1fr;}}
 .ana-chart-wrap{position:relative;height:180px;}
-.top3-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;border:1px solid var(--bdr);margin-bottom:8px;}
-.top3-rank{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0;}
+.top3-item{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:10px;border:1px solid var(--bdr);margin-bottom:7px;}
+.top3-rank{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.82rem;flex-shrink:0;}
 .top3-item:nth-child(1) .top3-rank{background:#ffd700;color:#7a4f00;}
 .top3-item:nth-child(2) .top3-rank{background:#c0c0c0;color:#444;}
 .top3-item:nth-child(3) .top3-rank{background:#cd7f32;color:#fff;}
-.top3-name{font-size:.82rem;font-weight:700;}
-.top3-sub{font-size:.7rem;color:var(--sub);}
-.top3-temp{font-size:1.1rem;font-weight:800;color:var(--red);}
-.reduce-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px;}
-.reduce-item{background:#f0f4fa;border-radius:8px;padding:9px;text-align:center;}
-.reduce-lbl{font-size:.65rem;color:var(--sub);margin-bottom:3px;}
-.reduce-val{font-size:1.1rem;font-weight:800;color:var(--navy);}
+.reduce-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:4px;}
+.reduce-item{background:#f0f4fa;border-radius:8px;padding:8px;text-align:center;}
+.reduce-lbl{font-size:.63rem;color:var(--sub);margin-bottom:2px;}
+.reduce-val{font-size:1rem;font-weight:800;color:var(--navy);}
 
-/* 모달 공통 */
+/* 모달 */
 .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;padding:20px;}
 .modal-ov.open{display:flex;}
-.modal{background:#fff;border-radius:16px;width:100%;max-width:540px;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3);}
-.modal-hdr{padding:15px 19px;background:var(--navy);color:#fff;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center;}
-.modal-hdr h2{font-size:.95rem;}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:500px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3);}
+.modal-hdr{padding:14px 18px;background:var(--navy);color:#fff;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center;}
+.modal-hdr h2{font-size:.92rem;}
 .modal-cls{background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1;}
-.modal-body{padding:15px 19px;overflow-y:auto;}
-.log-item{padding:8px 11px;border-radius:8px;margin-bottom:7px;font-size:.77rem;border-left:4px solid;}
+.modal-body{padding:14px 18px;overflow-y:auto;}
+.log-item{padding:7px 10px;border-radius:8px;margin-bottom:6px;font-size:.75rem;border-left:4px solid;}
 .log-item.info{background:#e8f4fd;border-color:#2196F3;color:#0d47a1;}
 .log-item.warn{background:var(--ybg);border-color:#ffc107;color:#7a4f00;}
 .log-item.alert{background:var(--rbg);border-color:var(--red);color:var(--red);}
 .log-item.ok{background:var(--gbg);border-color:var(--green);color:var(--green);}
 .log-item.api{background:#f3e5f5;border-color:#9c27b0;color:#4a148c;}
-.log-item.metar{background:#e8f5e9;border-color:#388e3c;color:#1b5e20;}
+.log-item.metar{background:#fff8e1;border-color:#f9a825;color:#7a4f00;}
 .log-item.ml{background:#ede7f6;border-color:#7b1fa2;color:#4a148c;}
-.lt{font-weight:700;margin-right:6px;}
+.lt{font-weight:700;margin-right:5px;}
 
 .bg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 @media(max-width:900px){.bg-grid{grid-template-columns:1fr;}}
 
-/* 설정 모달 전용 */
-.setting-input{width:100%;padding:10px 12px;border:2px solid var(--bdr);border-radius:8px;font-size:.84rem;font-family:'Courier New',monospace;transition:border-color .2s;}
+/* 설정 */
+.setting-input{width:100%;padding:9px 11px;border:2px solid var(--bdr);border-radius:8px;font-size:.82rem;transition:border-color .2s;}
 .setting-input:focus{outline:none;border-color:var(--nl);}
-.setting-btn-row{display:flex;gap:8px;margin-top:14px;}
-.setting-btn{flex:1;padding:11px;border:none;border-radius:10px;font-size:.84rem;font-weight:700;cursor:pointer;transition:all .2s;}
-.setting-btn:active{transform:scale(.97);}
+.setting-row{display:flex;gap:7px;margin-top:12px;}
+.setting-btn{flex:1;padding:10px;border:none;border-radius:10px;font-size:.82rem;font-weight:700;cursor:pointer;}
 .setting-btn-save{background:var(--navy);color:#fff;}
-.setting-btn-save:hover{background:var(--nl);}
 .setting-btn-cancel{background:#e8edf5;color:var(--navy);border:2px solid var(--bdr);}
-.setting-info{background:#f0f4fa;border-radius:8px;padding:10px 12px;font-size:.75rem;color:var(--sub);margin:10px 0;line-height:1.7;}
+.setting-section{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--bdr);}
+.setting-label{font-size:.74rem;font-weight:700;color:var(--navy);display:block;margin-bottom:5px;}
+.setting-desc{font-size:.7rem;color:var(--sub);margin-top:4px;line-height:1.5;}
 
-@media print{header,.tabs,.banner,#statusBar,#apiKeyWarn,.br,.modal-ov{display:none!important;}.tab-panel{display:block!important;}body{background:#fff;}.card{box-shadow:none;border:1px solid #ccc;}}
+/* 엑셀 미리보기 */
+.preview-table{width:100%;border-collapse:collapse;font-size:.72rem;margin-top:8px;}
+.preview-table th{background:#f0f4fa;padding:5px 8px;text-align:left;border:1px solid var(--bdr);font-weight:700;color:var(--navy);}
+.preview-table td{padding:4px 8px;border:1px solid #eef0f4;color:var(--sub);}
+
+@media print{header,.tabs,.banners,#statusBar,.br,.modal-ov{display:none!important;}.tab-panel{display:block!important;}body{background:#fff;}.card{box-shadow:none;border:1px solid #ccc;}}
 </style>
 </head>
 <body>
-
-<div id="apiKeyWarn" class="hidden">
-  <span>⚠️</span>
-  <span><strong>기상청 API 키 미입력</strong> — 시뮬레이션 모드 동작 중.
-  우측 상단 <strong>⚙️ API 설정</strong> 버튼을 눌러 키를 입력해주세요.
-  <a href="https://www.data.go.kr" target="_blank" style="color:#1565c0;font-weight:700;">→ data.go.kr 무료 발급</a></span>
-</div>
 
 <header>
   <div class="logo-area">
     <div class="logo-badge">A.U<br>.R.A</div>
     <div class="logo-text">
-      <h1>A.U.R.A SYSTEM v4.1</h1>
-      <p>Automated Utility for Runway Aspersion · 울산공항 RKPU · AI 학습 모델 탑재</p>
+      <h1>A.U.R.A SYSTEM v5.0</h1>
+      <p>Automated Utility for Runway Aspersion · 울산공항 RKPU · AMOS+ASOS+METAR+AI</p>
     </div>
   </div>
   <div class="hdr-right">
@@ -206,13 +203,16 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
       <div class="tl tl-g" id="tl-g"></div>
     </div>
     <div id="clock">--:--:--</div>
-    <button class="btn-settings" onclick="openSettings()">⚙️ API 설정</button>
+    <button class="btn-hdr" onclick="openSettings()">⚙️ API 설정</button>
   </div>
 </header>
 
-<div class="banner" id="apiBanner"><div class="dot dot-load" id="apiDot"></div><span id="apiTxt">기상청 API 연결 중...</span><span class="ban-r" id="apiUpd"></span></div>
-<div class="banner" id="metarBanner"><div class="dot dot-man" id="metarDot"></div><span id="metarTxt">RKPU METAR — 수동 입력 대기</span><span class="ban-r" id="metarUpd"></span></div>
-<div class="banner" id="mlBanner"><div class="dot dot-ml"></div><span id="mlTxt">AI 모델 대기 중</span><span class="ban-r" id="mlUpd"></span></div>
+<div class="banners">
+  <div class="banner ban-amos"><div class="dot dot-load" id="amosDot"></div><span id="amosTxt">AMOS 항공기상 연결 중...</span><span class="ban-r" id="amosUpd"></span></div>
+  <div class="banner ban-asos"><div class="dot dot-load" id="asosDot"></div><span id="asosTxt">ASOS 지상관측 연결 중...</span><span class="ban-r" id="asosUpd"></span></div>
+  <div class="banner ban-metar"><div class="dot dot-man" id="metarDot"></div><span id="metarTxt">RKPU METAR 대기 중</span><span class="ban-r" id="metarUpd"></span></div>
+  <div class="banner ban-ml" id="mlBanner"><div class="dot dot-live"></div><span id="mlTxt">AI 모델 대기</span></div>
+</div>
 
 <div id="statusBar" class="warning">
   <span>🔴</span><span id="statusText">⚠ 경고: 구역 1, 5 포장온도 60℃ 이상 — 즉시 살수 검토 요망 (토목시설물 유지관리지침 제9조)</span>
@@ -224,61 +224,70 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
   <div class="tab" onclick="showTab('ana')">📈 살수 효과 분석</div>
 </div>
 
-<!-- ══ TAB: 모니터링 ══ -->
+<!-- ══ 모니터링 탭 ══ -->
 <div class="tab-panel active" id="tab-main">
   <div class="main">
-    <div style="display:flex;flex-direction:column;gap:14px;">
+    <div style="display:flex;flex-direction:column;gap:13px;">
+      <!-- 센서 패널 -->
       <div class="card">
-        <div class="card-title">📡 실시간 센서 <span class="bdg bdg-load" id="kmaBdg">⟳ 로딩</span></div>
+        <div class="card-title">
+          📡 실시간 관측
+          <span class="bdg bdg-amos" id="amosBdg">AMOS</span>
+          <span class="bdg bdg-asos" id="asosBdg">ASOS</span>
+        </div>
         <div id="sensorPanel"></div>
-        <div style="font-size:.67rem;color:var(--sub);margin-top:7px;text-align:right;">※ 포장온도 = 기온 기반 추정 (+15~25℃)</div>
+        <div style="font-size:.65rem;color:var(--sub);margin-top:6px;text-align:right;">※ 포장온도 = AMOS 기온 기반 추정</div>
       </div>
+      <!-- METAR -->
       <div class="card">
-        <div class="card-title">✈️ 항공기상 METAR · RKPU <span class="bdg bdg-ml" id="metarBdg">수동 입력</span></div>
-        <div style="font-size:.7rem;color:var(--sub);margin-bottom:4px;">최근 수신 전문</div>
-        <div class="metar-raw" id="metarRaw">— METAR 미수신 —</div>
+        <div class="card-title">✈️ METAR · RKPU <span class="bdg bdg-metar" id="metarBdg">대기중</span></div>
+        <div style="font-size:.68rem;color:var(--sub);margin-bottom:3px;">최근 수신 전문</div>
+        <div class="metar-raw" id="metarRaw">— 수신 대기 중 —</div>
         <div class="mg">
           <div class="mi"><div class="mi-lbl">🌬 지상풍</div><div class="mi-val" id="m-wind">—</div><div class="mi-sub" id="m-wind-s"></div></div>
           <div class="mi"><div class="mi-lbl">👁 시정</div><div class="mi-val" id="m-vis">—</div></div>
-          <div class="mi"><div class="mi-lbl">☁️ 전운량</div><div class="mi-val" id="m-cloud">—</div><div class="mi-sub" id="m-cloud-s"></div></div>
+          <div class="mi"><div class="mi-lbl">☁️ 하늘상태</div><div class="mi-val" id="m-cloud">—</div><div class="mi-sub" id="m-cloud-s"></div></div>
           <div class="mi"><div class="mi-lbl">🌡 기온/이슬점</div><div class="mi-val" id="m-temp">—</div><div class="mi-sub" id="m-temp-s"></div></div>
-          <div class="mi"><div class="mi-lbl">🔵 기압 QNH</div><div class="mi-val" id="m-qnh">—</div></div>
+          <div class="mi"><div class="mi-lbl">🔵 QNH</div><div class="mi-val" id="m-qnh">—</div></div>
           <div class="mi"><div class="mi-lbl">🌧 현재날씨</div><div class="mi-val" id="m-wx">—</div></div>
         </div>
         <div class="sec-div"></div>
-        <div style="font-size:.7rem;font-weight:700;color:var(--navy);margin-bottom:5px;">📝 METAR 수동 입력</div>
+        <div style="font-size:.68rem;font-weight:700;color:var(--navy);margin-bottom:4px;">📝 METAR 수동 입력 (자동 실패 시)</div>
         <div class="mir">
-          <input class="mi-input" id="metarInput" placeholder="RKPU 220600Z 18005KT 9999 SKC 32/22 Q1010" value="RKPU 220600Z 18005KT 9999 SKC 32/22 Q1010"/>
+          <input class="mi-input" id="metarInput" placeholder="RKPU 220600Z 18005KT 9999 SKC 16/08 Q1015"/>
           <button class="btn-parse" onclick="parseMetarInput()">파싱</button>
         </div>
-        <div style="font-size:.67rem;color:var(--sub);margin-top:4px;">💡 <a href="https://aviationweather.gov/metar?ids=RKPU" target="_blank" style="color:var(--nl)">aviationweather.gov</a>에서 RKPU METAR 복사 후 붙여넣기</div>
+        <div style="font-size:.65rem;color:var(--sub);margin-top:3px;">💡 <a href="https://aviationweather.gov/metar?ids=RKPU" target="_blank" style="color:var(--nl)">aviationweather.gov</a>에서 복사 후 붙여넣기</div>
       </div>
     </div>
+    <!-- 차트 -->
     <div class="card">
-      <div class="card-title">📈 포장온도 예측 그래프 <span class="bdg bdg-ml" id="chartModelBdg" style="display:none">🤖 AI 모델 적용</span></div>
+      <div class="card-title">📈 포장온도 예측 그래프 (과거 2h + 현재 + 미래 3h)
+        <span class="bdg bdg-ml" id="chartModelBdg" style="display:none">🤖 AI 모델</span>
+      </div>
       <div class="chart-wrap"><canvas id="tempChart"></canvas></div>
     </div>
   </div>
   <div style="padding:0 14px 14px;">
-    <div class="card" style="margin-bottom:14px;">
+    <div class="card" style="margin-bottom:13px;">
       <div class="card-title">🛬 구역별 포장온도 현황</div>
       <div class="zg" id="zonesGrid"></div>
     </div>
     <div class="bg-grid">
       <div class="card">
         <div class="card-title">🤖 AI 분석 제언</div>
-        <div id="aiText"><span class="ai-bdg">AI ANALYSIS</span><br>현재 <strong>구역 1(활주로 36번단)</strong> 및 <strong>구역 5(활주로 18번단)</strong>의 포장온도가 60℃를 초과하였습니다.<br><br>① 구역 1·5는 착륙·이륙·회전 빈도가 높아 포장 손상 위험 최우선 구역입니다.<br>② 구역 6(계류장)은 STRIKER 소방차 사전 대기를 권고합니다.<br>③ 엑셀 데이터 학습 후 AI 모델 기반 정밀 예측이 활성화됩니다.<br><br><strong>→ 살수 즉시 실시를 권고합니다.</strong></div>
+        <div id="aiText"><span class="ai-bdg">AI ANALYSIS</span><br>현재 <strong>구역 1(활주로 36번단)</strong> 및 <strong>구역 5(활주로 18번단)</strong>의 포장온도가 60℃를 초과하였습니다.<br><br>① 구역 1·5는 착륙·이륙·회전 빈도가 높아 포장 손상 위험 최우선 구역입니다.<br>② 구역 6(계류장)은 STRIKER 소방차 사전 대기를 권고합니다.<br>③ AMOS·ASOS·METAR 연동 및 AI 학습 후 정밀 예측이 활성화됩니다.<br><br><strong>→ 살수 즉시 실시를 권고합니다.</strong></div>
       </div>
       <div class="card">
         <div class="card-title">⚙️ 운영 제어</div>
-        <p style="font-size:.76rem;color:var(--sub);margin-bottom:10px;">살수 승인 후 조치 이력이 로그에 자동 기록됩니다.</p>
+        <p style="font-size:.74rem;color:var(--sub);margin-bottom:9px;">살수 승인 후 조치 이력이 로그에 자동 기록됩니다.</p>
         <div class="br"><button class="btn btn-act" id="btnAct" onclick="activateSprinkler()">💧 살수 승인 (Activate)</button></div>
-        <div class="br" style="margin-top:9px;">
+        <div class="br" style="margin-top:8px;">
           <button class="btn btn-man" onclick="toggleManual()">🔧 수동 모드</button>
           <button class="btn btn-log" onclick="openLog()">📋 로그 확인</button>
         </div>
-        <div class="br" style="margin-top:9px;">
-          <button class="btn btn-ref" onclick="fetchWeather(true)">🔄 기상 갱신</button>
+        <div class="br" style="margin-top:8px;">
+          <button class="btn btn-ref" onclick="refreshAll()">🔄 전체 갱신</button>
           <button class="btn btn-ml" onclick="showTab('ml')">🤖 AI 학습</button>
         </div>
         <div class="man-bdg" id="manBdg">⚠ 수동 모드 활성화 중</div>
@@ -287,37 +296,64 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
   </div>
 </div>
 
-<!-- ══ TAB: AI 학습 ══ -->
+<!-- ══ AI 학습 탭 ══ -->
 <div class="tab-panel" id="tab-ml">
-  <div style="padding:14px;max-width:900px;">
-    <div class="card" style="margin-bottom:14px;">
+  <div style="padding:14px;max-width:920px;">
+    <div class="card" style="margin-bottom:13px;">
       <div class="card-title">🤖 AI 예측 모델 학습 — 다변량 선형회귀</div>
+
+      <!-- 엑셀 양식 안내 -->
+      <div style="background:#f0f4fa;border-radius:10px;padding:11px 13px;margin-bottom:13px;border-left:4px solid var(--navy);">
+        <div style="font-size:.76rem;font-weight:700;color:var(--navy);margin-bottom:6px;">📋 엑셀 파일 컬럼 양식 (1행 헤더 필수)</div>
+        <div style="overflow-x:auto;">
+          <table class="preview-table">
+            <tr>
+              <th>구분</th><th>일자</th><th>요일</th><th>측정시간</th><th>구역코드</th><th>특보현황</th>
+              <th>대기온도(℃)</th><th>일사량(MJ/㎡)</th><th>습도(%)</th><th>풍속(KT)</th>
+              <th>포장온도(℃)</th><th>살수여부</th><th>살수량(L)</th><th>살수후 표면온도(℃)</th>
+            </tr>
+            <tr>
+              <td>1</td><td>2024-07-01</td><td>월</td><td>10:00</td><td>1</td><td>0</td>
+              <td>34.2</td><td>2.1</td><td>55</td><td>3.5</td>
+              <td>62.4</td><td>1</td><td>200</td><td>51.3</td>
+            </tr>
+          </table>
+        </div>
+        <div style="font-size:.68rem;color:var(--sub);margin-top:6px;">
+          ※ 학습 입력(X): 대기온도, 일사량, 습도, 풍속, 측정시간 · 예측 목표(Y): 포장온도<br>
+          ※ 살수여부(0/1), 살수후 표면온도 → 살수 효과 분석에 활용
+        </div>
+      </div>
+
       <div class="ml-drop" id="mlDrop" onclick="document.getElementById('xlsxInput').click()"
            ondragover="event.preventDefault();this.classList.add('drag')"
            ondragleave="this.classList.remove('drag')"
            ondrop="handleDrop(event)">
         <div class="ml-drop-icon">📊</div>
-        <div class="ml-drop-txt">엑셀 파일을 드래그하거나 클릭하여 업로드</div>
-        <div class="ml-drop-sub">지원 형식: .xlsx / .xls · 컬럼: 대기온도, 일사량, 습도, 풍속, 하늘상태, 포장온도 등</div>
+        <div style="font-size:.82rem;color:var(--sub);">엑셀 파일 드래그 또는 클릭하여 업로드</div>
+        <div style="font-size:.7rem;color:#aaa;margin-top:3px;">지원: .xlsx / .xls · 울산공항 이동지역 살수현황 양식</div>
       </div>
       <input type="file" id="xlsxInput" accept=".xlsx,.xls" style="display:none" onchange="loadExcel(event)">
-      <div class="br" style="margin-bottom:14px;">
-        <button class="btn btn-ml" style="flex:none;padding:10px 24px;" onclick="document.getElementById('xlsxInput').click()">📂 데이터 학습 (엑셀 선택)</button>
-        <button class="btn btn-log" style="flex:none;padding:10px 16px;" onclick="loadSampleData()">🧪 샘플 데이터 테스트</button>
+
+      <div class="br" style="margin-bottom:13px;">
+        <button class="btn btn-ml" style="flex:none;padding:10px 22px;" onclick="document.getElementById('xlsxInput').click()">📂 엑셀 파일 선택</button>
+        <button class="btn btn-log" style="flex:none;padding:10px 14px;" onclick="loadSampleData()">🧪 샘플 데이터 테스트</button>
       </div>
-      <div id="mlProgWrap" style="display:none;margin-bottom:14px;">
-        <div style="font-size:.78rem;color:var(--sub);margin-bottom:5px;" id="mlProgTxt">처리 중...</div>
+
+      <div id="mlProgWrap" style="display:none;margin-bottom:12px;">
+        <div style="font-size:.76rem;color:var(--sub);margin-bottom:4px;" id="mlProgTxt">처리 중...</div>
         <div class="ml-prog"><div class="ml-prog-f" id="mlProgBar" style="width:0%"></div></div>
       </div>
+
       <div id="mlStats" style="display:none;">
         <div class="ml-stat">
-          <div class="ml-stat-item"><div class="ml-stat-lbl">학습 데이터</div><div class="ml-stat-val" id="stat-n">—</div><div class="ml-stat-unit">건</div></div>
+          <div class="ml-stat-item"><div class="ml-stat-lbl">학습 데이터</div><div class="ml-stat-val" id="stat-n">—</div><div style="font-size:.63rem;color:var(--sub);">건</div></div>
           <div class="ml-stat-item"><div class="ml-stat-lbl">모델 정확도 R²</div><div class="ml-stat-val" id="stat-r2" style="color:#7b1fa2">—</div></div>
-          <div class="ml-stat-item"><div class="ml-stat-lbl">RMSE</div><div class="ml-stat-val" id="stat-rmse">—</div><div class="ml-stat-unit">℃</div></div>
+          <div class="ml-stat-item"><div class="ml-stat-lbl">RMSE</div><div class="ml-stat-val" id="stat-rmse">—</div><div style="font-size:.63rem;color:var(--sub);">℃</div></div>
         </div>
-        <div class="card-title" style="margin-top:4px;">📐 회귀 계수 (변수 중요도)</div>
+        <div class="card-title">📐 회귀 계수 (변수 중요도)</div>
         <div id="mlCoef"></div>
-        <div style="margin-top:12px;padding:10px 13px;background:#ede7f6;border-radius:8px;font-size:.78rem;color:#4a148c;border-left:3px solid #7b1fa2;">
+        <div style="margin-top:11px;padding:9px 12px;background:#ede7f6;border-radius:8px;font-size:.76rem;color:#4a148c;border-left:3px solid #7b1fa2;">
           ✅ 학습 완료 — 예측 그래프 및 구역별 온도가 AI 모델 기반으로 자동 업데이트되었습니다.
         </div>
       </div>
@@ -329,15 +365,15 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
   </div>
 </div>
 
-<!-- ══ TAB: 살수 효과 분석 ══ -->
+<!-- ══ 살수 효과 분석 탭 ══ -->
 <div class="tab-panel" id="tab-ana">
   <div style="padding:14px;">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-      <button class="btn btn-rpt" style="flex:none;padding:9px 18px;" onclick="window.print()">🖨️ 분석 리포트 출력</button>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:11px;">
+      <button class="btn btn-rpt" style="flex:none;padding:8px 16px;" onclick="window.print()">🖨️ 분석 리포트 출력</button>
     </div>
-    <div class="card" style="margin-bottom:14px;">
+    <div class="card" style="margin-bottom:13px;">
       <div class="card-title">🌡️ 살수 전후 온도 저감량</div>
-      <div id="anaReduceContent"><div style="text-align:center;padding:20px;color:var(--sub);font-size:.82rem;">AI 학습 탭에서 엑셀 데이터를 업로드하면 분석 결과가 표시됩니다.</div></div>
+      <div id="anaReduceContent"><div style="text-align:center;padding:18px;color:var(--sub);font-size:.8rem;">AI 학습 탭에서 엑셀 데이터를 업로드하면 분석 결과가 표시됩니다.</div></div>
     </div>
     <div class="ana-grid">
       <div class="card">
@@ -346,12 +382,12 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
       </div>
       <div class="card">
         <div class="card-title">🏆 취약 구역 TOP 3</div>
-        <div id="top3Content"><div style="text-align:center;padding:16px;color:var(--sub);font-size:.8rem;">데이터 학습 후 표시됩니다.</div></div>
+        <div id="top3Content"><div style="text-align:center;padding:14px;color:var(--sub);font-size:.78rem;">데이터 학습 후 표시됩니다.</div></div>
       </div>
     </div>
-    <div class="card" style="margin-top:14px;">
+    <div class="card" style="margin-top:13px;">
       <div class="card-title">🛬 구역별 상세 분석</div>
-      <div id="zoneDetailContent"><div style="text-align:center;padding:16px;color:var(--sub);font-size:.8rem;">데이터 학습 후 표시됩니다.</div></div>
+      <div id="zoneDetailContent"><div style="text-align:center;padding:14px;color:var(--sub);font-size:.78rem;">데이터 학습 후 표시됩니다.</div></div>
     </div>
   </div>
 </div>
@@ -366,25 +402,43 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
 
 <!-- API 설정 모달 -->
 <div class="modal-ov" id="settingModal">
-  <div class="modal" style="max-width:440px;">
-    <div class="modal-hdr"><h2>⚙️ 기상청 API 키 설정</h2><button class="modal-cls" onclick="closeSettings()">✕</button></div>
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-hdr"><h2>⚙️ API 설정</h2><button class="modal-cls" onclick="closeSettings()">✕</button></div>
     <div class="modal-body">
-      <div style="font-size:.8rem;color:var(--sub);line-height:1.7;margin-bottom:12px;">
-        API 키는 이 기기의 브라우저에만 저장되며 GitHub 코드에 노출되지 않습니다. 🔒
+      <div style="background:#e3f2fd;border-radius:8px;padding:9px 12px;font-size:.74rem;color:#0d47a1;margin-bottom:14px;">
+        🔒 API 키는 이 기기 브라우저에만 저장되며 GitHub 코드에 노출되지 않습니다.
       </div>
-      <label style="font-size:.76rem;font-weight:700;color:var(--navy);display:block;margin-bottom:5px;">기상청 API 키 (data.go.kr)</label>
-      <input id="apiKeyInput" type="text" class="setting-input" placeholder="발급받은 API 키를 붙여넣으세요"/>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
-        <div id="apiKeyStatus" style="font-size:.74rem;font-weight:600;color:var(--sub);">—</div>
-        <button onclick="clearApiKey()" style="font-size:.72rem;color:var(--red);background:none;border:none;cursor:pointer;text-decoration:underline;">키 삭제</button>
+
+      <div class="setting-section">
+        <div style="font-size:.8rem;font-weight:700;color:var(--navy);margin-bottom:10px;">공공데이터포털 인증키 (data.go.kr)</div>
+        <div style="font-size:.72rem;color:var(--sub);margin-bottom:8px;background:#f8fafc;padding:8px;border-radius:6px;line-height:1.6;">
+          ✅ AMOS · ASOS · METAR API 모두 <strong>인증키 1개</strong>로 사용 가능합니다.<br>
+          data.go.kr → 마이페이지 → 일반 인증키(Encoding) 복사
+        </div>
+        <label class="setting-label">인증키 입력</label>
+        <input id="apiKeyInput" type="text" class="setting-input" placeholder="발급받은 인증키 붙여넣기"/>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;">
+          <div id="apiKeyStatus" style="font-size:.72rem;font-weight:600;color:var(--sub);">—</div>
+          <button onclick="clearApiKey()" style="font-size:.7rem;color:var(--red);background:none;border:none;cursor:pointer;text-decoration:underline;">키 삭제</button>
+        </div>
       </div>
-      <div class="setting-info">
-        💡 <strong>발급 방법</strong><br>
-        1. <a href="https://www.data.go.kr" target="_blank" style="color:var(--nl)">data.go.kr</a> 접속 → 로그인<br>
-        2. "기상청_단기예보 조회서비스" 검색 → 활용신청<br>
-        3. 마이페이지 → 일반 인증키(Encoding) 복사 후 위에 붙여넣기
+
+      <div class="setting-section">
+        <div style="font-size:.8rem;font-weight:700;color:var(--navy);margin-bottom:8px;">연동 API 현황</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:.75rem;">
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8fafc;border-radius:8px;">
+            <span>✈️</span><div><div style="font-weight:600;">AMOS 매분자료</div><div style="color:var(--sub);font-size:.68rem;">기온·이슬점·습도·풍향·풍속·강수량 · 울산(RKPU) · 1분 갱신</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8fafc;border-radius:8px;">
+            <span>🌤</span><div><div style="font-weight:600;">ASOS 지상관측</div><div style="color:var(--sub);font-size:.68rem;">일사량·현지기압 보완 · 울산(152) · 1시간 갱신</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f8fafc;border-radius:8px;">
+            <span>📡</span><div><div style="font-weight:600;">METAR 자동수신</div><div style="color:var(--sub);font-size:.68rem;">하늘상태·시정 · 30분 갱신 · 실패 시 수동 입력</div></div>
+          </div>
+        </div>
       </div>
-      <div class="setting-btn-row">
+
+      <div class="setting-row">
         <button class="setting-btn setting-btn-save" onclick="saveApiKey()">💾 저장 및 적용</button>
         <button class="setting-btn setting-btn-cancel" onclick="closeSettings()">취소</button>
       </div>
@@ -393,13 +447,21 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
 </div>
 
 <script>
-// ══════════════════════════════════════════════
-//  전역 변수
-// ══════════════════════════════════════════════
-const NX=102, NY=84, REFRESH=15*60*1000;
-let wx={airTemp:36.4,humidity:44,windSpeed:2.1,solar:823,sky:1,paveTemp:62.1};
-let metar={raw:'',wind:'—',windDir:null,windSpd:null,vis:'—',cloud:'—',cloudCode:'',temp:null,dewpt:null,qnh:null,wxText:'—',wxCode:''};
-let mlModel=null, anaData=null, lastKma=null;
+// ══════════════════════════════════════════
+//  전역 상태
+// ══════════════════════════════════════════
+const AMOS_STNID = 'RKPU';  // 울산공항 AMOS 코드
+const ASOS_STNID = '152';   // 울산 ASOS 코드
+const REFRESH_AMOS = 60*1000;      // 1분
+const REFRESH_ASOS = 60*60*1000;   // 1시간
+const REFRESH_METAR = 30*60*1000;  // 30분
+
+let wx = {
+  airTemp:16.0, dewpt:8.0, humidity:60, windDir:180, windSpeed:2.5,
+  solar:3.2, paveTemp:32.0, sky:1, qnh:1015, rain:0
+};
+let metar = {raw:'',wind:'—',windDir:null,windSpd:null,vis:'—',cloud:'—',cloudCode:'',temp:null,dewpt:null,qnh:null,wxText:'—',wxCode:''};
+let mlModel=null, anaData=null;
 let activated=false, manualOn=false;
 let chartInst=null, mlChartInst=null, distChartInst=null;
 
@@ -412,56 +474,46 @@ const zones=[
   {id:6,name:'구역 6',sub:'계류장 (STRIKER)',off:-1.5},
 ];
 let logs=[
-  {type:'info',time:'시스템',msg:'A.U.R.A v4.1 초기화 — AI 학습 + 살수 효과 분석 모듈 탑재'},
-  {type:'alert',time:'09:42',msg:'구역 5 포장온도 60℃ 초과 — 경고 발령'},
-  {type:'warn',time:'09:51',msg:'구역 1 포장온도 60℃ 초과 — 경고 발령'},
+  {type:'info',time:'시스템',msg:'A.U.R.A v5.0 초기화 — AMOS+ASOS+METAR+AI 통합 모드'},
 ];
 
-// ══════════════════════════════════════════════
-//  API 키 관리 (localStorage)
-// ══════════════════════════════════════════════
-function getApiKey(){ return localStorage.getItem('aura_api_key')||''; }
-
+// ══════════════════════════════════════════
+//  API 키 관리
+// ══════════════════════════════════════════
+function getKey(){ return localStorage.getItem('aura_api_key')||''; }
 function openSettings(){
-  document.getElementById('apiKeyInput').value = getApiKey();
-  refreshApiKeyStatus();
+  document.getElementById('apiKeyInput').value=getKey();
+  refreshKeyStatus();
   document.getElementById('settingModal').classList.add('open');
 }
 function closeSettings(){ document.getElementById('settingModal').classList.remove('open'); }
-
 function saveApiKey(){
-  const k = document.getElementById('apiKeyInput').value.trim();
-  if(!k){ alert('API 키를 입력해주세요.'); return; }
-  localStorage.setItem('aura_api_key', k);
-  refreshApiKeyStatus();
+  const k=document.getElementById('apiKeyInput').value.trim();
+  if(!k){alert('인증키를 입력해주세요.');return;}
+  localStorage.setItem('aura_api_key',k);
+  refreshKeyStatus();
   closeSettings();
-  fetchWeather(true);
+  refreshAll();
 }
 function clearApiKey(){
-  if(!confirm('저장된 API 키를 삭제하시겠습니까?')) return;
+  if(!confirm('저장된 API 키를 삭제하시겠습니까?'))return;
   localStorage.removeItem('aura_api_key');
   document.getElementById('apiKeyInput').value='';
-  refreshApiKeyStatus();
+  refreshKeyStatus();
 }
-function refreshApiKeyStatus(){
-  const k=getApiKey();
+function refreshKeyStatus(){
+  const k=getKey();
   const el=document.getElementById('apiKeyStatus');
-  if(k&&k.length>6){
-    el.textContent=`✅ 저장됨 (${k.slice(0,6)}···${k.slice(-4)})`;
-    el.style.color='#1b5e20';
-    document.getElementById('apiKeyWarn').classList.add('hidden');
-  } else {
-    el.textContent='⚠ API 키 미입력';
-    el.style.color='#b71c1c';
-    document.getElementById('apiKeyWarn').classList.remove('hidden');
-  }
+  if(k&&k.length>6){el.textContent=`✅ 저장됨 (${k.slice(0,6)}···${k.slice(-4)})`;el.style.color='#1b5e20';}
+  else{el.textContent='⚠ 미입력';el.style.color='#b71c1c';}
 }
+document.getElementById('settingModal').addEventListener('click',e=>{if(e.target===document.getElementById('settingModal'))closeSettings();});
 
-// ══════════════════════════════════════════════
+// ══════════════════════════════════════════
 //  탭 / 시계
-// ══════════════════════════════════════════════
+// ══════════════════════════════════════════
 function showTab(id){
-  document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',['main','ml','ana'][i]===id);});
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['main','ml','ana'][i]===id));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
 }
@@ -471,25 +523,132 @@ function updateClock(){
 }
 setInterval(updateClock,1000); updateClock();
 
-// ══════════════════════════════════════════════
+// ══════════════════════════════════════════
+//  포장온도 추정 (계절/일사량 반영)
+// ══════════════════════════════════════════
+function estimatePaveTemp(airTemp, solar, sky, hr){
+  // 일사량(MJ/㎡) → 포장 가열 추정
+  const solarW = solar * 277.8; // MJ→Wh 환산
+  const skyFactor = sky===1?1.0:sky===2?0.75:sky===3?0.5:0.2;
+  const dayFactor = Math.max(0, Math.sin((hr-6)/12*Math.PI));
+  const solarEffect = Math.min(25, solarW/1000*25*skyFactor*dayFactor);
+  const windCool = Math.max(0, (wx.windSpeed-1)*0.8);
+  return +(airTemp + solarEffect - windCool + 2).toFixed(1);
+}
+
+// ══════════════════════════════════════════
+//  AMOS API (항공기상 매분자료)
+// ══════════════════════════════════════════
+async function fetchAMOS(){
+  const KEY=getKey();
+  if(!KEY){setBanner('amos','err','AMOS: API 키 미입력');simFluct();renderAll();return;}
+  setBanner('amos','load','AMOS 데이터 요청 중...');
+  try{
+    const now=new Date();
+    const p=n=>String(n).padStart(2,'0');
+    const dt=`${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}${p(now.getHours())}${p(now.getMinutes())}`;
+    // AMOS 매분자료 API
+    const url=`https://apis.data.go.kr/1360000/AviationWeatherService/getAirportMinsInfo`
+      +`?serviceKey=${encodeURIComponent(KEY)}&pageNo=1&numOfRows=1&dataType=JSON`
+      +`&stnId=${AMOS_STNID}&tm=${dt}`;
+    const res=await fetch(url);
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const json=await res.json();
+    const item=json?.response?.body?.items?.item;
+    if(!item)throw new Error('데이터 없음');
+    const d=Array.isArray(item)?item[0]:item;
+
+    // AMOS 항목 매핑 (0.1 단위 변환)
+    const airTemp = d.ta!=null ? d.ta/10 : wx.airTemp;
+    const dewpt   = d.td!=null ? d.td/10 : wx.dewpt;
+    const humidity= d.hm!=null ? d.hm    : wx.humidity;
+    const windDir = d.wd10!=null? d.wd10 : wx.windDir;
+    const windSpd = d.ws10!=null? d.ws10/10*0.514 : wx.windSpeed; // 0.1m/s → m/s
+    const rain    = d.rn!=null  ? d.rn/10 : 0;
+    const hr=now.getHours();
+    const paveTemp=mlModel?predictPave():estimatePaveTemp(airTemp,wx.solar,wx.sky,hr);
+
+    wx={...wx, airTemp, dewpt, humidity, windDir, windSpeed:+windSpd.toFixed(1), rain, paveTemp};
+    const t=now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    setBanner('amos','live',`AMOS 연동 ✅ 기온 ${airTemp}℃ | 이슬점 ${dewpt}℃ | 풍향 ${windDir}° | 풍속 ${windSpd.toFixed(1)}m/s`);
+    document.getElementById('amosUpd').textContent=`갱신: ${t}`;
+    document.getElementById('amosBdg').textContent='✅ AMOS';document.getElementById('amosBdg').className='bdg bdg-amos';
+    logs.push({type:'api',time:t,msg:`AMOS 갱신 — 기온 ${airTemp}℃, 이슬점 ${dewpt}℃, 풍속 ${windSpd.toFixed(1)}m/s`});
+    renderAll();
+  }catch(e){
+    setBanner('amos','err',`AMOS 오류: ${e.message} — 시뮬레이션 유지`);
+    document.getElementById('amosBdg').textContent='⚠ AMOS 오류';document.getElementById('amosBdg').className='bdg bdg-err';
+    simFluct();renderAll();
+  }
+}
+
+// ══════════════════════════════════════════
+//  ASOS API (지상관측 — 일사량 보완)
+// ══════════════════════════════════════════
+async function fetchASOS(){
+  const KEY=getKey();
+  if(!KEY){setBanner('asos','err','ASOS: API 키 미입력');return;}
+  setBanner('asos','load','ASOS 데이터 요청 중...');
+  try{
+    const now=new Date();
+    const p=n=>String(n).padStart(2,'0');
+    // 현재 시각 기준 최근 정시
+    const baseHour=new Date(now);baseHour.setMinutes(0,0,0);
+    const dt=`${baseHour.getFullYear()}${p(baseHour.getMonth()+1)}${p(baseHour.getDate())}${p(baseHour.getHours())}`;
+    const url=`https://apis.data.go.kr/1360000/AsosHourlyInfoService/getWthrDataList`
+      +`?serviceKey=${encodeURIComponent(KEY)}&pageNo=1&numOfRows=1&dataType=JSON`
+      +`&dataCd=ASOS&dateCd=HR&startDt=${dt.slice(0,8)}&startHh=${dt.slice(8)}`
+      +`&endDt=${dt.slice(0,8)}&endHh=${dt.slice(8)}&stnIds=${ASOS_STNID}`;
+    const res=await fetch(url);
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const json=await res.json();
+    const item=json?.response?.body?.items?.item;
+    if(!item)throw new Error('데이터 없음');
+    const d=Array.isArray(item)?item[0]:item;
+
+    // 일사량(MJ/㎡), 현지기압
+    const solar = d.ss!=null ? parseFloat(d.ss) : wx.solar;   // 일조시간 대신 일사량
+    const pa    = d.pa!=null ? parseFloat(d.pa) : wx.qnh;
+    wx={...wx, solar:isNaN(solar)?wx.solar:solar, qnh:isNaN(pa)?wx.qnh:pa};
+
+    const t=now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    setBanner('asos','live',`ASOS 연동 ✅ 일사량 ${wx.solar}MJ/㎡ | 기압 ${wx.qnh}hPa`);
+    document.getElementById('asosUpd').textContent=`갱신: ${t}`;
+    document.getElementById('asosBdg').textContent='✅ ASOS';document.getElementById('asosBdg').className='bdg bdg-asos';
+    logs.push({type:'api',time:t,msg:`ASOS 갱신 — 일사량 ${wx.solar}MJ/㎡`});
+    renderAll();
+  }catch(e){
+    setBanner('asos','err',`ASOS 오류: ${e.message}`);
+    document.getElementById('asosBdg').textContent='⚠ ASOS 오류';document.getElementById('asosBdg').className='bdg bdg-err';
+  }
+}
+
+function setBanner(type,state,msg){
+  const dot=document.getElementById(type+'Dot');
+  const txt=document.getElementById(type+'Txt');
+  dot.className=`dot dot-${state==='live'?'live':state==='err'?'err':'load'}`;
+  txt.textContent=msg;
+}
+
+// ══════════════════════════════════════════
 //  METAR 파서
-// ══════════════════════════════════════════════
+// ══════════════════════════════════════════
 const WX_MAP={'RA':'비','-RA':'약한비','+RA':'강한비','SN':'눈','-SN':'약한눈','TS':'뇌우','FG':'안개','BR':'박무','HZ':'연무','TSRA':'뇌우+비'};
+const CLD_MAP={SKC:'맑음',CLR:'맑음',NSC:'구름없음',FEW:'소량',SCT:'산재',BKN:'많음',OVC:'흐림'};
 const CLD_OKTA={FEW:'1-2/8',SCT:'3-4/8',BKN:'5-7/8',OVC:'8/8'};
-const CLD_MAP={SKC:'하늘맑음',CLR:'맑음',NSC:'구름없음',FEW:'소량',SCT:'산재',BKN:'많음',OVC:'흐림'};
+const SKY_NUM={SKC:1,CLR:1,NSC:1,CAVOK:1,FEW:2,SCT:3,BKN:4,OVC:4};
 
 function parseMetar(raw){
-  if(!raw||raw.trim().length<10) return null;
+  if(!raw||raw.trim().length<10)return null;
   const s=raw.trim().toUpperCase();
-  const r={raw:s,wind:'—',windDir:null,windSpd:null,vis:'—',cloud:'—',cloudCode:'',temp:null,dewpt:null,qnh:null,wxCode:'',wxText:'—'};
+  const r={raw:s,wind:'—',windDir:null,windSpd:null,vis:'—',cloud:'—',cloudCode:'',temp:null,dewpt:null,qnh:null,wxCode:'',wxText:'—',skyNum:1};
   const wm=s.match(/\b(VRB|\d{3})(\d{2,3})(G\d{2,3})?KT\b/);
-  if(wm){const d=wm[1]==='VRB'?'가변':wm[1]+'°';const sp=parseInt(wm[2]);r.wind=`${d} ${sp}kt${wm[3]?' 돌풍 '+wm[3].slice(1)+'kt':''}`;r.windDir=wm[1]==='VRB'?null:parseInt(wm[1]);r.windSpd=sp;}
-  const vm=s.match(/\b(\d{4})\b/);if(vm){const v=parseInt(vm[1]);if(v>=100&&v<=9999)r.vis=v===9999?'10km 이상':`${v}m`;}
-  if(s.includes('CAVOK'))r.vis='CAVOK (10km↑)';
-  for(const k of Object.keys(WX_MAP).sort((a,b)=>b.length-a.length)){if(s.includes(' '+k+' ')||s.includes(' '+k+'/')){r.wxCode=k;r.wxText=WX_MAP[k];break;}}
-  const ct=[]; const cm=s.matchAll(/\b(SKC|CLR|NSC|FEW|SCT|BKN|OVC)(\d{3})?(CB|TCU)?\b/g);
-  for(const c of cm){const code=c[1],ht=c[2]?parseInt(c[2])*100+'ft':'',cb=c[3]||'';ct.push(`${CLD_MAP[code]||code}${ht?' '+ht:''}${cb?' '+cb:''}`);if(!r.cloudCode)r.cloudCode=code;}
-  if(s.includes('CAVOK')){ct.push('CAVOK');r.cloudCode='CLR';}
+  if(wm){r.wind=`${wm[1]==='VRB'?'가변':wm[1]+'°'} ${parseInt(wm[2])}kt${wm[3]?' 돌풍 '+wm[3].slice(1)+'kt':''}`;r.windDir=wm[1]==='VRB'?null:parseInt(wm[1]);r.windSpd=parseInt(wm[2]);}
+  const vm=s.match(/\b(\d{4})\b/);if(vm){const v=parseInt(vm[1]);if(v>=100&&v<=9999)r.vis=v===9999?'10km↑':`${v}m`;}
+  if(s.includes('CAVOK')){r.vis='CAVOK';r.skyNum=1;}
+  for(const k of Object.keys(WX_MAP).sort((a,b)=>b.length-a.length)){if(s.includes(' '+k)){r.wxCode=k;r.wxText=WX_MAP[k];break;}}
+  const ct=[];const cm=s.matchAll(/\b(SKC|CLR|NSC|FEW|SCT|BKN|OVC)(\d{3})?(CB|TCU)?\b/g);
+  for(const c of cm){const code=c[1],ht=c[2]?parseInt(c[2])*100+'ft':'';ct.push(`${CLD_MAP[code]||code}${ht?' '+ht:''}`);if(!r.cloudCode){r.cloudCode=code;r.skyNum=SKY_NUM[code]||1;}}
   r.cloud=ct.length?ct.join(' / '):'—';
   const tm=s.match(/\b(M?\d{2})\/(M?\d{2})\b/);
   if(tm){const p=t=>t.startsWith('M')?-parseInt(t.slice(1)):parseInt(t);r.temp=p(tm[1]);r.dewpt=p(tm[2]);}
@@ -497,173 +656,179 @@ function parseMetar(raw){
   return r;
 }
 function applyMetar(r){
-  if(!r) return; metar=r;
+  if(!r)return; metar=r;
   document.getElementById('metarRaw').textContent=r.raw;
   document.getElementById('m-wind').textContent=r.wind;
   document.getElementById('m-wind-s').textContent=r.windDir!=null?`풍향 ${r.windDir}°`:'';
   document.getElementById('m-vis').textContent=r.vis;
-  document.getElementById('m-cloud').textContent=r.cloudCode?(CLD_OKTA[r.cloudCode]||''):'';
+  document.getElementById('m-cloud').textContent=r.cloudCode?(CLD_OKTA[r.cloudCode]||CLD_MAP[r.cloudCode]||''):'';
   document.getElementById('m-cloud-s').textContent=r.cloud.length>22?r.cloud.slice(0,22)+'…':r.cloud;
-  if(r.temp!=null){const sp=r.temp-r.dewpt;document.getElementById('m-temp').textContent=`${r.temp}℃ / ${r.dewpt}℃`;document.getElementById('m-temp-s').textContent=`차: ${sp.toFixed(0)}℃`;wx.airTemp=r.temp;const b=wx.solar>600?22:wx.solar>300?16:10;wx.paveTemp=+(r.temp+b+(Math.random()-.5)*1.2).toFixed(1);}
-  document.getElementById('m-qnh').textContent=r.qnh?`${r.qnh} hPa`:'—';
+  if(r.temp!=null){document.getElementById('m-temp').textContent=`${r.temp}℃ / ${r.dewpt}℃`;document.getElementById('m-temp-s').textContent=`차: ${(r.temp-r.dewpt).toFixed(0)}℃`;}
+  document.getElementById('m-qnh').textContent=r.qnh?`${r.qnh}hPa`:'—';
   document.getElementById('m-wx').textContent=r.wxText;
+  // METAR → wx 반영
+  if(r.temp!=null){wx.airTemp=r.temp;wx.dewpt=r.dewpt;}
   if(r.windSpd!=null)wx.windSpeed=+(r.windSpd*0.514).toFixed(1);
+  if(r.qnh)wx.qnh=r.qnh;
+  wx.sky=r.skyNum;
+  wx.paveTemp=mlModel?predictPave():estimatePaveTemp(wx.airTemp,wx.solar,wx.sky,new Date().getHours());
   const now=new Date();
   document.getElementById('metarDot').className='dot dot-live';
-  document.getElementById('metarTxt').textContent=`RKPU METAR 파싱 완료 — 풍향 ${r.wind} | 시정 ${r.vis}`;
-  document.getElementById('metarUpd').textContent=`입력: ${now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
-  document.getElementById('metarBdg').textContent='✅ METAR 연동'; document.getElementById('metarBdg').className='bdg bdg-metar';
-  const t=now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-  logs.push({type:'metar',time:t,msg:`METAR 파싱 — 기온 ${r.temp}℃ | 이슬점 ${r.dewpt}℃ | 풍향풍속 ${r.wind}`});
-  updateAI(); renderAll();
+  document.getElementById('metarTxt').textContent=`METAR 수신 ✅ ${r.wind} | 시정 ${r.vis} | ${r.cloud}`;
+  document.getElementById('metarUpd').textContent=`갱신: ${now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}`;
+  document.getElementById('metarBdg').textContent='✅ METAR';document.getElementById('metarBdg').className='bdg bdg-metar';
+  logs.push({type:'metar',time:now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),msg:`METAR — 기온 ${r.temp}℃ | 이슬점 ${r.dewpt}℃ | ${r.wind} | 시정 ${r.vis}`});
+  updateAI();renderAll();
 }
 function parseMetarInput(){
   const raw=document.getElementById('metarInput').value.trim();
   if(!raw){alert('METAR 전문을 입력해주세요.');return;}
-  const result=parseMetar(raw);
-  if(!result||result.temp===null){alert('파싱 실패: 형식 확인\n예시: RKPU 220600Z 18005KT 9999 SKC 32/22 Q1010');return;}
-  applyMetar(result);
+  const r=parseMetar(raw);
+  if(!r||r.temp===null){alert('파싱 실패\n예: RKPU 220600Z 18005KT 9999 SKC 16/08 Q1015');return;}
+  applyMetar(r);
 }
 async function fetchMetarAuto(){
   try{
-    const res=await fetch('https://aviationweather.gov/api/data/metar?ids=RKPU&format=raw',{signal:AbortSignal.timeout(5000)});
+    const res=await fetch('https://aviationweather.gov/api/data/metar?ids=RKPU&format=raw',{signal:AbortSignal.timeout(6000)});
     if(!res.ok)throw new Error();
     const text=await res.text();
     const lines=text.split('\n').map(l=>l.trim()).filter(l=>l.startsWith('RKPU'));
-    if(lines.length>0){document.getElementById('metarInput').value=lines[0];applyMetar(parseMetar(lines[0]));}
-  }catch(e){console.log('METAR 자동 수신 실패');}
+    if(lines.length){document.getElementById('metarInput').value=lines[0];applyMetar(parseMetar(lines[0]));}
+  }catch(e){console.log('METAR 자동 수신 실패 — 수동 입력 대기');}
 }
 
-// ══════════════════════════════════════════════
-//  기상청 API
-// ══════════════════════════════════════════════
-function getBaseDT(){
-  const now=new Date(),hrs=[2,5,8,11,14,17,20,23];let bh=hrs[0];
-  for(const h of hrs){const p=new Date(now);p.setHours(h,30,0,0);if(now>=p)bh=h;}
-  const p=n=>String(n).padStart(2,'0');
-  return{baseDate:`${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}`,baseTime:`${p(bh)}00`};
-}
-async function fetchWeather(manual=false){
-  const KEY=getApiKey();
-  const ok=KEY&&KEY.length>10;
-  setKma('loading',manual?'수동 갱신 중...':'기상청 API 호출 중...');
-  if(!ok){setKma('error','API 키 미입력 — 시뮬레이션 모드');simFluct();renderAll();return;}
-  try{
-    const{baseDate,baseTime}=getBaseDT();
-    const url=`https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${encodeURIComponent(KEY)}&pageNo=1&numOfRows=100&dataType=JSON&base_date=${baseDate}&base_time=${baseTime}&nx=${NX}&ny=${NY}`;
-    const res=await fetch(url);if(!res.ok)throw new Error(`HTTP ${res.status}`);
-    const json=await res.json();const items=json?.response?.body?.items?.item;if(!items)throw new Error('응답 형식 오류');
-    const now=new Date();const p=n=>String(n).padStart(2,'0');const tgt=`${p(now.getHours())}00`;
-    const get=cat=>{const f=items.find(i=>i.category===cat&&i.fcstTime===tgt)||items.find(i=>i.category===cat);return f?parseFloat(f.fcstValue):null;};
-    const airTemp=get('TMP'),humidity=get('REH'),windSpd=get('WSD'),sky=get('SKY');
-    if(airTemp===null)throw new Error('기온 없음');
-    const hr=now.getHours(),dayF=Math.max(0,Math.sin((hr-6)/12*Math.PI)),skyF=sky===1?1.0:sky===3?0.55:0.2;
-    const solar=Math.round(1050*dayF*skyF),bonus=solar>600?22:solar>300?16:10;
-    const paveTemp=+(airTemp+bonus+(Math.random()-.5)*1.5).toFixed(1);
-    wx={airTemp:metar.temp!=null?metar.temp:airTemp,humidity:humidity||44,windSpeed:metar.windSpd!=null?+(metar.windSpd*0.514).toFixed(1):(windSpd||2),solar,sky:sky||1,paveTemp:metar.temp!=null?+(metar.temp+bonus+(Math.random()-.5)*1.2).toFixed(1):paveTemp};
-    lastKma=new Date();
-    const t=lastKma.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-    logs.push({type:'api',time:t,msg:`기상청 갱신 — 기온 ${airTemp}℃, 습도 ${humidity}%`});
-    setKma('live',`기상청 단기예보 연동 (울산 NX:${NX} NY:${NY})`);renderAll();
-  }catch(err){
-    const t=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-    logs.push({type:'warn',time:t,msg:`API 실패: ${err.message}`});
-    setKma('error',`오류: ${err.message}`);simFluct();renderAll();
-  }
-}
-function setKma(state,msg){
-  document.getElementById('apiDot').className=`dot dot-${state==='live'?'live':state==='error'?'err':'load'}`;
-  document.getElementById('apiTxt').textContent=msg;
-  if(lastKma)document.getElementById('apiUpd').textContent=`갱신: ${lastKma.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
-  const b=document.getElementById('kmaBdg');
-  if(state==='live'){b.textContent='✅ 기상청 연동';b.className='bdg bdg-kma';}
-  else if(state==='error'){b.textContent='⚠ API 오류';b.className='bdg bdg-err';}
-  else{b.textContent='⟳ 로딩';b.className='bdg bdg-load';}
-}
 function simFluct(){
-  wx.airTemp=+(wx.airTemp+(Math.random()-.5)*.2).toFixed(1);
-  wx.solar=Math.max(0,Math.round(wx.solar+(Math.random()-.5)*15));
+  wx.airTemp=+(wx.airTemp+(Math.random()-.5)*.15).toFixed(1);
+  wx.solar=Math.max(0,+(wx.solar+(Math.random()-.5)*.05).toFixed(2));
   wx.humidity=Math.min(100,Math.max(0,Math.round(wx.humidity+(Math.random()-.5))));
-  wx.windSpeed=+(Math.max(0,wx.windSpeed+(Math.random()-.5)*.15)).toFixed(1);
-  wx.paveTemp=+(wx.paveTemp+(Math.random()-.5)*.3).toFixed(1);
+  wx.windSpeed=+(Math.max(0,wx.windSpeed+(Math.random()-.5)*.1)).toFixed(1);
+  wx.paveTemp=mlModel?predictPave():estimatePaveTemp(wx.airTemp,wx.solar,wx.sky,new Date().getHours());
 }
 
-// ══════════════════════════════════════════════
-//  엑셀 → 선형회귀 학습
-// ══════════════════════════════════════════════
-const COL_ALIASES={
-  airTemp:['대기온도','기온'],solar:['일사량'],humidity:['습도'],windSpeed:['풍속'],
-  sky:['하늘상태'],hour:['측정시간','시간'],paveTemp:['포장온도'],
-  zone:['구역코드','구역'],sprinkled:['살수여부','살수'],tempAfter:['살수후온도'],
-};
-function findCol(sample,aliases){
-  const keys=Object.keys(sample).map(k=>k.trim());
-  for(const a of aliases){const m=keys.find(k=>k.includes(a)||a.includes(k));if(m)return m;}
-  return null;
-}
+function refreshAll(){fetchAMOS();fetchASOS();fetchMetarAuto();}
+
+// ══════════════════════════════════════════
+//  엑셀 → AI 학습
+//  컬럼: 구분, 일자, 요일, 측정시간, 구역코드, 특보현황,
+//         대기온도(℃), 일사량(MJ/㎡), 습도(%), 풍속(KT),
+//         포장온도(℃), 살수여부, 살수량(L), 살수후 표면온도(℃)
+// ══════════════════════════════════════════
 function handleDrop(e){e.preventDefault();document.getElementById('mlDrop').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)loadExcelFile(f);}
 function loadExcel(e){const f=e.target.files[0];if(f)loadExcelFile(f);}
+
 function loadExcelFile(file){
   setProg(true,'파일 읽는 중...',10);
   const reader=new FileReader();
   reader.onload=e=>{
     try{
-      setProg(true,'데이터 파싱 중...',30);
+      setProg(true,'시트 파싱 중...',30);
       const wb=XLSX.read(e.target.result,{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
-      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
-      setProg(true,'전처리 중...',55);
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+      setProg(true,'데이터 전처리 중...',55);
       processAndTrain(rows);
     }catch(err){alert('파일 오류: '+err.message);setProg(false);}
   };
   reader.readAsArrayBuffer(file);
 }
+
+// 컬럼명 정규화 매핑
+const COL_MAP = {
+  time:    ['측정시간'],
+  zone:    ['구역코드','구역'],
+  airTemp: ['대기온도'],
+  solar:   ['일사량'],
+  humidity:['습도'],
+  windSpd: ['풍속'],
+  paveTemp:['포장온도'],
+  sprinkle:['살수여부'],
+  sprVol:  ['살수량'],
+  tempAfter:['살수후 표면온도','살수후표면온도'],
+};
+function findCol(sample, aliases){
+  const keys=Object.keys(sample).map(k=>k.trim().replace(/\s+/g,' '));
+  for(const a of aliases){
+    const m=keys.find(k=>k.includes(a)||a.includes(k));
+    if(m) return Object.keys(sample).find(k=>k.trim().replace(/\s+/g,' ')===m);
+  }
+  return null;
+}
+function n2(v){return parseFloat(String(v).replace(/[^0-9.\-]/g,''));}
+
+// 시간 파싱 (10:00, 1000, 10 등 대응)
+function parseHour(v){
+  const s=String(v).trim();
+  if(s.includes(':'))return parseInt(s.split(':')[0]);
+  if(s.length===4)return parseInt(s.slice(0,2));
+  return parseInt(s)||12;
+}
+
 function processAndTrain(rows){
   if(!rows.length){alert('데이터가 없습니다.');setProg(false);return;}
-  setProg(true,'결측값 제거 중...',65);
+  setProg(true,'컬럼 매핑 중...',65);
   const sample=rows[0];
-  const cols={};for(const[k,a] of Object.entries(COL_ALIASES))cols[k]=findCol(sample,a);
-  const n2=v=>parseFloat(String(v).replace(/[^0-9.\-]/g,''));
-  const fNames=['대기온도','일사량','습도','풍속','하늘상태','시간(cos)','시간(sin)'];
+  const cols={};
+  for(const[k,aliases] of Object.entries(COL_MAP)) cols[k]=findCol(sample,aliases);
+
+  // 특징명
+  const fNames=['대기온도(℃)','일사량(MJ/㎡)','습도(%)','풍속(KT)','시간(cos)','시간(sin)'];
   const X=[],Y=[],rawRows=[];
+
   for(const row of rows){
-    const at=n2(cols.airTemp?row[cols.airTemp]:NaN),sol=n2(cols.solar?row[cols.solar]:NaN);
-    const hum=n2(cols.humidity?row[cols.humidity]:NaN),ws=n2(cols.windSpeed?row[cols.windSpeed]:NaN);
-    const sky=n2(cols.sky?row[cols.sky]:NaN),hr=n2(cols.hour?row[cols.hour]:12);
-    const pt=n2(cols.paveTemp?row[cols.paveTemp]:NaN),zone=n2(cols.zone?row[cols.zone]:NaN);
-    const spk=cols.sprinkled?(+(n2(row[cols.sprinkled])>0)):0;
-    const ta=cols.tempAfter?n2(row[cols.tempAfter]):NaN;
-    if([at,sol,hum,ws,pt].some(isNaN))continue;
-    const hv=isNaN(hr)?12:hr%24,hcos=Math.cos(2*Math.PI*hv/24),hsin=Math.sin(2*Math.PI*hv/24);
-    X.push([at,sol,hum,ws,isNaN(sky)?1:sky,hcos,hsin]);Y.push(pt);
-    rawRows.push({at,sol,hum,ws,sky:isNaN(sky)?1:sky,hr:hv,pt,zone,spk,ta});
+    const at  = n2(cols.airTemp  ? row[cols.airTemp]  : NaN);
+    const sol = n2(cols.solar    ? row[cols.solar]    : NaN);
+    const hum = n2(cols.humidity ? row[cols.humidity] : NaN);
+    const ws  = n2(cols.windSpd  ? row[cols.windSpd]  : NaN);
+    const pt  = n2(cols.paveTemp ? row[cols.paveTemp] : NaN);
+    const hr  = cols.time ? parseHour(row[cols.time]) : 12;
+    const zone= n2(cols.zone     ? row[cols.zone]     : NaN);
+    const spk = cols.sprinkle ? (n2(row[cols.sprinkle])>0 ? 1:0) : 0;
+    const ta  = cols.tempAfter ? n2(row[cols.tempAfter]) : NaN;
+
+    if([at,sol,hum,ws,pt].some(v=>isNaN(v)||!isFinite(v))) continue;
+    const hcos=Math.cos(2*Math.PI*hr/24), hsin=Math.sin(2*Math.PI*hr/24);
+    X.push([at,sol,hum,ws,hcos,hsin]);
+    Y.push(pt);
+    rawRows.push({at,sol,hum,ws,hr,pt,zone,spk,ta});
   }
-  setProg(true,'회귀 학습 중...',80);
-  if(X.length<10){alert(`유효 데이터 ${X.length}건 — 최소 10건 이상 필요합니다.`);setProg(false);return;}
-  const model=fitLR(X,Y);model.featureNames=fNames;model.n=X.length;
+
+  setProg(true,'선형회귀 학습 중...',80);
+  if(X.length<5){alert(`유효 데이터 ${X.length}건 — 최소 5건 이상 필요합니다.\n컬럼명을 확인해주세요.`);setProg(false);return;}
+
+  const model=fitLR(X,Y);
+  model.featureNames=fNames; model.n=X.length;
   const preds=X.map(x=>predict(model,x));
   const yMean=Y.reduce((a,b)=>a+b,0)/Y.length;
-  model.r2=Math.max(0,1-(Y.reduce((a,v,i)=>a+(v-preds[i])**2,0)/Y.reduce((a,v)=>a+(v-yMean)**2,0)));
+  model.r2=Math.max(0,1-Y.reduce((a,v,i)=>a+(v-preds[i])**2,0)/Y.reduce((a,v)=>a+(v-yMean)**2,0));
   model.rmse=Math.sqrt(Y.reduce((a,v,i)=>a+(v-preds[i])**2,0)/Y.length);
+
   setProg(false);
-  mlModel=model;anaData={rawRows,preds,Y};
+  mlModel=model; anaData={rawRows,preds,Y};
+
   showMLResults(model,X,Y,preds);
   updateAnalysis(rawRows);
   document.getElementById('chartModelBdg').style.display='inline-flex';
   document.getElementById('mlBanner').style.display='flex';
-  document.getElementById('mlTxt').textContent=`AI 모델 — R²=${model.r2.toFixed(3)}, RMSE=${model.rmse.toFixed(2)}℃, 학습 ${model.n}건`;
-  buildChart();updateAI();
+  document.getElementById('mlTxt').textContent=`AI 모델 — R²=${model.r2.toFixed(3)}, RMSE=${model.rmse.toFixed(2)}℃, ${model.n}건`;
+  buildChart(); updateAI();
   const t=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
   logs.push({type:'ml',time:t,msg:`AI 모델 학습 완료 — ${model.n}건, R²=${model.r2.toFixed(3)}, RMSE=${model.rmse.toFixed(2)}℃`});
 }
+
+// 선형회귀 (정규방정식)
 function fitLR(X,Y){
-  const Xb=X.map(r=>[1,...r]);const Xt=transpose(Xb);
-  const XtX=matMul(Xt,Xb);const XtY=Xt.map(r=>r.reduce((a,v,i)=>a+v*Y[i],0));
-  const beta=solveLS(XtX,XtY);return{intercept:beta[0],coefs:beta.slice(1)};
+  const Xb=X.map(r=>[1,...r]);const Xt=tp(Xb);
+  const beta=solveLS(mm(Xt,Xb),Xt.map(r=>r.reduce((a,v,i)=>a+v*Y[i],0)));
+  return{intercept:beta[0],coefs:beta.slice(1)};
 }
 function predict(m,x){return m.intercept+m.coefs.reduce((a,c,i)=>a+c*x[i],0);}
-function transpose(m){return m[0].map((_,i)=>m.map(r=>r[i]));}
-function matMul(A,B){const Bt=transpose(B);return A.map(row=>Bt.map(col=>row.reduce((a,v,i)=>a+v*col[i],0)));}
+function predictPave(){
+  const hr=new Date().getHours();
+  const x=[wx.airTemp,wx.solar,wx.humidity,wx.windSpeed,Math.cos(2*Math.PI*hr/24),Math.sin(2*Math.PI*hr/24)];
+  return +predict(mlModel,x).toFixed(1);
+}
+function tp(m){return m[0].map((_,i)=>m.map(r=>r[i]));}
+function mm(A,B){const Bt=tp(B);return A.map(row=>Bt.map(col=>row.reduce((a,v,i)=>a+v*col[i],0)));}
 function solveLS(A,b){
   const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
   for(let c=0;c<n;c++){
@@ -686,61 +851,78 @@ function showMLResults(model,X,Y,preds){
   document.getElementById('mlCoef').innerHTML=model.coefs.map((c,i)=>`
     <div class="ml-coef-item">
       <div style="flex:1"><div>${model.featureNames[i]}</div>
-      <div class="ml-coef-bar" style="width:${Math.abs(c)/mx*100}%;background:${c>=0?'#1565c0':'#b71c1c'}"></div></div>
+        <div class="ml-coef-bar" style="width:${Math.abs(c)/mx*100}%;background:${c>=0?'#1565c0':'#b71c1c'}"></div>
+      </div>
       <div style="font-weight:700;color:${c>=0?'#1565c0':'#b71c1c'};margin-left:10px">${c>=0?'+':''}${c.toFixed(3)}</div>
     </div>`).join('');
   document.getElementById('mlChartCard').style.display='block';
-  const sz=Math.min(Y.length,80),idx=Array.from({length:sz},(_,i)=>Math.floor(i*Y.length/sz));
-  if(mlChartInst){mlChartInst.destroy();mlChartInst=null;}
+  const sz=Math.min(Y.length,100),idx=Array.from({length:sz},(_,i)=>Math.floor(i*Y.length/sz));
+  if(mlChartInst){mlChartInst.destroy();}
   mlChartInst=new Chart(document.getElementById('mlChart'),{
     type:'scatter',data:{datasets:[
       {label:'예측 vs 실측',data:idx.map(i=>({x:Y[i],y:preds[i]})),backgroundColor:'rgba(123,31,162,.6)',pointRadius:4},
-      {label:'완벽 예측선',data:[{x:Math.min(...Y),y:Math.min(...Y)},{x:Math.max(...Y),y:Math.max(...Y)}],type:'line',borderColor:'#e53935',borderDash:[6,3],pointRadius:0,fill:false,borderWidth:1.5}
+      {label:'완벽예측선',data:[{x:Math.min(...Y),y:Math.min(...Y)},{x:Math.max(...Y),y:Math.max(...Y)}],type:'line',borderColor:'#e53935',borderDash:[6,3],pointRadius:0,fill:false,borderWidth:1.5}
     ]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11}}}},
       scales:{x:{title:{display:true,text:'실측값 (℃)',font:{size:11}}},y:{title:{display:true,text:'예측값 (℃)',font:{size:11}}}}}
   });
 }
+
+// 샘플 데이터 (울산공항 양식 기준)
 function loadSampleData(){
-  const sample=[];
-  for(let i=0;i<120;i++){
-    const hr=6+Math.random()*12,at=28+Math.random()*12,sol=200+Math.random()*800;
-    const hum=30+Math.random()*40,ws=0.5+Math.random()*5,sky=[1,1,1,3,4][Math.floor(Math.random()*5)];
-    const zone=Math.floor(Math.random()*6)+1,spk=Math.random()<.3?1:0;
-    const pt=at+(sol/1000*25)-(hum/100*5)+Math.random()*3-1.5+[1.5,-3.2,-3.6,-2.8,3.2,-1.5][zone-1];
-    sample.push({'대기온도':+at.toFixed(1),'일사량':Math.round(sol),'습도':Math.round(hum),'풍속':+ws.toFixed(1),'하늘상태':sky,'측정시간':Math.round(hr),'구역코드':zone,'포장온도':+pt.toFixed(1),'살수여부':spk,'살수후온도':spk?+(pt-8-Math.random()*5).toFixed(1):''});
+  const rows=[];
+  for(let i=0;i<150;i++){
+    const hr=6+Math.random()*12,at=20+Math.random()*18;
+    const sol=+(Math.random()*3.5).toFixed(2),hum=30+Math.random()*50;
+    const ws=+(0.5+Math.random()*8).toFixed(1),zone=Math.floor(Math.random()*6)+1;
+    const spk=Math.random()<.25?1:0;
+    const pt=+(at+sol*6-(hum/100*3)-ws*0.5+[1.5,-3.2,-3.6,-2.8,3.2,-1.5][zone-1]+(Math.random()*2-1)).toFixed(1);
+    const ta=spk?+(pt-6-Math.random()*6).toFixed(1):'';
+    const hrStr=`${String(Math.floor(hr)).padStart(2,'0')}:00`;
+    rows.push({
+      '구분':i+1,'일자':`2024-07-${String(Math.floor(i/10)+1).padStart(2,'0')}`,'요일':'월',
+      '측정시간':hrStr,'구역코드':zone,'특보현황':0,
+      '대기온도(℃)':+at.toFixed(1),'일사량(MJ/㎡)':sol,'습도(%)':Math.round(hum),'풍속(KT)':ws,
+      '포장온도(℃)':pt,'살수여부':spk,'살수량(L)':spk?200:0,'살수후 표면온도(℃)':ta
+    });
   }
-  processAndTrain(sample);
+  processAndTrain(rows);
 }
 
-// ══════════════════════════════════════════════
+// ══════════════════════════════════════════
 //  살수 효과 분석
-// ══════════════════════════════════════════════
+// ══════════════════════════════════════════
 function updateAnalysis(rows){
-  const spkRows=rows.filter(r=>r.spk&&!isNaN(r.ta));
+  const spkRows=rows.filter(r=>r.spk&&!isNaN(r.ta)&&isFinite(r.ta));
   const allRed=spkRows.map(r=>r.pt-r.ta);
   const avgRed=allRed.length?allRed.reduce((a,b)=>a+b,0)/allRed.length:0;
+
   const zr={};
   for(let z=1;z<=6;z++){
-    const zs=spkRows.filter(r=>r.zone===z),red=zs.map(r=>r.pt-r.ta);
+    const zs=spkRows.filter(r=>r.zone===z);
+    const red=zs.map(r=>r.pt-r.ta);
     const allZ=rows.filter(r=>r.zone===z&&!isNaN(r.pt)).map(r=>r.pt);
-    zr[z]={avg:red.length?red.reduce((a,b)=>a+b,0)/red.length:0,n:red.length,avgPt:allZ.length?allZ.reduce((a,b)=>a+b,0)/allZ.length:0};
+    zr[z]={avg:red.length?red.reduce((a,b)=>a+b,0)/red.length:0,n:red.length,avgPt:allZ.length?allZ.reduce((a,b)=>a+b,0)/allZ.length:0,cnt:allZ.length};
   }
+
   const bands=['<50℃','50-55℃','55-58℃','58-60℃','60-65℃','65℃+'];
   const bc=[0,0,0,0,0,0];
   spkRows.forEach(r=>{const p=r.pt;if(p<50)bc[0]++;else if(p<55)bc[1]++;else if(p<58)bc[2]++;else if(p<60)bc[3]++;else if(p<65)bc[4]++;else bc[5]++;});
+
   const top3=Object.entries(zr).map(([z,d])=>({z:+z,avg:d.avgPt,reduce:d.avg,n:d.n})).sort((a,b)=>b.avg-a.avg).slice(0,3);
 
   document.getElementById('anaReduceContent').innerHTML=`
-    <div style="text-align:center;font-size:2rem;font-weight:800;color:var(--navy);margin-bottom:6px;">${avgRed.toFixed(1)}℃</div>
-    <div style="text-align:center;font-size:.82rem;color:var(--sub);margin-bottom:12px;">전체 평균 온도 저감량 (살수 ${spkRows.length}회 기준)</div>
+    <div style="text-align:center;font-size:2rem;font-weight:800;color:var(--navy);margin-bottom:5px;">▼ ${avgRed.toFixed(1)}℃</div>
+    <div style="text-align:center;font-size:.8rem;color:var(--sub);margin-bottom:11px;">전체 평균 온도 저감량 (살수 ${spkRows.length}회 기준)</div>
     <div class="reduce-grid">${Object.entries(zr).map(([z,d])=>`
-      <div class="reduce-item"><div class="reduce-lbl">구역 ${z} · ${zones[z-1].sub.split('(')[0].trim()}</div>
-      <div class="reduce-val">${d.n>0?d.avg.toFixed(1)+'℃':'—'}</div>
-      <div style="font-size:.65rem;color:var(--sub);">${d.n}회</div></div>`).join('')}
+      <div class="reduce-item">
+        <div class="reduce-lbl">구역 ${z} · ${zones[z-1].sub.split('(')[0].trim()}</div>
+        <div class="reduce-val">${d.n>0?'▼'+d.avg.toFixed(1)+'℃':'—'}</div>
+        <div style="font-size:.62rem;color:var(--sub);">살수 ${d.n}회</div>
+      </div>`).join('')}
     </div>`;
 
-  if(distChartInst){distChartInst.destroy();}
+  if(distChartInst)distChartInst.destroy();
   distChartInst=new Chart(document.getElementById('distChart'),{
     type:'bar',data:{labels:bands,datasets:[{label:'살수 횟수',data:bc,backgroundColor:['#43a047','#66bb6a','#ffa726','#ef6c00','#e53935','#b71c1c'],borderRadius:6}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{stepSize:1},grid:{color:'#eef0f4'}},x:{grid:{display:false}}}}
@@ -748,83 +930,108 @@ function updateAnalysis(rows){
 
   document.getElementById('top3Content').innerHTML=top3.map((z,i)=>`
     <div class="top3-item"><div class="top3-rank">${i+1}</div>
-    <div style="flex:1"><div class="top3-name">${zones[z.z-1].name} · ${zones[z.z-1].sub}</div>
-    <div class="top3-sub">저감 ${z.n>0?z.reduce.toFixed(1)+'℃':'데이터 없음'} · 살수 ${z.n}회</div></div>
-    <div class="top3-temp">${z.avg.toFixed(1)}℃</div></div>`).join('');
+    <div style="flex:1"><div style="font-size:.8rem;font-weight:700;">${zones[z.z-1].name} · ${zones[z.z-1].sub}</div>
+    <div style="font-size:.68rem;color:var(--sub);">저감 ${z.n>0?z.reduce.toFixed(1)+'℃':'데이터 없음'} · 살수 ${z.n}회</div></div>
+    <div style="font-size:1.05rem;font-weight:800;color:var(--red);">${z.avg.toFixed(1)}℃</div></div>`).join('');
 
-  document.getElementById('zoneDetailContent').innerHTML=`<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:.78rem;">
+  document.getElementById('zoneDetailContent').innerHTML=`<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:.76rem;">
     <thead><tr style="background:#f0f4fa;">
-      <th style="padding:7px 10px;text-align:left;border-bottom:2px solid var(--bdr);">구역</th>
-      <th style="padding:7px 10px;text-align:center;border-bottom:2px solid var(--bdr);">평균 포장온도</th>
-      <th style="padding:7px 10px;text-align:center;border-bottom:2px solid var(--bdr);">살수 횟수</th>
-      <th style="padding:7px 10px;text-align:center;border-bottom:2px solid var(--bdr);">평균 저감량</th>
-      <th style="padding:7px 10px;text-align:center;border-bottom:2px solid var(--bdr);">위험도</th>
+      <th style="padding:6px 9px;text-align:left;border-bottom:2px solid var(--bdr);">구역</th>
+      <th style="padding:6px 9px;text-align:center;border-bottom:2px solid var(--bdr);">관측 건수</th>
+      <th style="padding:6px 9px;text-align:center;border-bottom:2px solid var(--bdr);">평균 포장온도</th>
+      <th style="padding:6px 9px;text-align:center;border-bottom:2px solid var(--bdr);">살수 횟수</th>
+      <th style="padding:6px 9px;text-align:center;border-bottom:2px solid var(--bdr);">평균 저감량</th>
+      <th style="padding:6px 9px;text-align:center;border-bottom:2px solid var(--bdr);">위험도</th>
     </tr></thead><tbody>
-    ${Object.entries(zr).map(([z,d])=>{const risk=d.avgPt>=60?'🔴 경고':d.avgPt>=58?'🟡 주의':'🟢 정상';return`
-      <tr style="border-bottom:1px solid #eef0f4;">
-        <td style="padding:7px 10px;font-weight:600;">${zones[z-1].name}<br><span style="font-weight:400;color:var(--sub);font-size:.7rem;">${zones[z-1].sub}</span></td>
-        <td style="padding:7px 10px;text-align:center;font-weight:800;color:${d.avgPt>=60?'var(--red)':d.avgPt>=58?'var(--yellow)':'var(--green)'};">${d.avgPt>0?d.avgPt.toFixed(1)+'℃':'—'}</td>
-        <td style="padding:7px 10px;text-align:center;">${d.n}회</td>
-        <td style="padding:7px 10px;text-align:center;color:#1565c0;font-weight:700;">${d.n>0?'▼'+d.avg.toFixed(1)+'℃':'—'}</td>
-        <td style="padding:7px 10px;text-align:center;">${risk}</td>
+    ${Object.entries(zr).map(([z,d])=>{
+      const risk=d.avgPt>=60?'🔴 경고':d.avgPt>=58?'🟡 주의':'🟢 정상';
+      return`<tr style="border-bottom:1px solid #eef0f4;">
+        <td style="padding:6px 9px;font-weight:600;">${zones[z-1].name}<br><span style="font-weight:400;color:var(--sub);font-size:.68rem;">${zones[z-1].sub}</span></td>
+        <td style="padding:6px 9px;text-align:center;">${d.cnt}건</td>
+        <td style="padding:6px 9px;text-align:center;font-weight:800;color:${d.avgPt>=60?'var(--red)':d.avgPt>=58?'var(--yellow)':'var(--green)'};">${d.avgPt>0?d.avgPt.toFixed(1)+'℃':'—'}</td>
+        <td style="padding:6px 9px;text-align:center;">${d.n}회</td>
+        <td style="padding:6px 9px;text-align:center;color:#1565c0;font-weight:700;">${d.n>0?'▼'+d.avg.toFixed(1)+'℃':'—'}</td>
+        <td style="padding:6px 9px;text-align:center;">${risk}</td>
       </tr>`;}).join('')}
     </tbody></table></div>`;
 }
 
-// ══════════════════════════════════════════════
+// ══════════════════════════════════════════
 //  렌더링
-// ══════════════════════════════════════════════
-const SKY_LBL={1:'☀️ 맑음',2:'⛅ 구름조금',3:'🌥 구름많음',4:'☁️ 흐림'};
+// ══════════════════════════════════════════
 function renderSensors(){
   const d=wx;
+  const windDirStr=d.windDir!=null?`${d.windDir}°`:'—';
   const items=[
-    {label:'포장온도 (추정)',value:d.paveTemp,unit:'℃',max:80,color:'#e53935'},
-    {label:'기온',value:d.airTemp,unit:'℃',max:50,color:'#fb8c00',sub:SKY_LBL[d.sky]||''},
-    {label:'일사량 (추정)',value:d.solar,unit:'W/m²',max:1200,color:'#f9a825'},
-    {label:'습도',value:d.humidity,unit:'%',max:100,color:'#1e88e5'},
-    {label:'풍속',value:d.windSpeed,unit:'m/s',max:15,color:'#43a047',sub:metar.wind&&metar.wind!=='—'?`METAR: ${metar.wind}`:''},
+    {label:'포장온도 (추정)',value:d.paveTemp,unit:'℃',max:80,color:'#e53935',src:mlModel?'AI':'추정'},
+    {label:'기온',value:d.airTemp,unit:'℃',max:50,color:'#fb8c00',src:'AMOS'},
+    {label:'이슬점',value:d.dewpt,unit:'℃',max:40,color:'#8e24aa',src:'AMOS'},
+    {label:'일사량',value:d.solar,unit:'MJ/㎡',max:4,color:'#f9a825',src:'ASOS'},
+    {label:'습도',value:d.humidity,unit:'%',max:100,color:'#1e88e5',src:'AMOS'},
+    {label:'풍향/풍속',value:d.windSpeed,unit:'m/s',max:15,color:'#43a047',src:'AMOS',sub:`풍향 ${windDirStr}`},
   ];
   document.getElementById('sensorPanel').innerHTML=items.map(s=>`
     <div class="si">
-      <div class="sl"><div class="slr"><span class="sl-lbl">${s.label}</span></div>${s.sub?`<div class="ssub">${s.sub}</div>`:''}
-        <div class="sbar"><div class="sbar-f" style="width:${Math.min(100,s.value/s.max*100)}%;background:${s.color}"></div></div>
+      <div class="sl">
+        <div class="slr">
+          <span class="sl-lbl">${s.label}</span>
+          <span class="bdg ${s.src==='AMOS'?'bdg-amos':s.src==='ASOS'?'bdg-asos':s.src==='AI'?'bdg-ml':'bdg-load'}" style="font-size:.55rem">${s.src}</span>
+        </div>
+        ${s.sub?`<div class="ssub">${s.sub}</div>`:''}
+        <div class="sbar"><div class="sbar-f" style="width:${Math.min(100,Math.abs(s.value)/s.max*100)}%;background:${s.color}"></div></div>
       </div>
       <div class="sr"><span class="sv" style="color:${s.color}">${s.value}</span><span class="su">${s.unit}</span></div>
     </div>`).join('');
 }
+
 function getZoneTemps(){
-  if(mlModel){const hr=new Date().getHours();return zones.map(z=>{const x=[wx.airTemp,wx.solar,wx.humidity,wx.windSpeed,wx.sky,Math.cos(2*Math.PI*hr/24),Math.sin(2*Math.PI*hr/24)];return +(predict(mlModel,x)+z.off).toFixed(1);});}
-  return zones.map(z=>+(wx.paveTemp+z.off).toFixed(1));
+  return zones.map(z=>{
+    const base=mlModel?predictPave():wx.paveTemp;
+    return +(base+z.off).toFixed(1);
+  });
 }
 function zSt(t){return t>=60?'warning':t>=58?'caution':'normal';}
+
 function renderZones(){
   const temps=getZoneTemps();const lbl={warning:'🔴 경고',caution:'🟡 주의',normal:'🟢 정상'};
-  document.getElementById('zonesGrid').innerHTML=zones.map((z,i)=>{const st=zSt(temps[i]);return`<div class="zc ${st}"><div class="zn">${z.name}<br><small>${z.sub}</small></div><div class="zt">${temps[i]}℃</div><div class="zl">${lbl[st]}</div></div>`;}).join('');
+  document.getElementById('zonesGrid').innerHTML=zones.map((z,i)=>{
+    const st=zSt(temps[i]);
+    return`<div class="zc ${st}"><div class="zn">${z.name}<br><small>${z.sub}</small></div><div class="zt">${temps[i]}℃</div><div class="zl">${lbl[st]}</div></div>`;
+  }).join('');
 }
+
 function buildChart(){
-  const now=new Date(),base=wx.paveTemp;
+  const now=new Date(),base=mlModel?predictPave():wx.paveTemp;
   const offs=[-120,-90,-60,-30,0,30,60,90,120,150,180];
-  const curve=[-7.9,-6.3,-4.8,-2.4,0,+1.3,+2.7,+2.0,+.6,-1.7,-3.8];
   const labels=[],past=[],future=[];
   offs.forEach((m,i)=>{
     const t=new Date(now.getTime()+m*60000);
     labels.push((m>0?'▶ ':'')+t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0'));
     let v;
-    if(mlModel){const h=(t.getHours()+m/60+24)%24;const px=[wx.airTemp+(m/60)*.1,Math.max(0,wx.solar+(m>120?-m*2:m<0?m*3:0)),wx.humidity,wx.windSpeed,wx.sky,Math.cos(2*Math.PI*h/24),Math.sin(2*Math.PI*h/24)];v=+predict(mlModel,px).toFixed(1);}
-    else{v=+(base+curve[i]).toFixed(1);}
+    if(mlModel){
+      const h=(t.getHours()+m/60+24)%24;
+      const projSolar=Math.max(0,wx.solar+(m>0?-m/60*0.05:m/60*0.03));
+      v=+predict(mlModel,[wx.airTemp+(m/60)*.05,projSolar,wx.humidity,wx.windSpeed,Math.cos(2*Math.PI*h/24),Math.sin(2*Math.PI*h/24)]).toFixed(1);
+    }else{
+      const curve=[-7.9,-6.3,-4.8,-2.4,0,+1.3,+2.7,+2.0,+.6,-1.7,-3.8];
+      v=+(base+curve[i]).toFixed(1);
+    }
     past.push(i<=4?v:null);future.push(i>=4?v:null);
   });
   if(chartInst){chartInst.destroy();chartInst=null;}
   chartInst=new Chart(document.getElementById('tempChart'),{
     type:'line',data:{labels,datasets:[
-      {label:'실측/현재 (℃)',data:past,borderColor:'#888',backgroundColor:'rgba(100,100,100,.06)',pointBackgroundColor:past.map((_,i)=>i===4?'#1F4E79':'#aaa'),pointRadius:past.map((_,i)=>i===4?8:4),tension:.4,fill:true,borderWidth:2},
-      {label:mlModel?'AI 예측 (℃)':'예측 (℃)',data:future,borderColor:mlModel?'#7b1fa2':'#e53935',backgroundColor:mlModel?'rgba(123,31,162,.07)':'rgba(229,57,53,.07)',borderDash:[5,4],pointBackgroundColor:future.map(v=>v===null?'transparent':v>=60?'#e53935':v>=58?'#fb8c00':'#43a047'),pointRadius:future.map(v=>v===null?0:5),tension:.4,fill:true,borderWidth:2},
-      {label:'경보 기준 (60℃)',data:Array(labels.length).fill(60),borderColor:'#e5393580',borderDash:[8,4],borderWidth:1.5,pointRadius:0,fill:false}
+      {label:'실측/현재(℃)',data:past,borderColor:'#888',backgroundColor:'rgba(100,100,100,.06)',pointBackgroundColor:past.map((_,i)=>i===4?'#1F4E79':'#aaa'),pointRadius:past.map((_,i)=>i===4?8:4),tension:.4,fill:true,borderWidth:2},
+      {label:mlModel?'AI 예측(℃)':'예측(℃)',data:future,borderColor:mlModel?'#7b1fa2':'#e53935',backgroundColor:mlModel?'rgba(123,31,162,.07)':'rgba(229,57,53,.07)',borderDash:[5,4],pointBackgroundColor:future.map(v=>v===null?'transparent':v>=60?'#e53935':v>=58?'#fb8c00':'#43a047'),pointRadius:future.map(v=>v===null?0:5),tension:.4,fill:true,borderWidth:2},
+      {label:'경보 기준(60℃)',data:Array(labels.length).fill(60),borderColor:'#e5393580',borderDash:[8,4],borderWidth:1.5,pointRadius:0,fill:false}
     ]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:14}},tooltip:{callbacks:{label:c=>` ${c.parsed.y}℃`}}},scales:{y:{min:50,max:72,ticks:{callback:v=>v+'℃',font:{size:11}},grid:{color:'#eef0f4'}},x:{ticks:{font:{size:10}},grid:{color:'#eef0f4'}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:14}},tooltip:{callbacks:{label:c=>` ${c.parsed.y}℃`}}},
+      scales:{y:{min:Math.max(0,Math.min(...[...past,...future].filter(v=>v!=null))-5),max:Math.max(...[...past,...future].filter(v=>v!=null))+5,ticks:{callback:v=>v+'℃',font:{size:11}},grid:{color:'#eef0f4'}},x:{ticks:{font:{size:10}},grid:{color:'#eef0f4'}}}}
   });
 }
+
 function getOverallSt(){if(activated)return'activated';const t=getZoneTemps();if(t.some(v=>v>=60))return'warning';if(t.some(v=>v>=58))return'caution';return'normal';}
+
 function applyStatus(s){
   const bar=document.getElementById('statusBar');
   document.getElementById('tl-r').classList.toggle('on',s==='warning');
@@ -832,27 +1039,34 @@ function applyStatus(s){
   document.getElementById('tl-g').classList.toggle('on',s==='normal'||s==='activated');
   const wz=getZoneTemps().map((t,i)=>t>=60?`구역 ${zones[i].id}`:null).filter(Boolean).join(', ');
   if(s==='warning'){bar.className='warning';bar.innerHTML=`<span>🔴</span><span>⚠ 경고: ${wz||'구역 1, 5'} 포장온도 60℃ 이상 — 즉시 살수 검토 요망 (토목시설물 유지관리지침 제9조)</span>`;}
-  else if(s==='caution'){bar.className='caution';bar.innerHTML=`<span>🟡</span><span>주의: 일부 구역 포장온도 58℃ 이상 — 모니터링 강화</span>`;}
+  else if(s==='caution'){bar.className='caution';bar.innerHTML=`<span>🟡</span><span>주의: 일부 구역 58℃ 이상 — 모니터링 강화</span>`;}
   else if(s==='activated'){bar.className='activated';bar.innerHTML=`<span>🟢</span><span>✅ 살수 승인 완료 — 구역 1·5·6 살수 실시 중 | STRIKER 소방차 계류장 대기</span>`;}
   else{bar.className='normal';bar.innerHTML=`<span>🟢</span><span>정상: 모든 구역 60℃ 미만</span>`;}
 }
+
 function updateAI(){
   if(activated)return;
-  const sp=metar.temp!=null&&metar.dewpt!=null?metar.temp-metar.dewpt:null;
-  const spW=sp!=null&&sp<5?`<br>⚠ <strong>온도-이슬점 차 ${sp.toFixed(0)}℃</strong> — 습도 높음, 냉각 효율 저하 주의.`:'';
+  const spread=wx.dewpt!=null?wx.airTemp-wx.dewpt:null;
+  const spW=spread!=null&&spread<5?`<br>⚠ <strong>온도-이슬점 차 ${spread.toFixed(0)}℃</strong> — 습도 높음, 냉각 효율 저하 주의.`:'';
   const mlW=mlModel?`<br>🤖 <strong>AI 모델 적용 중</strong> — R²=${mlModel.r2.toFixed(3)}, 학습 ${mlModel.n}건 기반 정밀 예측.`:'';
-  document.getElementById('aiText').innerHTML=`<span class="ai-bdg">AI ANALYSIS</span><br>현재 <strong>구역 1(활주로 36번단)</strong> 및 <strong>구역 5(활주로 18번단)</strong>의 포장온도가 60℃를 초과하였습니다.${spW}${mlW}<br><br>① 구역 1·5는 착륙·이륙·회전 빈도가 높아 포장 손상 위험 최우선 구역입니다.<br>② 구역 6(계류장)은 STRIKER 소방차 사전 대기를 권고합니다.<br><br><strong>→ 살수 즉시 실시를 권고합니다.</strong>`;
+  const rainW=wx.rain>0?`<br>🌧 현재 강수량 ${wx.rain.toFixed(1)}mm — 살수 전 항공기 운항 상태 확인 요망.`:'';
+  document.getElementById('aiText').innerHTML=`<span class="ai-bdg">AI ANALYSIS</span><br>
+    현재 포장온도 예측 <strong>${wx.paveTemp}℃</strong> (기온 ${wx.airTemp}℃, 일사량 ${wx.solar}MJ/㎡ 기준).${spW}${mlW}${rainW}<br><br>
+    ① 구역 1·5는 착륙·이륙·회전 빈도가 높아 포장 손상 위험 최우선 구역입니다.<br>
+    ② 구역 6(계류장)은 STRIKER 소방차 사전 대기를 권고합니다.<br><br>
+    <strong>→ ${getZoneTemps().some(t=>t>=60)?'살수 즉시 실시를 권고합니다.':'현재 포장온도 정상 범위입니다.'}</strong>`;
 }
+
 function renderAll(){renderSensors();renderZones();buildChart();if(!activated)applyStatus(getOverallSt());}
 
-// ══════════════════════════════════════════════
+// ══════════════════════════════════════════
 //  버튼 동작
-// ══════════════════════════════════════════════
+// ══════════════════════════════════════════
 function activateSprinkler(){
   if(activated)return;activated=true;
   const btn=document.getElementById('btnAct');btn.textContent='✅ 살수 승인 완료';btn.classList.add('done');btn.disabled=true;
   applyStatus('activated');
-  document.getElementById('aiText').innerHTML=`<span class="ai-bdg">AI ANALYSIS — 조치 완료</span><br><strong>살수 승인이 완료되었습니다.</strong><br><br>✅ 구역 1 — 살수 실시 중<br>✅ 구역 5 — 살수 실시 중<br>✅ 구역 6 — STRIKER 소방차 살수 실시 중<br><br>예상 냉각: 약 <strong>15~20분</strong> 후 60℃ 이하 복귀 전망.<br><strong>→ 모든 조치가 로그에 기록되었습니다.</strong>`;
+  document.getElementById('aiText').innerHTML=`<span class="ai-bdg">조치 완료</span><br><strong>살수 승인이 완료되었습니다.</strong><br><br>✅ 구역 1 (활주로 36번단) — 살수 실시 중<br>✅ 구역 5 (활주로 18번단) — 살수 실시 중<br>✅ 구역 6 (계류장) — STRIKER 소방차 살수 실시 중<br><br>예상 냉각: 약 <strong>15~20분</strong> 후 60℃ 이하 복귀 전망.<br><strong>→ 모든 조치가 로그에 기록되었습니다.</strong>`;
   const t=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
   logs.push({type:'ok',time:t,msg:'살수 승인 완료 — 구역 1·5·6 살수 실시. STRIKER 계류장 대기.'});
 }
@@ -867,21 +1081,18 @@ function openLog(){
 }
 function closeLog(){document.getElementById('logModal').classList.remove('open');}
 document.getElementById('logModal').addEventListener('click',e=>{if(e.target===document.getElementById('logModal'))closeLog();});
-document.getElementById('settingModal').addEventListener('click',e=>{if(e.target===document.getElementById('settingModal'))closeSettings();});
 
-// ══════════════════════════════════════════════
+// ══════════════════════════════════════════
 //  초기 실행
-// ══════════════════════════════════════════════
-refreshApiKeyStatus();
-fetchWeather();
-fetchMetarAuto();
-setInterval(fetchWeather, REFRESH);
-setInterval(fetchMetarAuto, REFRESH);
-setInterval(()=>{
-  if(!getApiKey()){simFluct();renderSensors();renderZones();}
-}, 3000);
-applyMetar(parseMetar('RKPU 220600Z 18005KT 9999 SKC 32/22 Q1010'));
+// ══════════════════════════════════════════
+refreshKeyStatus();
 renderAll();
+refreshAll();  // AMOS + ASOS + METAR 동시 호출
+setInterval(fetchAMOS,  REFRESH_AMOS);
+setInterval(fetchASOS,  REFRESH_ASOS);
+setInterval(fetchMetarAuto, REFRESH_METAR);
+// API 키 없을 때 시뮬레이션 미세변동
+setInterval(()=>{if(!getKey()){simFluct();renderSensors();renderZones();}},5000);
 </script>
 </body>
 </html>
