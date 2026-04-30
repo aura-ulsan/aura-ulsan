@@ -553,8 +553,9 @@ function fetchKMA(manual) {
   }
   setBanner('kma', 'load', manual ? '수동 갱신 중...' : '기상청 API 호출 중...');
   var dt = getBaseDT();
+  // ★ API 키를 인코딩하지 않고 그대로 사용 (공공데이터포털 키는 인코딩 불필요)
   var url = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst' +
-    '?serviceKey=' + encodeURIComponent(KEY) +
+    '?serviceKey=' + KEY +
     '&pageNo=1&numOfRows=100&dataType=JSON' +
     '&base_date=' + dt.baseDate + '&base_time=' + dt.baseTime +
     '&nx=' + NX + '&ny=' + NY;
@@ -703,13 +704,35 @@ function parseMetarInput() {
 }
 
 function fetchMetarAuto() {
-  fetch('https://aviationweather.gov/api/data/metar?ids=RKPU&format=raw', { signal: AbortSignal.timeout(6000) })
+  // ★ CORS 우회: corsproxy.io 사용
+  var target = 'https://aviationweather.gov/api/data/metar?ids=RKPU&format=raw';
+  var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(target);
+  fetch(proxyUrl, { signal: AbortSignal.timeout(8000) })
     .then(function(res) { if (!res.ok) throw new Error(); return res.text(); })
     .then(function(text) {
       var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.indexOf('RKPU') === 0; });
-      if (lines.length) { document.getElementById('metarInput').value = lines[0]; applyMetar(parseMetar(lines[0])); }
+      if (lines.length) {
+        document.getElementById('metarInput').value = lines[0];
+        applyMetar(parseMetar(lines[0]));
+      }
     })
-    .catch(function() {});
+    .catch(function() {
+      // 프록시 실패 시 두 번째 프록시 시도
+      var proxy2 = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(target);
+      fetch(proxy2, { signal: AbortSignal.timeout(8000) })
+        .then(function(res) { return res.text(); })
+        .then(function(text) {
+          var lines = text.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.indexOf('RKPU') === 0; });
+          if (lines.length) {
+            document.getElementById('metarInput').value = lines[0];
+            applyMetar(parseMetar(lines[0]));
+          }
+        })
+        .catch(function() {
+          document.getElementById('metarDot').className = 'dot dot-err';
+          document.getElementById('metarTxt').textContent = 'METAR 자동수신 실패 — 하단 수동 입력란에 직접 붙여넣기';
+        });
+    });
 }
 
 // ── 엑셀 학습 ──────────────────────────
