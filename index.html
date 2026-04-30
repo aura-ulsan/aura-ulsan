@@ -340,9 +340,25 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
         <button class="btn btn-log" style="flex:none;padding:10px 14px;" onclick="loadSampleData()">🧪 샘플 데이터 테스트</button>
       </div>
 
+      <!-- 업로드 상태 피드백 -->
       <div id="mlProgWrap" style="display:none;margin-bottom:12px;">
         <div style="font-size:.76rem;color:var(--sub);margin-bottom:4px;" id="mlProgTxt">처리 중...</div>
         <div class="ml-prog"><div class="ml-prog-f" id="mlProgBar" style="width:0%"></div></div>
+      </div>
+
+      <!-- 파일 정보 표시 -->
+      <div id="mlFileInfo" style="display:none;background:#f0f4fa;border-radius:10px;padding:11px 14px;margin-bottom:12px;border-left:4px solid var(--navy);">
+        <div style="font-size:.76rem;font-weight:700;color:var(--navy);margin-bottom:8px;">📂 업로드된 파일 정보</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.75rem;">
+          <div><span style="color:var(--sub);">파일명</span><br><strong id="fi-name">—</strong></div>
+          <div><span style="color:var(--sub);">전체 행 수</span><br><strong id="fi-total">—</strong></div>
+          <div><span style="color:var(--sub);">유효 데이터</span><br><strong id="fi-valid" style="color:var(--green);">—</strong></div>
+          <div><span style="color:var(--sub);">제외된 행 (결측)</span><br><strong id="fi-skip" style="color:var(--red);">—</strong></div>
+          <div><span style="color:var(--sub);">살수 기록</span><br><strong id="fi-spk">—</strong></div>
+          <div><span style="color:var(--sub);">구역 수</span><br><strong id="fi-zones">—</strong></div>
+        </div>
+        <div style="margin-top:8px;font-size:.73rem;color:var(--sub);">인식된 컬럼</div>
+        <div id="fi-cols" style="font-size:.7rem;background:#fff;border-radius:6px;padding:6px 8px;margin-top:3px;border:1px solid var(--bdr);line-height:1.8;"></div>
       </div>
 
       <div id="mlStats" style="display:none;">
@@ -726,7 +742,7 @@ function loadExcelFile(file){
       const ws=wb.Sheets[wb.SheetNames[0]];
       const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
       setProg(true,'데이터 전처리 중...',55);
-      processAndTrain(rows);
+      processAndTrain(rows, file.name);
     }catch(err){alert('파일 오류: '+err.message);setProg(false);}
   };
   reader.readAsArrayBuffer(file);
