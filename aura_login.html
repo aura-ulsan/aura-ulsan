@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.U.R.A - 로그인</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:'Segoe UI','Apple SD Gothic Neo',sans-serif;
+  min-height:100vh;
+  background:linear-gradient(135deg,#153856 0%,#1F4E79 60%,#2E6DA4 100%);
+  display:flex;align-items:center;justify-content:center;
+}
+.wrap{text-align:center;width:320px;max-width:90vw;padding:20px;}
+.logo{
+  background:#fff;color:#1F4E79;font-weight:900;font-size:1.4rem;
+  width:68px;height:68px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 16px;letter-spacing:-1px;line-height:1.2;
+}
+.title{color:#fff;font-size:1.15rem;font-weight:800;letter-spacing:1px;margin-bottom:4px;}
+.sub{color:rgba(255,255,255,.65);font-size:.75rem;margin-bottom:28px;line-height:1.6;}
+.card{
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:16px;padding:28px;
+}
+.hint{color:rgba(255,255,255,.8);font-size:.82rem;margin-bottom:12px;}
+input[type=password]{
+  width:100%;padding:12px 14px;
+  border:2px solid rgba(255,255,255,.3);border-radius:10px;
+  background:rgba(255,255,255,.1);color:#fff;
+  font-size:.95rem;outline:none;font-family:inherit;
+  transition:border-color .2s;
+}
+input[type=password]::placeholder{color:rgba(255,255,255,.4);}
+input[type=password]:focus{border-color:rgba(255,255,255,.75);}
+.error{color:#ffaaaa;font-size:.75rem;margin-top:8px;min-height:18px;}
+button{
+  width:100%;margin-top:12px;padding:12px;
+  background:#fff;color:#1F4E79;
+  border:none;border-radius:10px;
+  font-size:.9rem;font-weight:700;cursor:pointer;
+  font-family:inherit;transition:background .2s;
+}
+button:hover{background:#e3f0fb;}
+.footer{color:rgba(255,255,255,.3);font-size:.68rem;margin-top:18px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">A.U<br>.R.A</div>
+  <div class="title">A.U.R.A SYSTEM</div>
+  <div class="sub">
+    Automated Utility for Runway Aspersion<br>
+    울산공항 활주로 살수 자동화 시스템
+  </div>
+  <div class="card">
+    <div class="hint">🔒 접근 비밀번호를 입력하세요</div>
+    <input type="password" id="pwInput" placeholder="비밀번호" autocomplete="off"/>
+    <div class="error" id="pwError"></div>
+    <button onclick="doLogin()">🔓 확인</button>
+  </div>
+  <div class="footer">
+    울산공항 이동지역 살수 자동화 시스템<br>
+    관계자 외 접근 금지
+  </div>
+</div>
+<script>
+var CORRECT = 'aura6332';
+document.getElementById('pwInput').focus();
+document.getElementById('pwInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+function doLogin() {
+  var val = document.getElementById('pwInput').value;
+  if (val === CORRECT) {
+    sessionStorage.setItem('aura_auth', CORRECT);
+    window.location.href = 'index.html';
+  } else {
+    document.getElementById('pwError').textContent = '비밀번호가 올바르지 않습니다.';
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+    setTimeout(function() {
+      document.getElementById('pwError').textContent = '';
+    }, 2500);
+  }
+}
+// 이미 로그인된 경우 바로 이동
+if (sessionStorage.getItem('aura_auth') === CORRECT) {
+  window.location.href = 'index.html';
+}
+</script>
+</body>
+</html>
