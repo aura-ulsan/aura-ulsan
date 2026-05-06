@@ -515,16 +515,18 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
               <th colspan="4" style="padding:4px 8px;color:#1565c0;">기상청 자동 수집</th>
               <th colspan="4" style="padding:4px 8px;color:#1a7a4a;">현장 측정</th>
               <th style="padding:4px 8px;">현장</th>
+              <th style="padding:4px 8px;">조작</th>
             </tr>
           </thead>
           <tbody id="integratedTable">
-            <tr><td colspan="12" style="padding:16px;text-align:center;color:var(--sub);font-size:.8rem;">
+            <tr><td colspan="13" style="padding:16px;text-align:center;color:var(--sub);font-size:.8rem;">
               데이터가 없습니다. <strong style="color:var(--navy);">+ 현장 데이터 입력</strong> 버튼을 눌러 추가하거나<br>
               엑셀 파일을 AI 학습 탭에서 업로드하면 자동으로 표시됩니다.
             </td></tr>
           </tbody>
         </table>
       </div>
+      <div id="dataPagination"></div>
       <div style="margin-top:8px;font-size:.7rem;color:var(--sub);text-align:right;" id="dataCount">총 0건</div>
     </div>
 
@@ -613,6 +615,7 @@ var zoneModels = {};      // 구역별 개별 모델 {1: model, 2: model, ...}
 var sprinkleEffect = {};  // 구역별 살수 효과 {1: avgReduction, ...}
 var tempHistory = [];     // 최근 온도 이력 [{time, paveTemp}]
 var anaData = null;
+var fileInfoCache = null;  // ★ 업로드된 파일 정보 캐시 (F5 복원용)
 var activated = false;
 var manualOn = false;
 var chartInst = null;
@@ -1044,10 +1047,29 @@ function processAndTrain(rows, fileName) {
     return parseInt(s) || 12;
   }
 
+  // ★ 1차 패스: 평균값 계산 (결측치 보완용)
+  var sumAt=0, sumSol=0, sumHum=0, sumWs=0, cntAt=0, cntSol=0, cntHum=0, cntWs=0;
+  for (var pi = 0; pi < rows.length; pi++) {
+    var pr = rows[pi];
+    var pAt = n2(cols.airTemp ? pr[cols.airTemp] : NaN);
+    var pSol = n2(cols.solar ? pr[cols.solar] : NaN);
+    var pHum = n2(cols.humidity ? pr[cols.humidity] : NaN);
+    var pWs = n2(cols.windSpd ? pr[cols.windSpd] : NaN);
+    if (!isNaN(pAt) && isFinite(pAt)) { sumAt+=pAt; cntAt++; }
+    if (!isNaN(pSol) && isFinite(pSol)) { sumSol+=pSol; cntSol++; }
+    if (!isNaN(pHum) && isFinite(pHum)) { sumHum+=pHum; cntHum++; }
+    if (!isNaN(pWs) && isFinite(pWs)) { sumWs+=pWs; cntWs++; }
+  }
+  var avgAt = cntAt ? sumAt/cntAt : 20;
+  var avgSol = cntSol ? sumSol/cntSol : 1.5;
+  var avgHum = cntHum ? sumHum/cntHum : 60;
+  var avgWs = cntWs ? sumWs/cntWs : 3;
+
   // 학습 변수: 기온, 일사량, 습도, 풍속 (4개만)
   var fNames = ['대기온도(℃)', '일사량(MJ/㎡)', '습도(%)', '풍속(m/s)'];
   var X = [], Y = [], rawRows = [];
   var skipCount = 0;
+  var imputedCount = 0;  // ★ 보완된 행 카운트
 
   for (var ri = 0; ri < rows.length; ri++) {
     var row = rows[ri];
@@ -1060,23 +1082,35 @@ function processAndTrain(rows, fileName) {
     var zone = n2(cols.zone      ? row[cols.zone]      : NaN);
     var spk  = cols.sprinkle ? (n2(row[cols.sprinkle]) > 0 ? 1 : 0) : 0;
     var ta   = cols.tempAfter ? n2(row[cols.tempAfter]) : NaN;
+    // ★ 특보현황: 빈값/NaN이면 0 (특보 없음)으로 처리 — 모든 데이터 학습 활용
+    var warnVal = cols.warn ? n2(row[cols.warn]) : 0;
+    if (isNaN(warnVal)) warnVal = 0;
 
-    if (isNaN(at)||isNaN(sol)||isNaN(hum)||isNaN(wsKt)||isNaN(pt)||
-        !isFinite(at)||!isFinite(sol)||!isFinite(hum)||!isFinite(wsKt)||!isFinite(pt)) {
+    // ★ 포장온도(목표값)만 필수 — 입력 변수는 평균값으로 보완
+    if (isNaN(pt) || !isFinite(pt)) {
       skipCount++; continue;
     }
+    var imputed = false;
+    if (isNaN(at) || !isFinite(at))   { at = avgAt; imputed = true; }
+    if (isNaN(sol) || !isFinite(sol)) { sol = avgSol; imputed = true; }
+    if (isNaN(hum) || !isFinite(hum)) { hum = avgHum; imputed = true; }
+    if (isNaN(wsKt) || !isFinite(wsKt)) { wsKt = avgWs; imputed = true; }
+    if (imputed) imputedCount++;
+
     var ws = parseFloat((wsKt * 0.514).toFixed(2)); // KT→m/s
     X.push([at, sol, hum, ws]);  // 시간 변수 없음
     Y.push(pt);
-    // ★ 일자/요일/시간 원본도 함께 저장 (표 렌더링용)
+    // ★ 일자/요일/시간/특보 원본도 함께 저장 (표 렌더링용)
     var dateRaw = cols.date ? String(row[cols.date] || '').trim() : '';
     var dayRaw  = cols.day  ? String(row[cols.day]  || '').trim() : '';
     var timeRaw = cols.time ? String(row[cols.time] || '').trim() : '';
     rawRows.push({
       at:at, sol:sol, hum:hum, ws:ws, hr:hr, pt:pt, zone:zone, spk:spk, ta:ta,
+      warn: warnVal,                  // ★ 특보 원본 보존
       date: dateRaw || '—',
       day:  dayRaw  || '',
-      time: timeRaw || (hr + ':00')
+      time: timeRaw || (hr + ':00'),
+      imputed: imputed                 // ★ 보완 여부 표시
     });
   }
 
@@ -1093,14 +1127,19 @@ function processAndTrain(rows, fileName) {
   var missList = [];
   for (var mk in cols) { if (!cols[mk]) missList.push(mk); }
 
-  document.getElementById('mlFileInfo').style.display = 'block';
-  document.getElementById('fi-name').textContent = fileName || '업로드 파일';
-  document.getElementById('fi-total').textContent = rows.length + '행';
-  document.getElementById('fi-valid').textContent = X.length + '건';
-  document.getElementById('fi-skip').textContent = skipCount + '건';
-  document.getElementById('fi-spk').textContent = rawRows.filter(function(r) { return r.spk; }).length + '건';
-  document.getElementById('fi-zones').textContent = zoneKeys.length + '개 (' + zoneKeys.join(',') + ')';
-  document.getElementById('fi-cols').innerHTML = foundList + (missList.length ? '<br><span style="color:var(--red);font-size:.67rem;">미인식: ' + missList.join(', ') + '</span>' : '');
+  // ★ 파일 정보를 전역 객체에 저장 (F5 시 복원용)
+  fileInfoCache = {
+    name: fileName || '업로드 파일',
+    total: rows.length,
+    valid: X.length,
+    skip: skipCount,
+    imputed: imputedCount,
+    spk: rawRows.filter(function(r) { return r.spk; }).length,
+    zones: zoneKeys,
+    foundCols: foundList,
+    missCols: missList
+  };
+  renderFileInfo();
 
   setProg(true, '선형회귀 학습 중...', 80);
 
@@ -1204,6 +1243,27 @@ function setProg(show, txt, pct) {
     document.getElementById('mlProgTxt').textContent = txt || '';
     document.getElementById('mlProgBar').style.width = (pct || 0) + '%';
   }
+}
+
+// ★ 파일 정보 렌더링 (캐시에서 화면으로) — F5 복원 시에도 호출
+function renderFileInfo() {
+  if (!fileInfoCache) return;
+  document.getElementById('mlFileInfo').style.display = 'block';
+  document.getElementById('fi-name').textContent = fileInfoCache.name;
+  document.getElementById('fi-total').textContent = fileInfoCache.total + '행';
+  var validTxt = fileInfoCache.valid + '건';
+  if (fileInfoCache.imputed > 0) {
+    validTxt += ' (보완 ' + fileInfoCache.imputed + '건)';
+  }
+  document.getElementById('fi-valid').textContent = validTxt;
+  document.getElementById('fi-skip').textContent = fileInfoCache.skip + '건';
+  document.getElementById('fi-spk').textContent = fileInfoCache.spk + '건';
+  document.getElementById('fi-zones').textContent =
+    fileInfoCache.zones.length + '개 (' + fileInfoCache.zones.join(',') + ')';
+  document.getElementById('fi-cols').innerHTML =
+    fileInfoCache.foundCols +
+    (fileInfoCache.missCols.length ?
+      '<br><span style="color:var(--red);font-size:.67rem;">미인식: ' + fileInfoCache.missCols.join(', ') + '</span>' : '');
 }
 
 // ── 선형회귀 ──────────────────────────
@@ -1621,6 +1681,7 @@ function saveModelToStorage() {
       mlModel: mlModel,
       zoneModels: zoneModels,
       sprinkleEffect: sprinkleEffect,
+      fileInfo: fileInfoCache,  // ★ 파일 정보도 함께 저장
       savedAt: new Date().toLocaleString('ko-KR')
     };
     localStorage.setItem(LS_MODEL_KEY, JSON.stringify(modelData));
@@ -1648,12 +1709,16 @@ function loadModelFromStorage() {
     mlModel = data.mlModel;
     zoneModels = data.zoneModels || {};
     sprinkleEffect = data.sprinkleEffect || {};
+    fileInfoCache = data.fileInfo || null;  // ★ 파일 정보 복원
 
     // ★ 학습 데이터도 복원
     var rawData = localStorage.getItem(LS_DATA_KEY);
     if (rawData) {
       anaData = JSON.parse(rawData);
     }
+
+    // ★ 파일 정보 UI 복원
+    renderFileInfo();
 
     // 저장 시각 표시
     var el = document.getElementById('mlSavedInfo');
@@ -1692,9 +1757,11 @@ function clearModelFromStorage() {
   localStorage.removeItem(LS_MODEL_KEY);
   localStorage.removeItem(LS_DATA_KEY);
   mlModel = null; zoneModels = {}; sprinkleEffect = {}; anaData = null;
+  fileInfoCache = null;  // ★ 파일 정보 캐시도 삭제
   document.getElementById('mlBanner').style.display = 'none';
   document.getElementById('chartModelBdg').style.display = 'none';
   document.getElementById('mlStats').style.display = 'none';
+  document.getElementById('mlFileInfo').style.display = 'none';  // ★ UI 숨김
   var el = document.getElementById('mlSavedInfo');
   if (el) el.style.display = 'none';
   buildChart(); updateAI(); renderAll(); renderIntegratedTable();
@@ -1764,20 +1831,68 @@ function saveDataRow() {
   // 요일 자동 계산
   var dayNames = ['일','월','화','수','목','금','토'];
   var dayStr = dayNames[new Date(dateStr).getDay()] || '';
+  var timeStr = document.getElementById('inp-time').value ||
+    now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+
+  // ★ 과거 일자 입력 시 — 학습 데이터에서 동일 일자/시간 검색하여 기상값 가져오기
+  // 오늘 일자면 현재 wx 값 사용, 과거면 학습데이터에서 검색
+  var todayStr = now.getFullYear() + '-' +
+    String(now.getMonth()+1).padStart(2,'0') + '-' +
+    String(now.getDate()).padStart(2,'0');
+  var isPast = dateStr !== todayStr;
+  var atVal = wx.airTemp, solVal = wx.solar, humVal = wx.humidity, wsVal = wx.windSpeed;
+  var matched = false;
+  if (isPast && anaData && anaData.rawRows) {
+    var inputHr = parseInt(timeStr.split(':')[0]);
+    // 동일 일자 + 가장 가까운 시간대 검색
+    var bestMatch = null, bestDiff = 999;
+    for (var mi = 0; mi < anaData.rawRows.length; mi++) {
+      var mr = anaData.rawRows[mi];
+      if (mr.date === dateStr) {
+        var hrDiff = Math.abs((mr.hr || 12) - inputHr);
+        if (hrDiff < bestDiff) { bestDiff = hrDiff; bestMatch = mr; }
+      }
+    }
+    if (bestMatch) {
+      atVal = bestMatch.at; solVal = bestMatch.sol;
+      humVal = bestMatch.hum; wsVal = bestMatch.ws;
+      matched = true;
+    }
+  }
+  if (isPast && !matched) {
+    if (!confirm('과거 일자(' + dateStr + ')의 학습 데이터를 찾지 못했습니다.\n현재 시점의 기상값으로 저장하시겠습니까?\n(나중에 수정 가능)')) {
+      return;
+    }
+  }
+
   var row = {
     date: dateStr,
     day: dayStr,
-    time: document.getElementById('inp-time').value || now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),
+    time: timeStr,
     zone: parseInt(document.getElementById('inp-zone').value),
     warn: parseInt(document.getElementById('inp-warn').value),
-    airTemp: wx.airTemp, solar: wx.solar, humidity: wx.humidity, windSpeed: wx.windSpeed,
+    airTemp: atVal, solar: solVal, humidity: humVal, windSpeed: wsVal,
     pt: pt,
     spk: parseInt(document.getElementById('inp-spk').value),
     vol: parseFloat(document.getElementById('inp-vol').value) || 0,
     ta: parseFloat(document.getElementById('inp-ta').value) || '',
-    fromField: true
+    fromField: true,
+    matched: matched  // ★ 과거 데이터 매칭 여부
   };
-  dataLog.unshift(row);
+
+  // ★ 수정 모드면 기존 행 교체, 아니면 새로 추가
+  if (editingIdx >= 0 && editingIdx < dataLog.length) {
+    dataLog[editingIdx] = row;
+    var saveBtn = document.querySelector('button[onclick="saveDataRow()"]');
+    if (saveBtn) saveBtn.textContent = '💾 저장';
+    showToast('데이터가 수정되었습니다 ' + (matched?'(과거 기상값 적용)':''), '#1565c0');
+    editingIdx = -1;
+  } else {
+    dataLog.unshift(row);
+    showToast('데이터 저장 완료! ' + (matched?'(과거 기상값 자동 적용) ':'') + 'AI 재학습 버튼을 눌러 모델을 업데이트하세요.', '#1a7a4a');
+  }
+
+  saveDataLog();  // ★ 영속화 (F5에도 유지)
   renderIntegratedTable();
   document.getElementById('dataInputForm').style.display = 'none';
   ['inp-pt','inp-vol','inp-ta'].forEach(function(id){ document.getElementById(id).value=''; });
@@ -1790,9 +1905,28 @@ function saveDataRow() {
       '현장 입력 데이터 ' + dataLog.length + '건이 추가되었습니다. AI 재학습을 실행하면 새 데이터가 반영됩니다.';
   }
 
-  showToast('데이터 저장 완료! AI 재학습 버튼을 눌러 모델을 업데이트하세요.', '#1a7a4a');
   var t = now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
   logs.push({type:'ok', time:t, msg:'현장 데이터 입력 — 구역' + row.zone + ' 포장온도 ' + pt + '℃' + (row.spk?' 살수실시':'')});
+}
+
+// ★ 현장 입력 데이터 영속화
+var LS_DATALOG_KEY = 'aura_datalog_v1';
+function saveDataLog() {
+  try {
+    localStorage.setItem(LS_DATALOG_KEY, JSON.stringify(dataLog));
+  } catch(e) { console.warn('현장 데이터 저장 실패:', e.message); }
+}
+function loadDataLog() {
+  try {
+    var raw = localStorage.getItem(LS_DATALOG_KEY);
+    if (raw) {
+      dataLog = JSON.parse(raw) || [];
+      console.log('현장 데이터 ' + dataLog.length + '건 복원');
+    }
+  } catch(e) {
+    console.warn('현장 데이터 복원 실패:', e.message);
+    dataLog = [];
+  }
 }
 
 // ★ 현장 입력 데이터 + 기존 학습 데이터 합쳐서 AI 재학습
@@ -1908,6 +2042,9 @@ function retrainWithFieldData() {
   document.getElementById('mlStats').style.display = 'block';
 }
 
+var DATA_PAGE_SIZE = 50;  // ★ 한 페이지당 표시 건수
+var dataPageIdx = 0;       // ★ 현재 페이지 인덱스
+
 function renderIntegratedTable() {
   var el = document.getElementById('integratedTable');
   if (!el) return;
@@ -1915,36 +2052,64 @@ function renderIntegratedTable() {
   // 학습 데이터 + 직접 입력 데이터 통합
   var allData = [];
 
-  // 직접 입력 데이터
-  for (var i = 0; i < dataLog.length; i++) allData.push(dataLog[i]);
+  // 직접 입력 데이터 (수정/삭제 가능)
+  for (var i = 0; i < dataLog.length; i++) {
+    var d = dataLog[i];
+    allData.push({
+      date: d.date, day: d.day, time: d.time, zone: d.zone, warn: d.warn || 0,
+      airTemp: d.airTemp, solar: d.solar, humidity: d.humidity, windSpeed: d.windSpeed,
+      pt: d.pt, spk: d.spk, vol: d.vol, ta: d.ta,
+      _src: 'field', _idx: i  // ★ 출처 표시 + 원본 인덱스
+    });
+  }
 
-  // 학습된 rawRows도 표시 (일자 원본 사용)
+  // 학습된 rawRows도 표시 (★ 50건 제한 제거 — 전체 표시)
   if (anaData && anaData.rawRows) {
-    for (var j = 0; j < Math.min(anaData.rawRows.length, 50); j++) {
+    for (var j = 0; j < anaData.rawRows.length; j++) {
       var r = anaData.rawRows[j];
       allData.push({
-        date: r.date || '—',          // ★ 엑셀 원본 일자
-        time: r.time || (r.hr + ':00'),// ★ 엑셀 원본 시간
-        zone: r.zone, warn: 0,
+        date: r.date || '—',
+        day: r.day || '',
+        time: r.time || (r.hr + ':00'),
+        zone: r.zone,
+        warn: r.warn || 0,                  // ★ 특보 원본값 사용
         airTemp: r.at, solar: r.sol, humidity: r.hum, windSpeed: r.ws,
         pt: r.pt, spk: r.spk, vol: '', ta: r.ta,
-        fromExcel: true
+        _src: 'excel', _idx: j               // ★ 출처 표시
       });
     }
   }
 
   if (!allData.length) {
-    el.innerHTML = '<tr><td colspan="12" style="padding:16px;text-align:center;color:var(--sub);font-size:.8rem;">데이터가 없습니다. <strong style="color:var(--navy);">+ 현장 데이터 입력</strong> 버튼을 눌러 추가하거나<br>AI 학습 탭에서 엑셀 파일을 업로드하면 자동으로 표시됩니다.</td></tr>';
+    el.innerHTML = '<tr><td colspan="13" style="padding:16px;text-align:center;color:var(--sub);font-size:.8rem;">데이터가 없습니다. <strong style="color:var(--navy);">+ 현장 데이터 입력</strong> 버튼을 눌러 추가하거나<br>AI 학습 탭에서 엑셀 파일을 업로드하면 자동으로 표시됩니다.</td></tr>';
     document.getElementById('dataCount').textContent = '총 0건';
+    var pg = document.getElementById('dataPagination');
+    if (pg) pg.innerHTML = '';
     return;
   }
 
-  el.innerHTML = allData.map(function(r, i) {
+  // ★ 페이지네이션 처리
+  var totalPages = Math.ceil(allData.length / DATA_PAGE_SIZE);
+  if (dataPageIdx >= totalPages) dataPageIdx = totalPages - 1;
+  if (dataPageIdx < 0) dataPageIdx = 0;
+  var start = dataPageIdx * DATA_PAGE_SIZE;
+  var end = Math.min(start + DATA_PAGE_SIZE, allData.length);
+  var pageData = allData.slice(start, end);
+
+  el.innerHTML = pageData.map(function(r, i) {
     var ptColor = r.pt >= 60 ? '#b71c1c' : r.pt >= 58 ? '#c47a00' : '#1a7a4a';
     var bg = i%2===0 ? '#fff' : '#f8fafc';
-    var taStr = (r.ta && !isNaN(r.ta)) ? r.ta + '℃' : '—';
+    var taStr = (r.ta && !isNaN(r.ta) && r.ta !== '') ? r.ta + '℃' : '—';
+    var actionBtns = '';
+    if (r._src === 'field') {
+      actionBtns =
+        '<button onclick="editFieldRow(' + r._idx + ')" style="padding:2px 6px;background:#1565c0;color:#fff;border:none;border-radius:4px;font-size:.65rem;cursor:pointer;margin-right:3px;">수정</button>' +
+        '<button onclick="deleteFieldRow(' + r._idx + ')" style="padding:2px 6px;background:#b71c1c;color:#fff;border:none;border-radius:4px;font-size:.65rem;cursor:pointer;">삭제</button>';
+    } else {
+      actionBtns = '<span style="font-size:.65rem;color:var(--sub);">학습</span>';
+    }
     return '<tr style="background:' + bg + '">' +
-      '<td style="padding:6px 8px;white-space:nowrap;">' + r.date + '</td>' +
+      '<td style="padding:6px 8px;white-space:nowrap;">' + r.date + (r.day ? ' ('+r.day+')' : '') + '</td>' +
       '<td style="padding:6px 8px;white-space:nowrap;">' + r.time + '</td>' +
       '<td style="padding:6px 8px;white-space:nowrap;">' + (ZONE_NAMES[r.zone] || r.zone) + '</td>' +
       '<td style="padding:6px 8px;text-align:center;background:#f0f5ff;">' + (r.airTemp||'—') + '</td>' +
@@ -1956,15 +2121,91 @@ function renderIntegratedTable() {
       '<td style="padding:6px 8px;text-align:center;background:#f0f9f0;">' + (r.vol && r.vol > 0 ? r.vol + 'L' : '—') + '</td>' +
       '<td style="padding:6px 8px;text-align:center;background:#f0f9f0;">' + taStr + '</td>' +
       '<td style="padding:6px 8px;text-align:center;">' + (r.warn||0) + '</td>' +
+      '<td style="padding:6px 8px;text-align:center;white-space:nowrap;">' + actionBtns + '</td>' +
       '</tr>';
   }).join('');
-  document.getElementById('dataCount').textContent = '총 ' + allData.length + '건 (직접입력 ' + dataLog.length + '건' + (anaData && anaData.rawRows ? ', 학습데이터 최근 ' + Math.min(anaData.rawRows.length,50) + '건' : '') + ')';
+
+  document.getElementById('dataCount').textContent =
+    '총 ' + allData.length + '건 (직접입력 ' + dataLog.length + '건, 학습데이터 ' +
+    (anaData && anaData.rawRows ? anaData.rawRows.length : 0) + '건) — ' +
+    (start+1) + '~' + end + ' 표시';
+
+  // ★ 페이지네이션 UI 렌더링
+  renderPagination(totalPages);
 }
+
+// ★ 페이지네이션 UI
+function renderPagination(totalPages) {
+  var pg = document.getElementById('dataPagination');
+  if (!pg) return;
+  if (totalPages <= 1) { pg.innerHTML = ''; return; }
+  var html = '<div style="display:flex;justify-content:center;align-items:center;gap:6px;padding:10px 0;flex-wrap:wrap;">';
+  html += '<button onclick="changePage(-1)" ' + (dataPageIdx===0?'disabled':'') +
+    ' style="padding:5px 12px;border:1px solid var(--bdr);background:#fff;border-radius:6px;cursor:pointer;font-size:.78rem;' +
+    (dataPageIdx===0?'opacity:.4;cursor:not-allowed;':'') + '">◀ 이전</button>';
+  html += '<span style="font-size:.82rem;color:var(--navy);font-weight:600;padding:0 12px;">' +
+    (dataPageIdx+1) + ' / ' + totalPages + ' 페이지</span>';
+  html += '<button onclick="changePage(1)" ' + (dataPageIdx===totalPages-1?'disabled':'') +
+    ' style="padding:5px 12px;border:1px solid var(--bdr);background:#fff;border-radius:6px;cursor:pointer;font-size:.78rem;' +
+    (dataPageIdx===totalPages-1?'opacity:.4;cursor:not-allowed;':'') + '">다음 ▶</button>';
+  html += '</div>';
+  pg.innerHTML = html;
+}
+
+function changePage(delta) {
+  dataPageIdx += delta;
+  renderIntegratedTable();
+}
+
+// ★ 현장 데이터 수정
+function editFieldRow(idx) {
+  if (idx < 0 || idx >= dataLog.length) return;
+  var d = dataLog[idx];
+  // 입력 폼 열기
+  var f = document.getElementById('dataInputForm');
+  f.style.display = 'block';
+  // 기존 데이터를 폼에 채우기
+  var inpDate = document.getElementById('inp-date');
+  if (inpDate) inpDate.value = d.date || '';
+  document.getElementById('inp-time').value = d.time || '';
+  document.getElementById('inp-zone').value = d.zone || 1;
+  document.getElementById('inp-warn').value = d.warn || 0;
+  document.getElementById('inp-pt').value = d.pt || '';
+  document.getElementById('inp-spk').value = d.spk || 0;
+  document.getElementById('inp-vol').value = d.vol || '';
+  document.getElementById('inp-ta').value = d.ta || '';
+  // 기상 미리보기는 저장된 값으로
+  document.getElementById('pre-at').textContent = d.airTemp || wx.airTemp;
+  document.getElementById('pre-sol').textContent = d.solar || wx.solar;
+  document.getElementById('pre-hum').textContent = d.humidity || wx.humidity;
+  document.getElementById('pre-ws').textContent = d.windSpeed || wx.windSpeed;
+  // 수정 모드 표시
+  editingIdx = idx;
+  var saveBtn = document.querySelector('button[onclick="saveDataRow()"]');
+  if (saveBtn) saveBtn.textContent = '✏️ 수정 저장';
+  // 폼으로 스크롤
+  f.scrollIntoView({behavior:'smooth', block:'start'});
+  showToast('수정 모드 — 값을 변경 후 저장하세요', '#1565c0');
+}
+
+// ★ 현장 데이터 삭제
+function deleteFieldRow(idx) {
+  if (idx < 0 || idx >= dataLog.length) return;
+  if (!confirm((idx+1) + '번째 입력 데이터를 삭제하시겠습니까?')) return;
+  dataLog.splice(idx, 1);
+  saveDataLog();  // 영속화
+  renderIntegratedTable();
+  showToast('데이터가 삭제되었습니다', '#1a7a4a');
+}
+
+var editingIdx = -1;  // ★ 수정 중인 행 인덱스
 
 function clearDataLog() {
   if (!confirm('직접 입력한 데이터를 초기화하시겠습니까?')) return;
   dataLog = [];
+  saveDataLog();  // ★ 영속화
   renderIntegratedTable();
+  showToast('현장 입력 데이터가 모두 삭제되었습니다.', '#b71c1c');
 }
 
 function downloadIntegrated() {
@@ -2180,6 +2421,8 @@ function getZoneTempById(zoneId) {
 
 // ── 초기 실행 ──────────────────────────
 refreshKeyStatus();
+// ★ 현장 입력 데이터 자동 복원 (F5 시에도 유지)
+loadDataLog();
 // ★ 저장된 AI 모델 자동 복원
 var restored = loadModelFromStorage();
 if (restored) {
@@ -2188,6 +2431,8 @@ if (restored) {
 } else {
   renderAll();
 }
+// ★ 데이터 현황 표 즉시 렌더링 (현장 데이터 표시)
+renderIntegratedTable();
 fetchKMA(false);
 fetchMetarAuto(); // Open-Meteo 자동 호출
 setInterval(function() { fetchKMA(false); }, REFRESH);
