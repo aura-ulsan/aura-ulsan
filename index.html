@@ -957,6 +957,88 @@ function fetchMetarAuto() {
     });
 }
 
+// ════════════════════════════════════════════════════════════════
+// ★ Open-Meteo Historical API — 과거 기상 데이터 조회 (1940년~현재)
+// ════════════════════════════════════════════════════════════════
+var ULSAN_LAT = 35.5936, ULSAN_LON = 129.3522;  // 울산공항 좌표
+var historyCache = {};  // {date: {hour: {airTemp, solar, humidity, windSpeed}}}
+
+// 일자 범위로 과거 기상 일괄 조회 → 캐시
+// startDate, endDate: 'YYYY-MM-DD' 형식
+function fetchHistoryWeather(startDate, endDate) {
+  var url = 'https://archive-api.open-meteo.com/v1/archive' +
+    '?latitude=' + ULSAN_LAT +
+    '&longitude=' + ULSAN_LON +
+    '&start_date=' + startDate +
+    '&end_date=' + endDate +
+    '&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,shortwave_radiation' +
+    '&timezone=Asia%2FSeoul' +
+    '&wind_speed_unit=ms';  // m/s 단위로 직접 받기
+
+  return fetch(url)
+    .then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(function(data) {
+      if (!data.hourly || !data.hourly.time) throw new Error('데이터 없음');
+      var h = data.hourly;
+      // 시간별로 캐시에 저장
+      for (var i = 0; i < h.time.length; i++) {
+        var ts = h.time[i];  // "2025-07-09T11:00"
+        var datePart = ts.split('T')[0];
+        var hourPart = parseInt(ts.split('T')[1].split(':')[0]);
+        if (!historyCache[datePart]) historyCache[datePart] = {};
+        // 일사량 W/m² → MJ/㎡ 변환 (시간당 적산: W/m² × 3600초 ÷ 10⁶)
+        var solarMJ = h.shortwave_radiation[i] !== null ?
+          parseFloat((h.shortwave_radiation[i] * 0.0036).toFixed(2)) : null;
+        historyCache[datePart][hourPart] = {
+          airTemp:   h.temperature_2m[i] !== null ? parseFloat(h.temperature_2m[i].toFixed(1)) : null,
+          solar:     solarMJ,
+          humidity:  h.relative_humidity_2m[i] !== null ? parseFloat(h.relative_humidity_2m[i].toFixed(1)) : null,
+          windSpeed: h.wind_speed_10m[i] !== null ? parseFloat(h.wind_speed_10m[i].toFixed(2)) : null
+        };
+      }
+      return true;
+    });
+}
+
+// 특정 일자/시간의 캐시 조회 (캐시 없으면 null 반환)
+function getHistoryWeather(dateStr, hour) {
+  if (historyCache[dateStr] && historyCache[dateStr][hour]) {
+    return historyCache[dateStr][hour];
+  }
+  // 가장 가까운 시간대 fallback (±2시간 이내)
+  if (historyCache[dateStr]) {
+    for (var d = 1; d <= 2; d++) {
+      if (historyCache[dateStr][hour - d]) return historyCache[dateStr][hour - d];
+      if (historyCache[dateStr][hour + d]) return historyCache[dateStr][hour + d];
+    }
+  }
+  return null;
+}
+
+// 일자 배열에서 최소~최대 범위 추출
+function getDateRange(dates) {
+  var valid = dates.filter(function(d){ return d && /^\d{4}-\d{2}-\d{2}$/.test(d); }).sort();
+  if (!valid.length) return null;
+  return { start: valid[0], end: valid[valid.length-1] };
+}
+
+// 단일 일자 과거 기상 조회 (현장 입력용 — 캐시 우선)
+function fetchSingleDayHistory(dateStr) {
+  if (historyCache[dateStr]) return Promise.resolve(true);  // 이미 있음
+  return fetchHistoryWeather(dateStr, dateStr);
+}
+
+// ════════════════════════════════════════════════════════════════
+// ★ 숫자 포맷 헬퍼 — 소수점 자릿수 통일
+// ════════════════════════════════════════════════════════════════
+function fmtT(v)   { return (v === null || v === undefined || isNaN(v) || v === '') ? '—' : Number(v).toFixed(1); }  // 기온
+function fmtSol(v) { return (v === null || v === undefined || isNaN(v) || v === '') ? '—' : Number(v).toFixed(2); }  // 일사량
+function fmtH(v)   { return (v === null || v === undefined || isNaN(v) || v === '') ? '—' : Number(v).toFixed(1); }  // 습도
+function fmtW(v)   { return (v === null || v === undefined || isNaN(v) || v === '') ? '—' : Number(v).toFixed(2); }  // 풍속
+
 // ── 엑셀 학습 ──────────────────────────
 function normKey(s) {
   return String(s).replace(/[\t\s\(\)\[\]℃%㎡\/\.\,·]/g, '').toLowerCase();
@@ -1047,7 +1129,59 @@ function processAndTrain(rows, fileName) {
     return parseInt(s) || 12;
   }
 
-  // ★ 1차 패스: 평균값 계산 (결측치 보완용)
+  // ★ 1차 패스: 과거 기상값으로 채울 일자 목록 추출 (빈값 또는 '(자동)' 행)
+  var datesNeedHistory = {};
+  for (var pi = 0; pi < rows.length; pi++) {
+    var pr = rows[pi];
+    var pAt = n2(cols.airTemp ? pr[cols.airTemp] : NaN);
+    var pSol = n2(cols.solar ? pr[cols.solar] : NaN);
+    var pHum = n2(cols.humidity ? pr[cols.humidity] : NaN);
+    var pWs = n2(cols.windSpd ? pr[cols.windSpd] : NaN);
+    if (isNaN(pAt) || isNaN(pSol) || isNaN(pHum) || isNaN(pWs)) {
+      var dStr = cols.date ? String(pr[cols.date] || '').trim() : '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) datesNeedHistory[dStr] = 1;
+    }
+  }
+  var needList = Object.keys(datesNeedHistory).sort();
+
+  // 학습 변수명 (분리된 함수에서도 사용)
+  var fNames = ['대기온도(℃)', '일사량(MJ/㎡)', '습도(%)', '풍속(m/s)'];
+
+  // ★ 과거 기상 일괄 조회 후 학습 진행
+  function proceedWithTraining() {
+    runActualTraining(rows, fileName, cols, fNames);
+  }
+
+  if (needList.length > 0) {
+    setProg(true, 'Open-Meteo에서 과거 기상 ' + needList.length + '일치 조회 중...', 30);
+    var range = getDateRange(needList);
+    fetchHistoryWeather(range.start, range.end)
+      .then(function() {
+        setProg(true, '과거 기상 데이터 적용 중...', 60);
+        proceedWithTraining();
+      })
+      .catch(function(err) {
+        console.warn('Open-Meteo 조회 실패:', err.message);
+        showToast('과거 기상 조회 실패 — 빈값은 평균값으로 대체', '#c47a00');
+        proceedWithTraining();
+      });
+    return;  // 비동기 종료 (콜백에서 학습 재개)
+  }
+  // 빈값 없으면 즉시 학습 진행
+  proceedWithTraining();
+}
+
+// 실제 학습 본체 (Open-Meteo 조회 후 호출됨)
+function runActualTraining(rows, fileName, cols, fNames) {
+  function n2(v) { var f = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isNaN(f) ? NaN : f; }
+  function parseHour(v) {
+    var s = String(v).trim();
+    if (s.indexOf(':') >= 0) return parseInt(s.split(':')[0]);
+    if (s.length === 4 && s.indexOf('-') < 0) return parseInt(s.slice(0, 2));
+    return parseInt(s) || 12;
+  }
+
+  // 1차 패스: 평균값 계산 (Open-Meteo 실패 시 fallback용)
   var sumAt=0, sumSol=0, sumHum=0, sumWs=0, cntAt=0, cntSol=0, cntHum=0, cntWs=0;
   for (var pi = 0; pi < rows.length; pi++) {
     var pr = rows[pi];
@@ -1065,54 +1199,82 @@ function processAndTrain(rows, fileName) {
   var avgHum = cntHum ? sumHum/cntHum : 60;
   var avgWs = cntWs ? sumWs/cntWs : 3;
 
-  // 학습 변수: 기온, 일사량, 습도, 풍속 (4개만)
-  var fNames = ['대기온도(℃)', '일사량(MJ/㎡)', '습도(%)', '풍속(m/s)'];
   var X = [], Y = [], rawRows = [];
   var skipCount = 0;
-  var imputedCount = 0;  // ★ 보완된 행 카운트
+  var imputedFromAPI = 0;   // ★ Open-Meteo로 보완된 건수
+  var imputedFromAvg = 0;   // ★ 평균값으로 보완된 건수 (API 실패 시)
 
   for (var ri = 0; ri < rows.length; ri++) {
     var row = rows[ri];
     var at   = n2(cols.airTemp   ? row[cols.airTemp]   : NaN);
     var sol  = n2(cols.solar     ? row[cols.solar]     : NaN);
     var hum  = n2(cols.humidity  ? row[cols.humidity]  : NaN);
-    var wsKt = n2(cols.windSpd   ? row[cols.windSpd]   : NaN);
+    var wsKt = n2(cols.windSpd   ? row[cols.windSpd]   : NaN);  // 엑셀에선 KT, Open-Meteo는 m/s
     var pt   = n2(cols.paveTemp  ? row[cols.paveTemp]  : NaN);
     var hr   = cols.time ? parseHour(row[cols.time]) : 12;
     var zone = n2(cols.zone      ? row[cols.zone]      : NaN);
     var spk  = cols.sprinkle ? (n2(row[cols.sprinkle]) > 0 ? 1 : 0) : 0;
     var ta   = cols.tempAfter ? n2(row[cols.tempAfter]) : NaN;
-    // ★ 특보현황: 빈값/NaN이면 0 (특보 없음)으로 처리 — 모든 데이터 학습 활용
+    var vol  = cols.sprVol ? n2(row[cols.sprVol]) : NaN;       // ★ 살수량 보존
     var warnVal = cols.warn ? n2(row[cols.warn]) : 0;
     if (isNaN(warnVal)) warnVal = 0;
 
-    // ★ 포장온도(목표값)만 필수 — 입력 변수는 평균값으로 보완
+    // ★ 포장온도(목표값)만 필수
     if (isNaN(pt) || !isFinite(pt)) {
       skipCount++; continue;
     }
-    var imputed = false;
-    if (isNaN(at) || !isFinite(at))   { at = avgAt; imputed = true; }
-    if (isNaN(sol) || !isFinite(sol)) { sol = avgSol; imputed = true; }
-    if (isNaN(hum) || !isFinite(hum)) { hum = avgHum; imputed = true; }
-    if (isNaN(wsKt) || !isFinite(wsKt)) { wsKt = avgWs; imputed = true; }
-    if (imputed) imputedCount++;
 
-    var ws = parseFloat((wsKt * 0.514).toFixed(2)); // KT→m/s
-    X.push([at, sol, hum, ws]);  // 시간 변수 없음
-    Y.push(pt);
-    // ★ 일자/요일/시간/특보 원본도 함께 저장 (표 렌더링용)
     var dateRaw = cols.date ? String(row[cols.date] || '').trim() : '';
+    var imputed = false;
+    var imputedSrc = '';
+
+    // ★ 빈값이면 Open-Meteo 캐시에서 조회 (KT 환산: m/s × 1.944)
+    if ((isNaN(at) || isNaN(sol) || isNaN(hum) || isNaN(wsKt)) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) {
+      var hist = getHistoryWeather(dateRaw, hr);
+      if (hist) {
+        if (isNaN(at)   && hist.airTemp   !== null) { at = hist.airTemp; imputed = true; }
+        if (isNaN(sol)  && hist.solar     !== null) { sol = hist.solar; imputed = true; }
+        if (isNaN(hum)  && hist.humidity  !== null) { hum = hist.humidity; imputed = true; }
+        if (isNaN(wsKt) && hist.windSpeed !== null) { wsKt = hist.windSpeed * 1.944; imputed = true; }  // m/s → KT
+        if (imputed) imputedSrc = 'api';
+      }
+    }
+    // ★ 그래도 빈 값이면 평균값으로
+    if (isNaN(at) || !isFinite(at))     { at = avgAt; imputed = true; if (!imputedSrc) imputedSrc = 'avg'; }
+    if (isNaN(sol) || !isFinite(sol))   { sol = avgSol; imputed = true; if (!imputedSrc) imputedSrc = 'avg'; }
+    if (isNaN(hum) || !isFinite(hum))   { hum = avgHum; imputed = true; if (!imputedSrc) imputedSrc = 'avg'; }
+    if (isNaN(wsKt) || !isFinite(wsKt)) { wsKt = avgWs; imputed = true; if (!imputedSrc) imputedSrc = 'avg'; }
+    if (imputed) {
+      if (imputedSrc === 'api') imputedFromAPI++;
+      else imputedFromAvg++;
+    }
+
+    var ws = parseFloat((wsKt * 0.514).toFixed(2)); // KT → m/s 통일
+
+    // 정밀도 통일
+    at  = parseFloat(at.toFixed(1));
+    sol = parseFloat(sol.toFixed(2));
+    hum = parseFloat(hum.toFixed(1));
+    ws  = parseFloat(ws.toFixed(2));
+
+    X.push([at, sol, hum, ws]);
+    Y.push(pt);
+
     var dayRaw  = cols.day  ? String(row[cols.day]  || '').trim() : '';
     var timeRaw = cols.time ? String(row[cols.time] || '').trim() : '';
     rawRows.push({
       at:at, sol:sol, hum:hum, ws:ws, hr:hr, pt:pt, zone:zone, spk:spk, ta:ta,
-      warn: warnVal,                  // ★ 특보 원본 보존
+      vol: (!isNaN(vol) && isFinite(vol)) ? vol : '',  // ★ 살수량 보존
+      warn: warnVal,
       date: dateRaw || '—',
       day:  dayRaw  || '',
       time: timeRaw || (hr + ':00'),
-      imputed: imputed                 // ★ 보완 여부 표시
+      imputed: imputed,
+      imputedSrc: imputedSrc
     });
   }
+  var imputedCount = imputedFromAPI + imputedFromAvg;
 
   // 파일 정보 표시
   var zoneSet = {};
@@ -1134,6 +1296,8 @@ function processAndTrain(rows, fileName) {
     valid: X.length,
     skip: skipCount,
     imputed: imputedCount,
+    imputedFromAPI: imputedFromAPI,    // ★ Open-Meteo로 보완
+    imputedFromAvg: imputedFromAvg,    // ★ 평균값으로 보완
     spk: rawRows.filter(function(r) { return r.spk; }).length,
     zones: zoneKeys,
     foundCols: foundList,
@@ -1253,7 +1417,15 @@ function renderFileInfo() {
   document.getElementById('fi-total').textContent = fileInfoCache.total + '행';
   var validTxt = fileInfoCache.valid + '건';
   if (fileInfoCache.imputed > 0) {
-    validTxt += ' (보완 ' + fileInfoCache.imputed + '건)';
+    var apiN = fileInfoCache.imputedFromAPI || 0;
+    var avgN = fileInfoCache.imputedFromAvg || 0;
+    if (apiN > 0 && avgN > 0) {
+      validTxt += ' (Open-Meteo ' + apiN + '건 + 평균 ' + avgN + '건 보완)';
+    } else if (apiN > 0) {
+      validTxt += ' (Open-Meteo 보완 ' + apiN + '건)';
+    } else {
+      validTxt += ' (평균값 보완 ' + avgN + '건)';
+    }
   }
   document.getElementById('fi-valid').textContent = validTxt;
   document.getElementById('fi-skip').textContent = fileInfoCache.skip + '건';
@@ -1479,15 +1651,15 @@ var SKY_LBL = { 1: '맑음', 2: '구름조금', 3: '구름많음', 4: '흐림' }
 function renderSensors() {
   var d = wx;
   var items = [
-    { label: '포장온도 (추정)', value: d.paveTemp, unit: '℃', max: 80, color: '#e53935', src: mlModel ? 'AI' : '추정' },
-    { label: '기온', value: d.airTemp, unit: '℃', max: 50, color: '#fb8c00', src: '기상청', sub: SKY_LBL[d.sky] || '' },
-    { label: '이슬점', value: d.dewpt || '—', unit: '℃', max: 40, color: '#8e24aa', src: 'METAR' },
-    { label: '일사량', value: d.solar, unit: 'MJ/㎡', max: 4, color: '#f9a825', src: '기상청' },
-    { label: '습도', value: d.humidity, unit: '%', max: 100, color: '#1e88e5', src: '기상청' },
-    { label: '풍속', value: d.windSpeed, unit: 'm/s', max: 15, color: '#43a047', src: '기상청', sub: d.windDir !== null && d.windDir !== undefined ? '풍향 ' + d.windDir + '°' : '' }
+    { label: '포장온도 (추정)', value: fmtT(d.paveTemp), unit: '℃', raw: d.paveTemp, max: 80, color: '#e53935', src: mlModel ? 'AI' : '추정' },
+    { label: '기온', value: fmtT(d.airTemp), unit: '℃', raw: d.airTemp, max: 50, color: '#fb8c00', src: '기상청', sub: SKY_LBL[d.sky] || '' },
+    { label: '이슬점', value: (d.dewpt !== null && d.dewpt !== undefined) ? fmtT(d.dewpt) : '—', unit: '℃', raw: d.dewpt || 0, max: 40, color: '#8e24aa', src: 'METAR' },
+    { label: '일사량', value: fmtSol(d.solar), unit: 'MJ/㎡', raw: d.solar, max: 4, color: '#f9a825', src: '기상청' },
+    { label: '습도', value: fmtH(d.humidity), unit: '%', raw: d.humidity, max: 100, color: '#1e88e5', src: '기상청' },
+    { label: '풍속', value: fmtW(d.windSpeed), unit: 'm/s', raw: d.windSpeed, max: 15, color: '#43a047', src: '기상청', sub: d.windDir !== null && d.windDir !== undefined ? '풍향 ' + d.windDir + '°' : '' }
   ];
   document.getElementById('sensorPanel').innerHTML = items.map(function(s) {
-    var pct = Math.min(100, Math.abs(parseFloat(s.value) || 0) / s.max * 100);
+    var pct = Math.min(100, Math.abs(parseFloat(s.raw) || 0) / s.max * 100);
     return '<div class="si">' +
       '<div class="sl"><div class="slr"><span class="sl-lbl">' + s.label + '</span>' +
       '<span class="bdg" style="background:#f0f4fa;color:var(--sub);border:1px solid var(--bdr);font-size:.55rem;">' + s.src + '</span></div>' +
@@ -1778,13 +1950,13 @@ function updateLiveDataTable() {
   var el = document.getElementById('liveDataTable');
   if (!el) return;
   var rows = [
-    { name:'기온', val: wx.airTemp + '℃', src:'기상청 단기예보', cycle:'15분' },
-    { name:'일사량', val: wx.solar + ' MJ/㎡', src:'기상청 단기예보', cycle:'15분' },
-    { name:'습도', val: wx.humidity + '%', src:'기상청 단기예보', cycle:'15분' },
-    { name:'풍속', val: wx.windSpeed + ' m/s', src:'Open-Meteo', cycle:'10분' },
+    { name:'기온', val: fmtT(wx.airTemp) + '℃', src:'기상청 단기예보', cycle:'15분' },
+    { name:'일사량', val: fmtSol(wx.solar) + ' MJ/㎡', src:'기상청 단기예보', cycle:'15분' },
+    { name:'습도', val: fmtH(wx.humidity) + '%', src:'기상청 단기예보', cycle:'15분' },
+    { name:'풍속', val: fmtW(wx.windSpeed) + ' m/s', src:'Open-Meteo', cycle:'10분' },
     { name:'풍향', val: (wx.windDir || '—') + '°', src:'Open-Meteo', cycle:'10분' },
     { name:'하늘상태', val: ['','맑음','구름조금','구름많음','흐림'][wx.sky] || '—', src:'Open-Meteo', cycle:'10분' },
-    { name:'포장온도(추정)', val: wx.paveTemp + '℃', src: mlModel ? 'AI 모델' : '추정식', cycle:'실시간' },
+    { name:'포장온도(추정)', val: fmtT(wx.paveTemp) + '℃', src: mlModel ? 'AI 모델' : '추정식', cycle:'실시간' },
   ];
   el.innerHTML = rows.map(function(r, i) {
     return '<tr style="background:' + (i%2===0?'#fff':'#f8fafc') + '">' +
@@ -1834,80 +2006,111 @@ function saveDataRow() {
   var timeStr = document.getElementById('inp-time').value ||
     now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
 
-  // ★ 과거 일자 입력 시 — 학습 데이터에서 동일 일자/시간 검색하여 기상값 가져오기
-  // 오늘 일자면 현재 wx 값 사용, 과거면 학습데이터에서 검색
+  // ★ 과거 일자 처리: Open-Meteo 우선 → 학습데이터 fallback → 현재 wx
   var todayStr = now.getFullYear() + '-' +
     String(now.getMonth()+1).padStart(2,'0') + '-' +
     String(now.getDate()).padStart(2,'0');
   var isPast = dateStr !== todayStr;
-  var atVal = wx.airTemp, solVal = wx.solar, humVal = wx.humidity, wsVal = wx.windSpeed;
-  var matched = false;
-  if (isPast && anaData && anaData.rawRows) {
-    var inputHr = parseInt(timeStr.split(':')[0]);
-    // 동일 일자 + 가장 가까운 시간대 검색
-    var bestMatch = null, bestDiff = 999;
-    for (var mi = 0; mi < anaData.rawRows.length; mi++) {
-      var mr = anaData.rawRows[mi];
-      if (mr.date === dateStr) {
-        var hrDiff = Math.abs((mr.hr || 12) - inputHr);
-        if (hrDiff < bestDiff) { bestDiff = hrDiff; bestMatch = mr; }
+  var inputHr = parseInt(timeStr.split(':')[0]) || 12;
+
+  // 1차: Open-Meteo 캐시 → 없으면 호출
+  function tryOpenMeteo() {
+    if (!isPast) return Promise.resolve(null);
+    var hist = getHistoryWeather(dateStr, inputHr);
+    if (hist) return Promise.resolve(hist);
+    showToast('Open-Meteo에서 ' + dateStr + ' 기상 조회 중...', '#1565c0');
+    return fetchSingleDayHistory(dateStr)
+      .then(function() { return getHistoryWeather(dateStr, inputHr); })
+      .catch(function() { return null; });
+  }
+
+  tryOpenMeteo().then(function(hist) {
+    var atVal, solVal, humVal, wsVal;
+    var srcInfo = '';
+
+    if (hist && hist.airTemp !== null) {
+      atVal = hist.airTemp; solVal = hist.solar;
+      humVal = hist.humidity; wsVal = hist.windSpeed;
+      srcInfo = '(Open-Meteo 과거 기상)';
+    } else if (isPast && anaData && anaData.rawRows) {
+      // 2차 fallback: 학습 데이터 매칭
+      var bestMatch = null, bestDiff = 999;
+      for (var mi = 0; mi < anaData.rawRows.length; mi++) {
+        var mr = anaData.rawRows[mi];
+        if (mr.date === dateStr) {
+          var hrDiff = Math.abs((mr.hr || 12) - inputHr);
+          if (hrDiff < bestDiff) { bestDiff = hrDiff; bestMatch = mr; }
+        }
+      }
+      if (bestMatch) {
+        atVal = bestMatch.at; solVal = bestMatch.sol;
+        humVal = bestMatch.hum; wsVal = bestMatch.ws;
+        srcInfo = '(학습데이터 매칭)';
       }
     }
-    if (bestMatch) {
-      atVal = bestMatch.at; solVal = bestMatch.sol;
-      humVal = bestMatch.hum; wsVal = bestMatch.ws;
-      matched = true;
+
+    // 3차 fallback: 현재 wx
+    if (atVal === undefined) {
+      if (isPast) {
+        if (!confirm('과거 일자(' + dateStr + ')의 기상 자료를 가져오지 못했습니다.\n현재 시점 기상값으로 저장하시겠습니까?')) return;
+      }
+      atVal = wx.airTemp; solVal = wx.solar;
+      humVal = wx.humidity; wsVal = wx.windSpeed;
+      srcInfo = '(현재 기상값)';
     }
-  }
-  if (isPast && !matched) {
-    if (!confirm('과거 일자(' + dateStr + ')의 학습 데이터를 찾지 못했습니다.\n현재 시점의 기상값으로 저장하시겠습니까?\n(나중에 수정 가능)')) {
-      return;
+
+    // 정밀도 통일
+    atVal  = parseFloat(Number(atVal).toFixed(1));
+    solVal = parseFloat(Number(solVal).toFixed(2));
+    humVal = parseFloat(Number(humVal).toFixed(1));
+    wsVal  = parseFloat(Number(wsVal).toFixed(2));
+
+    var row = {
+      date: dateStr,
+      day: dayStr,
+      time: timeStr,
+      zone: parseInt(document.getElementById('inp-zone').value),
+      warn: parseInt(document.getElementById('inp-warn').value),
+      airTemp: atVal, solar: solVal, humidity: humVal, windSpeed: wsVal,
+      pt: pt,
+      spk: parseInt(document.getElementById('inp-spk').value),
+      vol: parseFloat(document.getElementById('inp-vol').value) || 0,
+      ta: parseFloat(document.getElementById('inp-ta').value) || '',
+      fromField: true,
+      srcInfo: srcInfo
+    };
+
+    // ★ 수정 모드면 기존 행 교체, 아니면 새로 추가
+    if (editingIdx >= 0 && editingIdx < dataLog.length) {
+      dataLog[editingIdx] = row;
+      var saveBtn = document.querySelector('button[onclick="saveDataRow()"]');
+      if (saveBtn) saveBtn.textContent = '💾 저장';
+      showToast('데이터가 수정되었습니다 ' + srcInfo, '#1565c0');
+      editingIdx = -1;
+    } else {
+      dataLog.unshift(row);
+      showToast('데이터 저장 완료 ' + srcInfo + ' — AI 재학습 버튼을 눌러 모델 업데이트', '#1a7a4a');
     }
-  }
 
-  var row = {
-    date: dateStr,
-    day: dayStr,
-    time: timeStr,
-    zone: parseInt(document.getElementById('inp-zone').value),
-    warn: parseInt(document.getElementById('inp-warn').value),
-    airTemp: atVal, solar: solVal, humidity: humVal, windSpeed: wsVal,
-    pt: pt,
-    spk: parseInt(document.getElementById('inp-spk').value),
-    vol: parseFloat(document.getElementById('inp-vol').value) || 0,
-    ta: parseFloat(document.getElementById('inp-ta').value) || '',
-    fromField: true,
-    matched: matched  // ★ 과거 데이터 매칭 여부
-  };
+    saveDataLog();
+    renderIntegratedTable();
+    document.getElementById('dataInputForm').style.display = 'none';
+    ['inp-pt','inp-vol','inp-ta'].forEach(function(id){ document.getElementById(id).value=''; });
 
-  // ★ 수정 모드면 기존 행 교체, 아니면 새로 추가
-  if (editingIdx >= 0 && editingIdx < dataLog.length) {
-    dataLog[editingIdx] = row;
-    var saveBtn = document.querySelector('button[onclick="saveDataRow()"]');
-    if (saveBtn) saveBtn.textContent = '💾 저장';
-    showToast('데이터가 수정되었습니다 ' + (matched?'(과거 기상값 적용)':''), '#1565c0');
-    editingIdx = -1;
-  } else {
-    dataLog.unshift(row);
-    showToast('데이터 저장 완료! ' + (matched?'(과거 기상값 자동 적용) ':'') + 'AI 재학습 버튼을 눌러 모델을 업데이트하세요.', '#1a7a4a');
-  }
+    // 재학습 안내 표시
+    var notice = document.getElementById('retrainNotice');
+    if (notice) {
+      notice.style.display = 'flex';
+      document.getElementById('retrainMsg').textContent =
+        '현장 입력 데이터 ' + dataLog.length + '건이 추가되었습니다. AI 재학습을 실행하면 새 데이터가 반영됩니다.';
+    }
 
-  saveDataLog();  // ★ 영속화 (F5에도 유지)
-  renderIntegratedTable();
-  document.getElementById('dataInputForm').style.display = 'none';
-  ['inp-pt','inp-vol','inp-ta'].forEach(function(id){ document.getElementById(id).value=''; });
-
-  // 재학습 안내 표시
-  var notice = document.getElementById('retrainNotice');
-  if (notice) {
-    notice.style.display = 'flex';
-    document.getElementById('retrainMsg').textContent =
-      '현장 입력 데이터 ' + dataLog.length + '건이 추가되었습니다. AI 재학습을 실행하면 새 데이터가 반영됩니다.';
-  }
-
-  var t = now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-  logs.push({type:'ok', time:t, msg:'현장 데이터 입력 — 구역' + row.zone + ' 포장온도 ' + pt + '℃' + (row.spk?' 살수실시':'')});
+    var t = now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    logs.push({type:'ok', time:t, msg:'현장 데이터 입력 — 구역' + row.zone + ' 포장온도 ' + pt + '℃' + (row.spk?' 살수실시':'') + ' ' + srcInfo});
+  });
 }
+
+// (이하 saveDataRow 종료)
 
 // ★ 현장 입력 데이터 영속화
 var LS_DATALOG_KEY = 'aura_datalog_v1';
@@ -2074,8 +2277,10 @@ function renderIntegratedTable() {
         zone: r.zone,
         warn: r.warn || 0,                  // ★ 특보 원본값 사용
         airTemp: r.at, solar: r.sol, humidity: r.hum, windSpeed: r.ws,
-        pt: r.pt, spk: r.spk, vol: '', ta: r.ta,
-        _src: 'excel', _idx: j               // ★ 출처 표시
+        pt: r.pt, spk: r.spk,
+        vol: r.vol,                          // ★ 엑셀 살수량 보존
+        ta: r.ta,
+        _src: 'excel', _idx: j
       });
     }
   }
@@ -2099,7 +2304,12 @@ function renderIntegratedTable() {
   el.innerHTML = pageData.map(function(r, i) {
     var ptColor = r.pt >= 60 ? '#b71c1c' : r.pt >= 58 ? '#c47a00' : '#1a7a4a';
     var bg = i%2===0 ? '#fff' : '#f8fafc';
-    var taStr = (r.ta && !isNaN(r.ta) && r.ta !== '') ? r.ta + '℃' : '—';
+    // ★ 살수후 온도 (소수점 1자리)
+    var taStr = (r.ta !== '' && r.ta !== null && r.ta !== undefined && !isNaN(r.ta)) ?
+      Number(r.ta).toFixed(1) + '℃' : '—';
+    // ★ 살수량 (정수)
+    var volStr = (r.vol !== '' && r.vol !== null && r.vol !== undefined && !isNaN(r.vol) && r.vol > 0) ?
+      Math.round(r.vol) + 'L' : '—';
     var actionBtns = '';
     if (r._src === 'field') {
       actionBtns =
@@ -2112,13 +2322,13 @@ function renderIntegratedTable() {
       '<td style="padding:6px 8px;white-space:nowrap;">' + r.date + (r.day ? ' ('+r.day+')' : '') + '</td>' +
       '<td style="padding:6px 8px;white-space:nowrap;">' + r.time + '</td>' +
       '<td style="padding:6px 8px;white-space:nowrap;">' + (ZONE_NAMES[r.zone] || r.zone) + '</td>' +
-      '<td style="padding:6px 8px;text-align:center;background:#f0f5ff;">' + (r.airTemp||'—') + '</td>' +
-      '<td style="padding:6px 8px;text-align:center;background:#f0f5ff;">' + (r.solar||'—') + '</td>' +
-      '<td style="padding:6px 8px;text-align:center;background:#f0f5ff;">' + (r.humidity||'—') + '</td>' +
-      '<td style="padding:6px 8px;text-align:center;background:#f0f5ff;">' + (r.windSpeed||'—') + '</td>' +
-      '<td style="padding:6px 8px;text-align:center;background:#f0f9f0;font-weight:800;color:' + ptColor + ';">' + r.pt + '℃</td>' +
+      '<td style="padding:6px 8px;text-align:center;background:#f0f5ff;">' + fmtT(r.airTemp) + '</td>' +
+      '<td style="padding:6px 8px;text-align:center;background:#f0f5ff;">' + fmtSol(r.solar) + '</td>' +
+      '<td style="padding:6px 8px;text-align:center;background:#f0f5ff;">' + fmtH(r.humidity) + '</td>' +
+      '<td style="padding:6px 8px;text-align:center;background:#f0f5ff;">' + fmtW(r.windSpeed) + '</td>' +
+      '<td style="padding:6px 8px;text-align:center;background:#f0f9f0;font-weight:800;color:' + ptColor + ';">' + fmtT(r.pt) + '℃</td>' +
       '<td style="padding:6px 8px;text-align:center;background:#f0f9f0;">' + (r.spk ? '✅' : '—') + '</td>' +
-      '<td style="padding:6px 8px;text-align:center;background:#f0f9f0;">' + (r.vol && r.vol > 0 ? r.vol + 'L' : '—') + '</td>' +
+      '<td style="padding:6px 8px;text-align:center;background:#f0f9f0;">' + volStr + '</td>' +
       '<td style="padding:6px 8px;text-align:center;background:#f0f9f0;">' + taStr + '</td>' +
       '<td style="padding:6px 8px;text-align:center;">' + (r.warn||0) + '</td>' +
       '<td style="padding:6px 8px;text-align:center;white-space:nowrap;">' + actionBtns + '</td>' +
