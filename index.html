@@ -1068,7 +1068,16 @@ function processAndTrain(rows, fileName) {
     var ws = parseFloat((wsKt * 0.514).toFixed(2)); // KT→m/s
     X.push([at, sol, hum, ws]);  // 시간 변수 없음
     Y.push(pt);
-    rawRows.push({at:at, sol:sol, hum:hum, ws:ws, hr:hr, pt:pt, zone:zone, spk:spk, ta:ta});
+    // ★ 일자/요일/시간 원본도 함께 저장 (표 렌더링용)
+    var dateRaw = cols.date ? String(row[cols.date] || '').trim() : '';
+    var dayRaw  = cols.day  ? String(row[cols.day]  || '').trim() : '';
+    var timeRaw = cols.time ? String(row[cols.time] || '').trim() : '';
+    rawRows.push({
+      at:at, sol:sol, hum:hum, ws:ws, hr:hr, pt:pt, zone:zone, spk:spk, ta:ta,
+      date: dateRaw || '—',
+      day:  dayRaw  || '',
+      time: timeRaw || (hr + ':00')
+    });
   }
 
   // 파일 정보 표시
@@ -1186,6 +1195,7 @@ function processAndTrain(rows, fileName) {
   recordTempHistory();
   updateAlertBanner();
   renderPriorityPanel();
+  saveModelToStorage();  // ★ 학습 완료 즉시 저장 (F5 시에도 유지)
 }
 
 function setProg(show, txt, pct) {
@@ -1727,22 +1737,36 @@ function addDataRow() {
   document.getElementById('pre-sol').textContent = wx.solar;
   document.getElementById('pre-hum').textContent = wx.humidity;
   document.getElementById('pre-ws').textContent = wx.windSpeed;
-  // 현재 시간 자동 입력
+  // 현재 시간/일자 자동 입력 (사용자가 수정 가능)
   var now = new Date();
   var hh = String(now.getHours()).padStart(2,'0');
   var mm = String(now.getMinutes()).padStart(2,'0');
   document.getElementById('inp-time').value = hh + ':' + mm;
+  // ★ 측정일자 기본값을 오늘로 자동 채움 (사용자가 다른 날짜로 수정 가능)
+  var inpDate = document.getElementById('inp-date');
+  if (inpDate && !inpDate.value) {
+    inpDate.value = now.getFullYear() + '-' +
+      String(now.getMonth()+1).padStart(2,'0') + '-' +
+      String(now.getDate()).padStart(2,'0');
+  }
 }
 
 function saveDataRow() {
   var pt = parseFloat(document.getElementById('inp-pt').value);
   if (isNaN(pt)) { alert('포장온도를 입력해주세요.'); return; }
   var now = new Date();
-  var dateStr = now.getFullYear() + '-' +
+  // ★ 사용자가 입력한 측정일자 우선 사용, 없으면 오늘 날짜
+  var inputDate = document.getElementById('inp-date');
+  var dateStr = (inputDate && inputDate.value) ? inputDate.value :
+    (now.getFullYear() + '-' +
     String(now.getMonth()+1).padStart(2,'0') + '-' +
-    String(now.getDate()).padStart(2,'0');
+    String(now.getDate()).padStart(2,'0'));
+  // 요일 자동 계산
+  var dayNames = ['일','월','화','수','목','금','토'];
+  var dayStr = dayNames[new Date(dateStr).getDay()] || '';
   var row = {
     date: dateStr,
+    day: dayStr,
     time: document.getElementById('inp-time').value || now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),
     zone: parseInt(document.getElementById('inp-zone').value),
     warn: parseInt(document.getElementById('inp-warn').value),
