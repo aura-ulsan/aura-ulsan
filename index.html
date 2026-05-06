@@ -1036,7 +1036,7 @@ function fetchSingleDayHistory(dateStr) {
 // ════════════════════════════════════════════════════════════════
 function fmtT(v)   { return (v === null || v === undefined || isNaN(v) || v === '') ? '—' : Number(v).toFixed(1); }  // 기온
 function fmtSol(v) { return (v === null || v === undefined || isNaN(v) || v === '') ? '—' : Number(v).toFixed(2); }  // 일사량
-function fmtH(v)   { return (v === null || v === undefined || isNaN(v) || v === '') ? '—' : Number(v).toFixed(1); }  // 습도
+function fmtH(v)   { return (v === null || v === undefined || isNaN(v) || v === '') ? '—' : Math.round(Number(v)); }  // 습도 (정수)
 function fmtW(v)   { return (v === null || v === undefined || isNaN(v) || v === '') ? '—' : Number(v).toFixed(2); }  // 풍속
 
 // ── 엑셀 학습 ──────────────────────────
@@ -1264,8 +1264,9 @@ function runActualTraining(rows, fileName, cols, fNames) {
     var dayRaw  = cols.day  ? String(row[cols.day]  || '').trim() : '';
     var timeRaw = cols.time ? String(row[cols.time] || '').trim() : '';
     rawRows.push({
-      at:at, sol:sol, hum:hum, ws:ws, hr:hr, pt:pt, zone:zone, spk:spk, ta:ta,
-      vol: (!isNaN(vol) && isFinite(vol)) ? vol : '',  // ★ 살수량 보존
+      at:at, sol:sol, hum:hum, ws:ws, hr:hr, pt:pt, zone:zone, spk:spk,
+      ta: (!isNaN(ta) && isFinite(ta)) ? ta : '',     // ★ 살수후온도 안전 저장
+      vol: (!isNaN(vol) && isFinite(vol)) ? vol : '', // ★ 살수량 보존
       warn: warnVal,
       date: dateRaw || '—',
       day:  dayRaw  || '',
@@ -1506,10 +1507,22 @@ function showMLResults(model, X, Y, preds) {
   if (zWrap) zWrap.style.display = 'block';
   if (zInfo) zInfo.innerHTML = zModelInfo;
 
-  // 회귀 계수
+  // 회귀 계수 (해석 도움말 포함)
   var mx = Math.max.apply(null, model.coefs.map(Math.abs));
+  var coefDescriptions = {
+    '대기온도(℃)': '기온이 1℃ 오를 때',
+    '일사량(MJ/㎡)': '일사량 1MJ/㎡ 증가 시',
+    '습도(%)': '습도 1% 증가 시',
+    '풍속(m/s)': '풍속 1m/s 증가 시'
+  };
   document.getElementById('mlCoef').innerHTML = model.coefs.map(function(c, i) {
-    return '<div class="ml-coef-item"><div style="flex:1"><div>' + model.featureNames[i] + '</div>' +
+    var fname = model.featureNames[i];
+    var desc = coefDescriptions[fname] || '';
+    var arrow = c >= 0 ? '↑' : '↓';
+    var effect = desc ? desc + ' 포장온도 ' + Math.abs(c).toFixed(2) + '℃ ' + arrow : '';
+    return '<div class="ml-coef-item"><div style="flex:1">' +
+      '<div>' + fname + '</div>' +
+      (effect ? '<div style="font-size:.66rem;color:var(--sub);margin-top:2px;">→ ' + effect + '</div>' : '') +
       '<div class="ml-coef-bar" style="width:' + (Math.abs(c)/mx*100) + '%;background:' + (c>=0?'#1565c0':'#b71c1c') + '"></div></div>' +
       '<div style="font-weight:700;color:' + (c>=0?'#1565c0':'#b71c1c') + ';margin-left:10px">' + (c>=0?'+':'') + c.toFixed(3) + '</div></div>';
   }).join('');
