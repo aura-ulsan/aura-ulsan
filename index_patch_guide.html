@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.U.R.A index.html 패치 가이드 v1.1</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Sans KR',sans-serif;background:#0d1117;color:#c9d1d9;line-height:1.7;padding:30px 40px;max-width:1000px;margin:0 auto;}
+h1{font-size:1.6rem;color:#58a6ff;margin-bottom:6px;border-bottom:2px solid #30363d;padding-bottom:10px;}
+.sub{color:#8b949e;font-size:.85rem;margin-bottom:30px;}
+h2{font-size:1.15rem;color:#7ee787;margin:30px 0 12px;display:flex;align-items:baseline;gap:10px;}
+.step{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:#ff7b72;background:#161b22;padding:2px 8px;border-radius:3px;}
+h3{font-size:.95rem;color:#d2a8ff;margin:18px 0 8px;}
+p{font-size:.9rem;margin-bottom:10px;color:#c9d1d9;}
+code{background:#161b22;color:#a5d6ff;padding:1px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:.82rem;}
+pre{background:#161b22;color:#c9d1d9;padding:16px 20px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.78rem;overflow-x:auto;line-height:1.65;border-left:3px solid #58a6ff;margin:10px 0 18px;}
+.del{background:#3a1518;border-left-color:#f85149;}
+.add{background:#0f2818;border-left-color:#3fb950;}
+.note{background:#1c2733;border-left:3px solid #58a6ff;padding:12px 16px;margin:14px 0;border-radius:4px;font-size:.85rem;}
+.warn{background:#332618;border-left:3px solid #d29922;padding:12px 16px;margin:14px 0;border-radius:4px;font-size:.85rem;color:#f0d894;}
+.cmt{color:#8b949e;}
+.key{color:#ff7b72;}
+.fn{color:#d2a8ff;}
+.str{color:#a5d6ff;}
+.num{color:#79c0ff;}
+.checklist{background:#161b22;border:1px solid #30363d;padding:16px 22px;border-radius:6px;margin:18px 0;}
+.checklist li{padding:5px 0;font-size:.88rem;}
+.checklist input{margin-right:8px;}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:.85rem;}
+th{background:#1c2733;color:#58a6ff;padding:8px 12px;text-align:left;border:1px solid #30363d;font-weight:600;}
+td{padding:8px 12px;border:1px solid #30363d;color:#c9d1d9;}
+</style>
+</head>
+<body>
+
+<h1>🔧 A.U.R.A index.html 패치 가이드</h1>
+<div class="sub">Lv.1 보안 패치 적용 — 기존 index.html에 auth.js 도입 절차 (개발자용)</div>
+
+<div class="note">
+<strong>📌 적용 전 체크리스트</strong><br>
+이 가이드는 본 보고서에 동봉된 <code>login.html</code>(신규)과 <code>auth.js</code>(신규)를 기존 <code>index.html</code>과 연동하는 절차입니다.
+적용 전 반드시 현행 운영 파일을 백업하세요.
+</div>
+
+<h2><span class="step">STEP 1</span> 파일 배치</h2>
+<p>아래 4개 파일을 같은 폴더에 배치합니다.</p>
+<pre>📁 aura/
+├── login.html      <span class="cmt">// 신규 — 본 보고서 동봉</span>
+├── auth.js         <span class="cmt">// 신규 — 본 보고서 동봉</span>
+├── index.html      <span class="cmt">// 기존 — 아래 절차로 수정</span>
+└── (기타 자산)</pre>
+
+<h2><span class="step">STEP 2</span> index.html 수정 — &lt;head&gt; 영역</h2>
+<p><code>&lt;head&gt;</code> 태그 <strong>최상단</strong>에 auth.js를 추가합니다. 다른 어떤 스크립트보다 먼저 로드되어야 인증 우회를 차단할 수 있습니다.</p>
+
+<h3>변경 전 (index.html, 6~10번째 줄)</h3>
+<pre class="del">&lt;head&gt;
+&lt;meta charset="UTF-8"&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+&lt;title&gt;A.U.R.A v5.2 - 울산공항 활주로 살수 자동화&lt;/title&gt;
+&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/..."&gt;&lt;/script&gt;</pre>
+
+<h3>변경 후</h3>
+<pre class="add">&lt;head&gt;
+&lt;meta charset="UTF-8"&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+&lt;title&gt;A.U.R.A v5.2 - 울산공항 활주로 살수 자동화&lt;/title&gt;
+<span class="key">&lt;script src="auth.js"&gt;&lt;/script&gt;</span>  <span class="cmt">&lt;!-- ★ 추가: 인증 가드 (다른 스크립트보다 먼저) --&gt;</span>
+&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/..."&gt;&lt;/script&gt;</pre>
+
+<h2><span class="step">STEP 3</span> 기존 인증 코드 제거</h2>
+<p>현행 index.html에는 <strong>두 군데</strong>의 자체 인증 코드가 있습니다. 모두 제거합니다.</p>
+
+<h3>제거 대상 ① — 604~608번째 줄 부근</h3>
+<pre class="del"><span class="cmt">// ── 비밀번호 인증 확인 ──────────────────</span>
+<span class="key">if</span> (sessionStorage.getItem(<span class="str">'aura_auth'</span>) !== <span class="str">'aura6332'</span>) {
+  window.location.replace(<span class="str">'login.html'</span>);
+}</pre>
+
+<p style="color:#7ee787;font-weight:600;margin-top:8px;">→ 위 4줄을 통째로 삭제합니다. (auth.js가 동일 기능을 안전하게 수행)</p>
+
+<h3>제거 대상 ② — 2155~2190번째 줄 부근의 <code>checkAuth()</code> 함수 전체</h3>
+<pre class="del"><span class="cmt">// ════════════════════════════════════════
+//  비밀번호 보호
+// ════════════════════════════════════════</span>
+<span class="key">var</span> PW_CORRECT = <span class="str">'aura6332'</span>;
+<span class="key">var</span> PW_KEY = <span class="str">'aura_auth_v1'</span>;
+
+<span class="key">function</span> <span class="fn">checkAuth</span>() {
+  <span class="cmt">// ... (전체 함수 30+ 줄)</span>
+}</pre>
+
+<p style="color:#7ee787;font-weight:600;margin-top:8px;">→ 함수 전체를 통째로 삭제합니다.</p>
+
+<h3>제거 대상 ③ — 2193번째 줄</h3>
+<pre class="del"><span class="cmt">// ── 초기 실행 ──────────────────────────</span>
+<span class="fn">checkAuth</span>();   <span class="cmt">// ← 이 한 줄만 삭제</span>
+refreshKeyStatus();</pre>
+
+<h2><span class="step">STEP 4</span> pw-screen 마크업 제거 (선택)</h2>
+<p>현행 index.html 내부에 잔존하는 비밀번호 입력 화면 마크업이 있다면 제거합니다 (이제 login.html이 담당).</p>
+<pre class="del">&lt;div id="pw-screen" ...&gt;
+  &lt;input id="pwInput" .../&gt;
+  &lt;button id="pwBtn"&gt;...&lt;/button&gt;
+  ...
+&lt;/div&gt;</pre>
+
+<h2><span class="step">STEP 5</span> 로그아웃 버튼 추가 (권장)</h2>
+<p>운영자 교대 시 명시적 로그아웃 기능 제공을 위해 헤더에 버튼을 추가합니다.</p>
+
+<h3>변경 전 (header 영역)</h3>
+<pre class="del">&lt;button class="btn-hdr" onclick="openSettings()"&gt;⚙️ API 설정&lt;/button&gt;</pre>
+
+<h3>변경 후</h3>
+<pre class="add">&lt;button class="btn-hdr" onclick="openSettings()"&gt;⚙️ API 설정&lt;/button&gt;
+<span class="key">&lt;button class="btn-hdr" onclick="AURA_logout()"&gt;🚪 로그아웃&lt;/button&gt;</span>  <span class="cmt">&lt;!-- ★ 추가 --&gt;</span></pre>
+
+<div class="note">
+<strong>💡 AURA_logout() 함수는 어디서 왔나?</strong><br>
+auth.js 가 페이지 로드 시 자동으로 <code>window.AURA_logout</code> 을 등록합니다. 별도 정의 없이 onclick에서 바로 호출 가능합니다.
+</div>
+
+<h2><span class="step">STEP 6</span> 검증 시나리오</h2>
+<p>패치 적용 후 아래 6개 시나리오를 반드시 테스트합니다.</p>
+
+<div class="checklist">
+<ul style="list-style:none;padding:0;">
+<li><input type="checkbox" disabled> <strong>S1.</strong> login.html에서 정상 비밀번호 입력 → index.html 진입 ✓</li>
+<li><input type="checkbox" disabled> <strong>S2.</strong> login.html에서 5회 오입력 → 5분 잠금 표시 ✓</li>
+<li><input type="checkbox" disabled> <strong>S3.</strong> 로그인 안 한 상태로 index.html 직접 URL 입력 → login.html 자동 리다이렉트 ✓</li>
+<li><input type="checkbox" disabled> <strong>S4.</strong> 콘솔에서 <code>sessionStorage.setItem('aura_auth','aura6332')</code> 후 새로고침 → <strong>접근 불가</strong> (구 키 무효화) ✓</li>
+<li><input type="checkbox" disabled> <strong>S5.</strong> 8시간 경과 후 자동 로그아웃 동작 (타이머 단축으로 검증 권장) ✓</li>
+<li><input type="checkbox" disabled> <strong>S6.</strong> 헤더의 로그아웃 버튼 클릭 → login.html로 이동 + 세션 삭제 ✓</li>
+</ul>
+</div>
+
+<h2><span class="step">STEP 7</span> 변경 요약</h2>
+<table>
+<thead><tr><th>구분</th><th>변경 전</th><th>변경 후</th></tr></thead>
+<tbody>
+<tr><td>비밀번호 저장</td><td>코드 내 평문 ('aura6332')</td><td>SHA-256 해시값만 코드 내 존재</td></tr>
+<tr><td>세션 키</td><td>비밀번호 자체를 세션에 저장</td><td>무작위 토큰 + 만료시각</td></tr>
+<tr><td>인증 키 이름</td><td>2종 혼재 (aura_auth, aura_auth_v1)</td><td>aura_session 단일</td></tr>
+<tr><td>오입력 잠금</td><td>없음</td><td>5회 오입력 시 5분 잠금</td></tr>
+<tr><td>세션 만료</td><td>브라우저 종료 시까지 유효</td><td>8시간 후 자동 만료</td></tr>
+<tr><td>인증 코드 위치</td><td>index.html 내부 분산 (3곳)</td><td>auth.js 단일 모듈</td></tr>
+</tbody>
+</table>
+
+<div class="warn">
+<strong>⚠️ Lv.1의 본질적 한계</strong><br>
+SHA-256 해시도 단순 사전공격(rainbow table)에는 취약하며, F12 콘솔에서 sessionStorage 토큰을 직접 위조하는 방식은 여전히 가능합니다.
+이는 클라이언트 사이드 인증의 구조적 한계로, <strong>본격 운영 시점에는 반드시 Lv.2(Cloudflare Access) 또는 Lv.3(백엔드 JWT) 도입을 권고</strong>합니다.
+</div>
+
+<h2><span class="step">DONE</span> 적용 완료</h2>
+<p>이상의 절차로 Lv.1 보안 패치가 적용됩니다. 작업 시간은 약 30분~1시간이 소요됩니다.</p>
+<p style="color:#8b949e;font-size:.82rem;margin-top:20px;">
+※ 본 가이드는 A.U.R.A 마스터 플랜 (DOC-AURA-MP-2026-001)의 부속자료입니다.
+</p>
+
+</body>
+</html>
