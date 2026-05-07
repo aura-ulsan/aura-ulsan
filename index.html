@@ -68,25 +68,25 @@ body{
   line-height:1.5;
 }
 
-/* ═══════ 그리드 레이아웃 — 1920x1080 한 화면 ═══════ */
+/* ═══════ 그리드 레이아웃 — 1920x1080 한 화면 (좌측 메뉴 없음) ═══════ */
 .app-grid{
   display:grid;
-  grid-template-rows:54px 1fr;
-  grid-template-columns:200px 1fr;
+  grid-template-rows:54px 46px 1fr;
+  grid-template-columns:1fr;
   grid-template-areas:
-    "header header"
-    "side main";
+    "header"
+    "tabs"
+    "main";
   height:100vh;
   width:100vw;
   gap:6px;
   padding:6px;
 }
 @media(max-width:1700px){
-  .app-grid{grid-template-columns:180px 1fr;grid-template-rows:50px 1fr;}
+  .app-grid{grid-template-rows:50px 42px 1fr;}
   body{font-size:12.5px;}
 }
 @media(max-width:1400px){
-  .app-grid{grid-template-columns:160px 1fr;}
   body{font-size:12px;}
 }
 
@@ -171,49 +171,40 @@ body{
   box-shadow:0 2px 6px rgba(21,101,192,.15);
 }
 
-/* ═══════ 좌측 메뉴 — 연결 메뉴 (아이콘+기능) ═══════ */
-.app-side{
-  grid-area:side;
-  background:linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+/* ═══════ 상단 탭바 (좌측 메뉴 대체) ═══════ */
+.app-tabs{
+  grid-area:tabs;
+  background:linear-gradient(180deg, #ffffff 0%, #f3f6fb 100%);
   border:1px solid var(--bdr-1);border-radius:6px;
-  display:flex;flex-direction:column;padding:10px 8px;gap:3px;
-  overflow:hidden;
-  box-shadow:0 1px 4px rgba(0,0,0,0.03);
+  display:flex;align-items:stretch;padding:4px 6px;gap:4px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
 }
-.side-btn{
-  display:flex;align-items:center;gap:10px;
-  padding:10px 12px;background:transparent;color:var(--txt-2);
-  border:none;border-left:3px solid transparent;
-  font-size:.82rem;font-weight:600;cursor:pointer;text-align:left;
-  border-radius:5px;transition:all .18s;font-family:inherit;
-  position:relative;
+.tab-btn{
+  display:flex;align-items:center;gap:8px;
+  padding:0 18px;background:transparent;color:var(--txt-2);
+  border:none;border-bottom:3px solid transparent;
+  font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;
+  transition:all .18s;
+  border-radius:5px 5px 0 0;
 }
-.side-btn:hover{
-  background:linear-gradient(90deg, var(--primary-bg) 0%, transparent 100%);
-  color:var(--primary);
+.tab-btn:hover{
+  background:var(--primary-bg);color:var(--primary);
 }
-.side-btn.active{
-  background:linear-gradient(90deg, var(--primary-bg) 0%, rgba(227,242,253,0.4) 100%);
+.tab-btn.active{
+  background:linear-gradient(180deg, var(--primary-bg) 0%, rgba(227,242,253,0.3) 100%);
   color:var(--primary-d);
-  border-left-color:var(--accent);
-  font-weight:700;
-  box-shadow:inset 2px 0 8px rgba(21,101,192,0.06);
+  border-bottom-color:var(--accent);
+  font-weight:800;
+  box-shadow:inset 0 -3px 0 var(--accent), 0 1px 4px rgba(21,101,192,0.08);
 }
-.side-btn .ic{
-  font-size:1.05rem;flex:none;
-  filter:grayscale(0.3);
+.tab-btn .ic{font-size:1.05rem;flex:none;}
+.tab-status{
+  margin-left:auto;display:flex;align-items:center;gap:14px;
+  padding:0 12px;font-size:.7rem;color:var(--txt-3);
 }
-.side-btn.active .ic{filter:none;}
-
-.side-status{
-  margin-top:auto;padding:9px 8px;border-top:1px solid var(--bdr-1);
-  font-size:.66rem;color:var(--txt-3);
-}
-.side-status .stat-line{
-  display:flex;justify-content:space-between;padding:2px 0;
-}
-.side-status .ok{color:var(--green);font-weight:700;}
-.side-status .ng{color:var(--red);font-weight:700;}
+.tab-status .stat-line{display:flex;align-items:center;gap:5px;}
+.tab-status .ok{color:var(--green);font-size:.85rem;}
+.tab-status .ng{color:var(--red);font-size:.85rem;}
 
 /* ═══════ 메인 영역 — 탭 전환 ═══════ */
 .app-main{
@@ -234,112 +225,126 @@ body{
   to{opacity:1;transform:none;}
 }
 
-/* ═══════ 모니터링 탭 — 좌(센서+구역+차트) | 우(일일추이) ═══════ */
-.mon-grid{
-  display:grid;
-  grid-template-columns:1fr 380px;
-  gap:6px;
+/* ═══════ 모니터링 탭 — 단일 컬럼 (우측 그래프 제거) ═══════ */
+.mon-single{
   flex:1;
   min-height:0;
-}
-.mon-left{
+  background:var(--bg-2);border:1px solid var(--bdr-1);border-radius:6px;
+  padding:10px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.03);
   display:grid;
   grid-template-rows:auto auto 1fr;
-  gap:6px;
-  background:var(--bg-2);border:1px solid var(--bdr-1);border-radius:6px;
-  padding:8px;
-  box-shadow:0 1px 4px rgba(0,0,0,0.03);
-  min-height:0;
-}
-.mon-right{
-  background:var(--bg-2);border:1px solid var(--bdr-1);border-radius:6px;
-  padding:10px 12px;
-  display:flex;flex-direction:column;
-  min-height:0;
-  box-shadow:0 1px 4px rgba(0,0,0,0.03);
+  gap:8px;
 }
 
-/* 1) 메인 센서 패널 - 화이트+메탈릭 */
+/* 1) 메인 센서 패널 — SVG 아이콘 + 크게 */
 .sensor-bar{
-  display:grid;grid-template-columns:repeat(7, 1fr);gap:6px;
+  display:grid;grid-template-columns:repeat(7, 1fr);gap:8px;
 }
 .sensor-card{
   background:linear-gradient(135deg, var(--metal-2) 0%, var(--metal-1) 100%);
-  border:1px solid var(--bdr-1);border-radius:6px;
-  padding:9px 11px;display:flex;flex-direction:column;justify-content:space-between;
-  position:relative;overflow:hidden;min-height:78px;
-  transition:all .2s;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 1px 2px rgba(0,0,0,.04);
+  border:1px solid var(--bdr-1);border-radius:8px;
+  padding:14px 14px 12px;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  position:relative;overflow:hidden;
+  min-height:130px;
+  transition:all .25s;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 2px 5px rgba(0,0,0,.05);
 }
-.sensor-card:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(21,101,192,.1);}
+.sensor-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 6px 16px rgba(21,101,192,.15);
+  border-color:var(--clr,var(--primary));
+}
 .sensor-card::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:2px;
-  background:var(--clr,var(--primary));
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg, transparent, var(--clr,var(--primary)), transparent);
 }
 .sensor-card.pave{
   background:linear-gradient(135deg, #fff5f3 0%, #ffe4e0 100%);
   border-color:#ffcdd2;
 }
-.sensor-card.pave::before{background:var(--red);}
-.sc-lbl{font-size:.66rem;color:var(--txt-2);font-weight:600;letter-spacing:.3px;}
+.sc-icon{
+  width:42px;height:42px;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:2px;
+}
+.sc-icon svg{width:100%;height:100%;}
+.sc-lbl{
+  font-size:.74rem;color:var(--txt-2);font-weight:600;letter-spacing:.3px;
+  text-align:center;
+}
+.sc-val-row{display:flex;align-items:baseline;gap:3px;justify-content:center;}
 .sc-val{
-  font-family:'Segoe UI','Apple SD Gothic Neo',sans-serif;
-  font-size:1.55rem;font-weight:800;color:var(--clr,var(--primary));line-height:1;letter-spacing:-1px;
+  font-family:'Segoe UI',sans-serif;
+  font-size:1.85rem;font-weight:800;color:var(--clr,var(--primary));
+  line-height:1;letter-spacing:-1.5px;
 }
 .sensor-card.pave .sc-val{color:var(--red);}
-.sc-unit{font-size:.62rem;color:var(--txt-3);margin-left:2px;font-weight:500;}
-.sc-sub{font-size:.62rem;color:var(--txt-3);}
+.sc-unit{font-size:.7rem;color:var(--txt-3);font-weight:600;}
+.sc-sub{font-size:.66rem;color:var(--txt-3);text-align:center;}
 
-/* 2) 6개 구역 카드 (3×2) - 화이트+컬러 액센트 */
+/* 2) 6개 구역 카드 (3×2) — 글자 더 크게 */
 .zones-grid{
-  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:6px;
-  min-height:170px;
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:8px;
+  min-height:200px;
 }
 .zone-card{
   background:linear-gradient(135deg, #ffffff 0%, #fafbfd 100%);
-  border:1px solid var(--bdr-1);border-radius:6px;
-  padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between;
+  border:1px solid var(--bdr-1);border-radius:8px;
+  padding:14px 16px;
+  display:flex;flex-direction:column;justify-content:space-between;
   position:relative;cursor:pointer;transition:all .25s;overflow:hidden;
-  box-shadow:0 1px 3px rgba(0,0,0,.04);
+  box-shadow:0 2px 5px rgba(0,0,0,.05);
 }
 .zone-card:hover{
   border-color:var(--primary);
   transform:translateY(-2px);
-  box-shadow:0 4px 12px rgba(21,101,192,.12);
+  box-shadow:0 6px 18px rgba(21,101,192,.15);
 }
-.zone-card.normal{border-left:4px solid var(--green);}
+.zone-card.normal{border-left:5px solid var(--green);}
 .zone-card.caution{
-  border-left:4px solid var(--accent);
+  border-left:5px solid var(--accent);
   background:linear-gradient(135deg, #fffaf0 0%, #fff3e0 100%);
 }
 .zone-card.danger{
-  border-left:4px solid var(--red);
+  border-left:5px solid var(--red);
   background:linear-gradient(135deg, #fff5f5 0%, #ffebee 100%);
   animation:zone-pulse 2s infinite;
 }
 @keyframes zone-pulse{
-  0%,100%{box-shadow:0 1px 3px rgba(198,40,40,.15);}
-  50%{box-shadow:0 0 0 3px rgba(198,40,40,.18), 0 4px 16px rgba(198,40,40,.25);}
+  0%,100%{box-shadow:0 2px 5px rgba(198,40,40,.15);}
+  50%{box-shadow:0 0 0 4px rgba(198,40,40,.18), 0 6px 20px rgba(198,40,40,.3);}
 }
 .z-head{display:flex;justify-content:space-between;align-items:flex-start;}
-.z-name{font-size:.78rem;font-weight:700;color:var(--txt-1);}
-.z-bdg{font-size:.6rem;padding:2px 8px;border-radius:10px;font-weight:700;letter-spacing:.3px;}
+.z-name-zone{
+  font-size:1.05rem;font-weight:900;color:var(--txt-1);
+  letter-spacing:-.3px;
+}
+.z-name-detail{
+  font-size:.78rem;color:var(--txt-2);margin-top:2px;
+  font-weight:500;line-height:1.3;
+}
+.z-bdg{
+  font-size:.7rem;padding:3px 10px;border-radius:12px;font-weight:700;letter-spacing:.3px;
+  flex:none;
+}
 .z-bdg.normal{background:var(--gbg);color:var(--green);border:1px solid #a5d6a7;}
 .z-bdg.caution{background:var(--ybg);color:var(--accent-d);border:1px solid #ffcc80;}
 .z-bdg.danger{background:var(--rbg);color:var(--red);border:1px solid #ef9a9a;}
-.z-temp-row{display:flex;align-items:baseline;gap:4px;margin:5px 0 3px;}
+.z-temp-row{display:flex;align-items:baseline;gap:6px;margin:8px 0 4px;}
 .z-temp{
-  font-family:'Segoe UI',sans-serif;font-size:1.95rem;font-weight:800;line-height:1;letter-spacing:-1.5px;
+  font-family:'Segoe UI',sans-serif;font-size:2.6rem;font-weight:900;line-height:1;letter-spacing:-2px;
 }
 .z-temp.normal{color:var(--green);}
 .z-temp.caution{color:var(--accent-d);}
 .z-temp.danger{color:var(--red);}
-.z-temp-unit{font-size:.7rem;color:var(--txt-3);font-weight:500;}
-.z-info{display:flex;justify-content:space-between;font-size:.66rem;color:var(--txt-2);margin-top:auto;}
+.z-temp-unit{font-size:.95rem;color:var(--txt-3);font-weight:600;}
+.z-info{display:flex;justify-content:space-between;font-size:.7rem;color:var(--txt-2);margin-top:auto;}
 .z-info .bar-bg{
-  width:100%;height:4px;background:var(--bg-3);border-radius:2px;overflow:hidden;margin-top:5px;
+  width:100%;height:5px;background:var(--bg-3);border-radius:3px;overflow:hidden;margin-top:6px;
 }
-.z-info .bar-f{height:100%;border-radius:2px;transition:width .8s ease-out;}
+.z-info .bar-f{height:100%;border-radius:3px;transition:width .8s ease-out;}
 .z-info .bar-f.normal{background:linear-gradient(90deg, var(--green), #66bb6a);}
 .z-info .bar-f.caution{background:linear-gradient(90deg, var(--accent), var(--accent-l));}
 .z-info .bar-f.danger{background:linear-gradient(90deg, var(--red), #e57373);}
@@ -347,15 +352,15 @@ body{
 /* 3) 시간대별 예측 차트 */
 .chart-zone{
   background:linear-gradient(135deg, #fafbfd 0%, #f0f3f9 100%);
-  border:1px solid var(--bdr-1);border-radius:6px;
-  padding:8px 10px;display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  border:1px solid var(--bdr-1);border-radius:8px;
+  padding:10px 14px;display:flex;flex-direction:column;min-height:0;overflow:hidden;
 }
 .chart-head{
-  display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;
 }
-.chart-title{font-size:.78rem;font-weight:700;color:var(--txt-1);}
+.chart-title{font-size:.85rem;font-weight:700;color:var(--txt-1);}
 .chart-bdg{
-  font-size:.62rem;padding:2px 8px;border-radius:10px;
+  font-size:.66rem;padding:3px 10px;border-radius:12px;
   background:var(--pbg);color:var(--purple);font-weight:700;
   border:1px solid #ce93d8;
 }
@@ -640,81 +645,48 @@ label{color:var(--txt-2);font-size:.74rem;}
     </div>
   </div>
 
-  <!-- 좌측 메뉴 -->
-  <div class="app-side">
-    <button class="side-btn active" data-tab="mon" onclick="setMainTab('mon')">
+  <!-- 상단 탭바 -->
+  <div class="app-tabs">
+    <button class="tab-btn active" data-tab="mon" onclick="setMainTab('mon')">
       <span class="ic">🏠</span> 모니터링
     </button>
-    <button class="side-btn" data-tab="ml" onclick="setMainTab('ml')">
+    <button class="tab-btn" data-tab="ml" onclick="setMainTab('ml')">
       <span class="ic">🤖</span> AI 학습 모델
     </button>
-    <button class="side-btn" data-tab="coef" onclick="setMainTab('coef')">
-      <span class="ic">📐</span> 회귀 계수
-    </button>
-    <button class="side-btn" data-tab="data" onclick="setMainTab('data')">
+    <button class="tab-btn" data-tab="data" onclick="setMainTab('data')">
       <span class="ic">📋</span> 데이터 현황
     </button>
-    <button class="side-btn" data-tab="metar" onclick="setMainTab('metar')">
-      <span class="ic">✈️</span> METAR
-    </button>
-    <button class="side-btn" data-tab="ana" onclick="setMainTab('ana')">
+    <button class="tab-btn" data-tab="ana" onclick="setMainTab('ana')">
       <span class="ic">📊</span> 분석
     </button>
-    <button class="side-btn" data-tab="log" onclick="setMainTab('log')">
+    <button class="tab-btn" data-tab="coef" onclick="setMainTab('coef')">
+      <span class="ic">📐</span> 회귀 계수
+    </button>
+    <button class="tab-btn" data-tab="log" onclick="setMainTab('log')">
       <span class="ic">📝</span> 운영 로그
     </button>
-
-    <div class="side-status">
-      <div class="stat-line"><span>기상청</span><span class="ok" id="ss-kma">●</span></div>
-      <div class="stat-line"><span>METAR</span><span class="ok" id="ss-metar">●</span></div>
-      <div class="stat-line"><span>AI 모델</span><span class="ok" id="ss-ml">●</span></div>
+    <div class="tab-status">
+      <span class="stat-line"><span class="ok" id="ss-kma">●</span> 기상청</span>
+      <span class="stat-line"><span class="ok" id="ss-metar">●</span> METAR</span>
+      <span class="stat-line"><span class="ok" id="ss-ml">●</span> AI</span>
     </div>
   </div>
 
   <!-- 메인 영역 (탭 전환) -->
   <div class="app-main">
 
-    <!-- 탭 1: 모니터링 -->
+    <!-- 탭 1: 모니터링 (단일 컬럼 — 우측 그래프 삭제) -->
     <div class="main-pane active" id="pane-mon">
-      <div class="mon-grid">
-        <div class="mon-left">
-          <div class="sensor-bar" id="sensorBar"></div>
-          <div class="zones-grid" id="zonesGrid"></div>
-          <div class="chart-zone">
-            <div class="chart-head">
-              <div class="chart-title">📈 포장온도 시간대별 예측 (±2시간)</div>
-              <span class="chart-bdg" id="chartModelBdgNew">대기 중</span>
-            </div>
-            <div class="chart-body">
-              <canvas id="newTempChart"></canvas>
-            </div>
+      <div class="mon-single">
+        <div class="sensor-bar" id="sensorBar"></div>
+        <div class="zones-grid" id="zonesGrid"></div>
+        <div class="chart-zone">
+          <div class="chart-head">
+            <div class="chart-title">📈 포장온도 시간대별 예측 (±2시간)</div>
+            <span class="chart-bdg" id="chartModelBdgNew">대기 중</span>
           </div>
-        </div>
-        <div class="mon-right">
-          <div class="daily-head">
-            <div class="daily-title"><span class="ic">📈</span> 일일 포장온도 추이</div>
-            <div class="daily-date" id="dailyDate">----.--.--</div>
-          </div>
-          <div class="daily-stats">
-            <div class="daily-stat">
-              <div class="daily-stat-lbl">최고 온도</div>
-              <div class="daily-stat-val danger" id="daily-max">—</div>
-            </div>
-            <div class="daily-stat">
-              <div class="daily-stat-lbl">최저 온도</div>
-              <div class="daily-stat-val green" id="daily-min">—</div>
-            </div>
-            <div class="daily-stat">
-              <div class="daily-stat-lbl">현재 온도</div>
-              <div class="daily-stat-val" id="daily-now">—</div>
-            </div>
-            <div class="daily-stat">
-              <div class="daily-stat-lbl">60℃ 도달</div>
-              <div class="daily-stat-val warning" id="daily-cross">—</div>
-            </div>
-          </div>
-          <div class="daily-chart-area">
-            <canvas id="dailyChart"></canvas>
+          <div class="chart-body">
+            <canvas id="newTempChart"></canvas>
           </div>
         </div>
       </div>
@@ -759,15 +731,7 @@ label{color:var(--txt-2);font-size:.74rem;}
       </div>
     </div>
 
-    <!-- 탭 5: METAR -->
-    <div class="main-pane" id="pane-metar">
-      <div class="data-page">
-        <div class="ml-pane-title">✈️ METAR · RKPU</div>
-        <div id="metarContent"></div>
-      </div>
-    </div>
-
-    <!-- 탭 6: 분석 -->
+    <!-- 탭: 분석 -->
     <div class="main-pane" id="pane-ana">
       <div class="data-page">
         <div class="ml-pane-title">📊 데이터 분석</div>
@@ -3529,8 +3493,12 @@ setInterval(function() {
    v6.0 화이트 항공사 대시보드 통합 JS
    ════════════════════════════════════════════════════════════════ */
 var ZONE_NAMES_V6 = {
-  1:'활주로 36번단', 2:'활주로 중앙', 3:'활주로 18번단',
-  4:'계류장', 5:'유도로 A', 6:'유도로 B'
+  1:'활주로 36방향 회전패드',
+  2:'활주로 36방향 목표점표지',
+  3:'활주로 진입지점',
+  4:'활주로 18방향 목표점표지',
+  5:'활주로 18방향 회전패드',
+  6:'계류장'
 };
 
 // 일일 온도 기록 (오늘 00시~24시)
@@ -3576,26 +3544,106 @@ function recordDailyTemp() {
   saveDailyLog();
 }
 
-// ── 1) 메인 센서 패널 ──
+// ── SVG 아이콘 정의 ──
+var SENSOR_ICONS = {
+  pave: '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs><linearGradient id="paveG" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0%" stop-color="#ef5350"/><stop offset="100%" stop-color="#c62828"/>' +
+    '</linearGradient></defs>' +
+    '<rect x="4" y="36" width="40" height="6" rx="1" fill="#9e9e9e" stroke="#616161" stroke-width="0.5"/>' +
+    '<line x1="8" y1="39" x2="14" y2="39" stroke="#fff" stroke-width="1"/>' +
+    '<line x1="20" y1="39" x2="26" y2="39" stroke="#fff" stroke-width="1"/>' +
+    '<line x1="32" y1="39" x2="38" y2="39" stroke="#fff" stroke-width="1"/>' +
+    '<g transform="translate(24,22)"><circle r="11" fill="url(#paveG)" opacity="0.18"/>' +
+    '<circle r="7" fill="url(#paveG)" opacity="0.35"/><circle r="3" fill="url(#paveG)"/></g>' +
+    '<path d="M24 5 Q30 12 24 18 Q18 12 24 5" fill="#ef5350" opacity="0.9"/>' +
+    '<path d="M24 7 Q28 12 24 16 Q20 12 24 7" fill="#c62828"/>' +
+    '</svg>',
+  air: '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">' +
+    '<circle cx="34" cy="14" r="7" fill="#ffd54f" stroke="#ff9800" stroke-width="1"/>' +
+    '<g stroke="#ff9800" stroke-width="1.5" stroke-linecap="round">' +
+    '<line x1="34" y1="2" x2="34" y2="5"/><line x1="44" y1="6" x2="42" y2="8"/>' +
+    '<line x1="46" y1="14" x2="43" y2="14"/><line x1="44" y1="22" x2="42" y2="20"/>' +
+    '</g>' +
+    '<g transform="translate(12,16)"><rect x="-3" y="0" width="6" height="22" rx="3" fill="#fff" stroke="#ff6f00" stroke-width="1.5"/>' +
+    '<rect x="-2" y="14" width="4" height="6" fill="#ff6f00"/>' +
+    '<circle cx="0" cy="24" r="5" fill="#ff6f00"/>' +
+    '<line x1="0" y1="3" x2="0" y2="13" stroke="#ff6f00" stroke-width="0.8"/>' +
+    '<line x1="-1.5" y1="6" x2="1.5" y2="6" stroke="#ff6f00" stroke-width="0.5"/>' +
+    '<line x1="-1.5" y1="9" x2="1.5" y2="9" stroke="#ff6f00" stroke-width="0.5"/>' +
+    '</g></svg>',
+  solar: '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs><radialGradient id="sunG" cx="50%" cy="50%" r="50%">' +
+    '<stop offset="0%" stop-color="#fff59d"/><stop offset="60%" stop-color="#ffd54f"/>' +
+    '<stop offset="100%" stop-color="#ff9800"/>' +
+    '</radialGradient></defs>' +
+    '<g stroke="#ff9800" stroke-width="2.5" stroke-linecap="round">' +
+    '<line x1="24" y1="3" x2="24" y2="9"/><line x1="24" y1="39" x2="24" y2="45"/>' +
+    '<line x1="3" y1="24" x2="9" y2="24"/><line x1="39" y1="24" x2="45" y2="24"/>' +
+    '<line x1="9" y1="9" x2="13" y2="13"/><line x1="35" y1="35" x2="39" y2="39"/>' +
+    '<line x1="9" y1="39" x2="13" y2="35"/><line x1="35" y1="13" x2="39" y2="9"/>' +
+    '</g>' +
+    '<circle cx="24" cy="24" r="10" fill="url(#sunG)" stroke="#ff6f00" stroke-width="1"/>' +
+    '</svg>',
+  hum: '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs><linearGradient id="dropG" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0%" stop-color="#81d4fa"/><stop offset="100%" stop-color="#1565c0"/>' +
+    '</linearGradient></defs>' +
+    '<path d="M24 6 C24 6, 12 22, 12 30 C12 37 17 42 24 42 C31 42 36 37 36 30 C36 22 24 6 24 6 Z" ' +
+    'fill="url(#dropG)" stroke="#0d47a1" stroke-width="1"/>' +
+    '<ellipse cx="20" cy="20" rx="3" ry="5" fill="#fff" opacity="0.55"/>' +
+    '</svg>',
+  wind: '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">' +
+    '<g fill="none" stroke="#43a047" stroke-width="2.5" stroke-linecap="round">' +
+    '<path d="M6 14 Q18 14, 24 12 Q32 10, 36 14 Q40 18, 36 20 L8 20"/>' +
+    '<path d="M4 26 Q20 26, 30 24 Q42 22, 38 30 L10 30"/>' +
+    '<path d="M6 36 Q18 36, 26 35 Q34 34, 32 38"/>' +
+    '</g></svg>',
+  dir: '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">' +
+    '<circle cx="24" cy="24" r="20" fill="none" stroke="#558b2f" stroke-width="1.5"/>' +
+    '<text x="24" y="9" text-anchor="middle" font-size="6" font-weight="bold" fill="#558b2f">N</text>' +
+    '<text x="42" y="26" text-anchor="middle" font-size="6" fill="#a5d6a7">E</text>' +
+    '<text x="24" y="44" text-anchor="middle" font-size="6" fill="#a5d6a7">S</text>' +
+    '<text x="6" y="26" text-anchor="middle" font-size="6" fill="#a5d6a7">W</text>' +
+    '<g transform="translate(24,24) rotate({DEG})">' +
+    '<polygon points="0,-15 4,5 0,2 -4,5" fill="#c62828" stroke="#7f0000" stroke-width="0.5"/>' +
+    '<polygon points="0,15 4,-5 0,-2 -4,-5" fill="#fff" stroke="#558b2f" stroke-width="0.5"/>' +
+    '<circle r="2" fill="#558b2f"/>' +
+    '</g></svg>',
+  dewpt: '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs><linearGradient id="dewG" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0%" stop-color="#ce93d8"/><stop offset="100%" stop-color="#6a1b9a"/>' +
+    '</linearGradient></defs>' +
+    '<path d="M16 18 Q12 12, 18 11 Q22 8, 26 11 Q34 10, 34 18 Q38 19, 36 24 L14 24 Q12 19, 16 18 Z" ' +
+    'fill="#e1bee7" stroke="#7b1fa2" stroke-width="1"/>' +
+    '<ellipse cx="20" cy="33" rx="2" ry="3" fill="url(#dewG)"/>' +
+    '<ellipse cx="28" cy="35" rx="2" ry="3" fill="url(#dewG)"/>' +
+    '<ellipse cx="24" cy="40" rx="2.5" ry="3.5" fill="url(#dewG)"/>' +
+    '</svg>'
+};
+
+// ── 1) 메인 센서 패널 (SVG 아이콘 + 대형) ──
 function renderSensorBarV6() {
   var d = wx;
   var bar = document.getElementById('sensorBar');
   if (!bar) return;
+  var dirIcon = SENSOR_ICONS.dir.replace('{DEG}', d.windDir != null ? d.windDir : 0);
   var items = [
     { lbl:'포장온도', val: fmtT(d.paveTemp), unit:'℃', clr:'#c62828', cls:'pave',
-      sub: mlModel ? 'AI 예측' : '추정식' },
-    { lbl:'기온', val: fmtT(d.airTemp), unit:'℃', clr:'#ff6f00', sub:'기상청' },
-    { lbl:'일사량', val: fmtSol(d.solar), unit:'MJ/㎡', clr:'#f9a825', sub:'기상청' },
-    { lbl:'습도', val: fmtH(d.humidity), unit:'%', clr:'#1565c0', sub:'기상청' },
-    { lbl:'풍속', val: fmtW(d.windSpeed), unit:'m/s', clr:'#2e7d32', sub:'기상청' },
+      sub: mlModel ? 'AI 예측' : '추정식', icon: SENSOR_ICONS.pave },
+    { lbl:'기온', val: fmtT(d.airTemp), unit:'℃', clr:'#ff6f00', sub:'기상청', icon: SENSOR_ICONS.air },
+    { lbl:'일사량', val: fmtSol(d.solar), unit:'MJ/㎡', clr:'#f9a825', sub:'기상청', icon: SENSOR_ICONS.solar },
+    { lbl:'습도', val: fmtH(d.humidity), unit:'%', clr:'#1565c0', sub:'기상청', icon: SENSOR_ICONS.hum },
+    { lbl:'풍속', val: fmtW(d.windSpeed), unit:'m/s', clr:'#2e7d32', sub:'기상청', icon: SENSOR_ICONS.wind },
     { lbl:'풍향', val: (d.windDir != null ? d.windDir : '—'), unit:'°', clr:'#558b2f',
-      sub: d.windDir != null ? bearingToCompass(d.windDir) : '' },
-    { lbl:'이슬점', val: (d.dewpt != null ? fmtT(d.dewpt) : '—'), unit:'℃', clr:'#6a1b9a', sub:'METAR' }
+      sub: d.windDir != null ? bearingToCompass(d.windDir) : '', icon: dirIcon },
+    { lbl:'이슬점', val: (d.dewpt != null ? fmtT(d.dewpt) : '—'), unit:'℃', clr:'#6a1b9a', sub:'METAR', icon: SENSOR_ICONS.dewpt }
   ];
   bar.innerHTML = items.map(function(s){
     return '<div class="sensor-card ' + (s.cls||'') + '" style="--clr:' + s.clr + '">' +
+      '<div class="sc-icon">' + (s.icon||'') + '</div>' +
       '<div class="sc-lbl">' + s.lbl + '</div>' +
-      '<div><span class="sc-val">' + s.val + '</span><span class="sc-unit">' + s.unit + '</span></div>' +
+      '<div class="sc-val-row"><span class="sc-val">' + s.val + '</span><span class="sc-unit">' + s.unit + '</span></div>' +
       '<div class="sc-sub">' + (s.sub||'') + '</div>' +
       '</div>';
   }).join('');
@@ -3605,7 +3653,7 @@ function bearingToCompass(deg) {
   return dirs[Math.round(deg/22.5)%16];
 }
 
-// ── 2) 6개 구역 카드 (3×2) ──
+// ── 2) 6개 구역 카드 (3×2) — 글자 크게 + 새 명칭 ──
 function renderZonesGridV6() {
   var grid = document.getElementById('zonesGrid');
   if (!grid) return;
@@ -3617,7 +3665,10 @@ function renderZonesGridV6() {
     var pct = Math.min(100, t / 70 * 100);
     html += '<div class="zone-card ' + lvl + '" onclick="onZoneClick(' + z + ')">' +
       '<div class="z-head">' +
-        '<span class="z-name">' + (ZONE_NAMES_V6[z]||('구역 '+z)) + '</span>' +
+        '<div>' +
+          '<div class="z-name-zone">구역 ' + z + '</div>' +
+          '<div class="z-name-detail">' + (ZONE_NAMES_V6[z]||'') + '</div>' +
+        '</div>' +
         '<span class="z-bdg ' + lvl + '">' + lvlText + '</span>' +
       '</div>' +
       '<div class="z-temp-row">' +
@@ -3625,8 +3676,8 @@ function renderZonesGridV6() {
         '<span class="z-temp-unit">℃</span>' +
       '</div>' +
       '<div class="z-info">' +
-        '<span>구역 ' + z + '</span>' +
         '<span>임계 60℃</span>' +
+        '<span>' + (t >= 60 ? '+' + (t-60).toFixed(1) + '℃' : '-' + (60-t).toFixed(1) + '℃') + '</span>' +
       '</div>' +
       '<div class="bar-bg"><div class="bar-f ' + lvl + '" style="width:' + pct + '%"></div></div>' +
       '</div>';
@@ -3848,7 +3899,7 @@ function updateSideStatusV6() {
 var currentMainTab = 'mon';
 function setMainTab(name) {
   currentMainTab = name;
-  document.querySelectorAll('.side-btn[data-tab]').forEach(function(b){
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(function(b){
     b.classList.toggle('active', b.getAttribute('data-tab') === name);
   });
   document.querySelectorAll('.main-pane').forEach(function(p){
@@ -3858,15 +3909,13 @@ function setMainTab(name) {
   if (name === 'mon') {
     renderSensorBarV6();
     renderZonesGridV6();
-    setTimeout(function(){ renderChartV6(); renderDailyChart(); }, 50);
+    setTimeout(function(){ renderChartV6(); }, 50);
   } else if (name === 'ml') {
     renderMLPane();
   } else if (name === 'coef') {
     renderCoefPane();
   } else if (name === 'data') {
     renderDataPane();
-  } else if (name === 'metar') {
-    renderMetarPane();
   } else if (name === 'ana') {
     renderAnaPane();
   } else if (name === 'log') {
@@ -4294,13 +4343,11 @@ function renderLogPane() {
 function v6FullUpdate() {
   try { updateAlertStrip(); } catch(e) {}
   try { updateSideStatusV6(); } catch(e) {}
-  try { recordDailyTemp(); } catch(e) {}
   // 현재 탭만 업데이트 (성능)
   if (currentMainTab === 'mon') {
     try { renderSensorBarV6(); } catch(e){}
     try { renderZonesGridV6(); } catch(e){}
     try { renderChartV6(); } catch(e){}
-    try { renderDailyChart(); } catch(e){}
   }
 }
 
@@ -4318,7 +4365,6 @@ function downloadModelJson() {
 
 // 초기화
 setTimeout(function(){
-  loadDailyLog();
   setMainTab('mon');
   v6FullUpdate();
   setInterval(v6FullUpdate, 5000);
