@@ -230,10 +230,11 @@ body{
   flex:1;
   min-height:0;
   background:var(--bg-2);border:1px solid var(--bdr-1);border-radius:6px;
-  padding:10px;
+  padding:8px;
   box-shadow:0 1px 4px rgba(0,0,0,0.03);
   display:grid;
-  grid-template-rows:auto auto 1fr;
+  /* 센서 / 구역 / 차트 = 비율 명시 (차트가 충분히 보이도록) */
+  grid-template-rows:auto minmax(180px, 0.85fr) minmax(280px, 1.2fr);
   gap:8px;
 }
 
@@ -284,23 +285,23 @@ body{
 .sc-unit{font-size:.7rem;color:var(--txt-3);font-weight:600;}
 .sc-sub{font-size:.66rem;color:var(--txt-3);text-align:center;}
 
-/* 2) 6개 구역 카드 (3×2) — 글자 더 크게 */
+/* 2) 6개 구역 카드 (3×2) — 글자 크게 + 카드 컴팩트 */
 .zones-grid{
-  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:8px;
-  min-height:200px;
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:6px;
+  min-height:0;
 }
 .zone-card{
   background:linear-gradient(135deg, #ffffff 0%, #fafbfd 100%);
   border:1px solid var(--bdr-1);border-radius:8px;
-  padding:14px 16px;
+  padding:10px 14px;
   display:flex;flex-direction:column;justify-content:space-between;
   position:relative;cursor:pointer;transition:all .25s;overflow:hidden;
-  box-shadow:0 2px 5px rgba(0,0,0,.05);
+  box-shadow:0 1px 3px rgba(0,0,0,.05);
 }
 .zone-card:hover{
   border-color:var(--primary);
-  transform:translateY(-2px);
-  box-shadow:0 6px 18px rgba(21,101,192,.15);
+  transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(21,101,192,.12);
 }
 .zone-card.normal{border-left:5px solid var(--green);}
 .zone-card.caution{
@@ -313,38 +314,38 @@ body{
   animation:zone-pulse 2s infinite;
 }
 @keyframes zone-pulse{
-  0%,100%{box-shadow:0 2px 5px rgba(198,40,40,.15);}
-  50%{box-shadow:0 0 0 4px rgba(198,40,40,.18), 0 6px 20px rgba(198,40,40,.3);}
+  0%,100%{box-shadow:0 1px 3px rgba(198,40,40,.15);}
+  50%{box-shadow:0 0 0 3px rgba(198,40,40,.18), 0 4px 14px rgba(198,40,40,.25);}
 }
 .z-head{display:flex;justify-content:space-between;align-items:flex-start;}
 .z-name-zone{
-  font-size:1.05rem;font-weight:900;color:var(--txt-1);
-  letter-spacing:-.3px;
+  font-size:.95rem;font-weight:900;color:var(--txt-1);
+  letter-spacing:-.3px;line-height:1.1;
 }
 .z-name-detail{
-  font-size:.78rem;color:var(--txt-2);margin-top:2px;
-  font-weight:500;line-height:1.3;
+  font-size:.7rem;color:var(--txt-2);margin-top:1px;
+  font-weight:500;line-height:1.25;
 }
 .z-bdg{
-  font-size:.7rem;padding:3px 10px;border-radius:12px;font-weight:700;letter-spacing:.3px;
+  font-size:.66rem;padding:2px 8px;border-radius:10px;font-weight:700;letter-spacing:.3px;
   flex:none;
 }
 .z-bdg.normal{background:var(--gbg);color:var(--green);border:1px solid #a5d6a7;}
 .z-bdg.caution{background:var(--ybg);color:var(--accent-d);border:1px solid #ffcc80;}
 .z-bdg.danger{background:var(--rbg);color:var(--red);border:1px solid #ef9a9a;}
-.z-temp-row{display:flex;align-items:baseline;gap:6px;margin:8px 0 4px;}
+.z-temp-row{display:flex;align-items:baseline;gap:5px;margin:3px 0 2px;}
 .z-temp{
-  font-family:'Segoe UI',sans-serif;font-size:2.6rem;font-weight:900;line-height:1;letter-spacing:-2px;
+  font-family:'Segoe UI',sans-serif;font-size:2.2rem;font-weight:900;line-height:1;letter-spacing:-1.5px;
 }
 .z-temp.normal{color:var(--green);}
 .z-temp.caution{color:var(--accent-d);}
 .z-temp.danger{color:var(--red);}
-.z-temp-unit{font-size:.95rem;color:var(--txt-3);font-weight:600;}
-.z-info{display:flex;justify-content:space-between;font-size:.7rem;color:var(--txt-2);margin-top:auto;}
+.z-temp-unit{font-size:.85rem;color:var(--txt-3);font-weight:600;}
+.z-info{display:flex;justify-content:space-between;font-size:.65rem;color:var(--txt-2);margin-top:auto;}
 .z-info .bar-bg{
-  width:100%;height:5px;background:var(--bg-3);border-radius:3px;overflow:hidden;margin-top:6px;
+  width:100%;height:4px;background:var(--bg-3);border-radius:2px;overflow:hidden;margin-top:4px;
 }
-.z-info .bar-f{height:100%;border-radius:3px;transition:width .8s ease-out;}
+.z-info .bar-f{height:100%;border-radius:2px;transition:width .8s ease-out;}
 .z-info .bar-f.normal{background:linear-gradient(90deg, var(--green), #66bb6a);}
 .z-info .bar-f.caution{background:linear-gradient(90deg, var(--accent), var(--accent-l));}
 .z-info .bar-f.danger{background:linear-gradient(90deg, var(--red), #e57373);}
@@ -3622,131 +3623,423 @@ var SENSOR_ICONS = {
     '</svg>'
 };
 
-// ── 1) 메인 센서 패널 (SVG 아이콘 + 대형) ──
+// ── 1) 메인 센서 패널 (SVG 아이콘 + 대형) — 깜박임 방지 ──
+var sensorBarBuilt = false;
 function renderSensorBarV6() {
   var d = wx;
   var bar = document.getElementById('sensorBar');
   if (!bar) return;
   var dirIcon = SENSOR_ICONS.dir.replace('{DEG}', d.windDir != null ? d.windDir : 0);
   var items = [
-    { lbl:'포장온도', val: fmtT(d.paveTemp), unit:'℃', clr:'#c62828', cls:'pave',
+    { id:'pave', lbl:'포장온도', val: fmtT(d.paveTemp), unit:'℃', clr:'#c62828', cls:'pave',
       sub: mlModel ? 'AI 예측' : '추정식', icon: SENSOR_ICONS.pave },
-    { lbl:'기온', val: fmtT(d.airTemp), unit:'℃', clr:'#ff6f00', sub:'기상청', icon: SENSOR_ICONS.air },
-    { lbl:'일사량', val: fmtSol(d.solar), unit:'MJ/㎡', clr:'#f9a825', sub:'기상청', icon: SENSOR_ICONS.solar },
-    { lbl:'습도', val: fmtH(d.humidity), unit:'%', clr:'#1565c0', sub:'기상청', icon: SENSOR_ICONS.hum },
-    { lbl:'풍속', val: fmtW(d.windSpeed), unit:'m/s', clr:'#2e7d32', sub:'기상청', icon: SENSOR_ICONS.wind },
-    { lbl:'풍향', val: (d.windDir != null ? d.windDir : '—'), unit:'°', clr:'#558b2f',
-      sub: d.windDir != null ? bearingToCompass(d.windDir) : '', icon: dirIcon },
-    { lbl:'이슬점', val: (d.dewpt != null ? fmtT(d.dewpt) : '—'), unit:'℃', clr:'#6a1b9a', sub:'METAR', icon: SENSOR_ICONS.dewpt }
+    { id:'air',  lbl:'기온', val: fmtT(d.airTemp), unit:'℃', clr:'#ff6f00', sub:'기상청', icon: SENSOR_ICONS.air },
+    { id:'sol',  lbl:'일사량', val: fmtSol(d.solar), unit:'MJ/㎡', clr:'#f9a825', sub:'기상청', icon: SENSOR_ICONS.solar },
+    { id:'hum',  lbl:'습도', val: fmtH(d.humidity), unit:'%', clr:'#1565c0', sub:'기상청', icon: SENSOR_ICONS.hum },
+    { id:'ws',   lbl:'풍속', val: fmtW(d.windSpeed), unit:'m/s', clr:'#2e7d32', sub:'기상청', icon: SENSOR_ICONS.wind },
+    { id:'wd',   lbl:'풍향', val: (d.windDir != null ? d.windDir : '—'), unit:'°', clr:'#558b2f',
+      sub: d.windDir != null ? bearingToCompass(d.windDir) : '', icon: dirIcon, dynamicIcon:true },
+    { id:'dew',  lbl:'이슬점', val: (d.dewpt != null ? fmtT(d.dewpt) : '—'), unit:'℃', clr:'#6a1b9a', sub:'METAR', icon: SENSOR_ICONS.dewpt }
   ];
-  bar.innerHTML = items.map(function(s){
-    return '<div class="sensor-card ' + (s.cls||'') + '" style="--clr:' + s.clr + '">' +
-      '<div class="sc-icon">' + (s.icon||'') + '</div>' +
-      '<div class="sc-lbl">' + s.lbl + '</div>' +
-      '<div class="sc-val-row"><span class="sc-val">' + s.val + '</span><span class="sc-unit">' + s.unit + '</span></div>' +
-      '<div class="sc-sub">' + (s.sub||'') + '</div>' +
-      '</div>';
-  }).join('');
+
+  // 첫 렌더링: 전체 구성
+  if (!sensorBarBuilt || bar.children.length !== items.length) {
+    bar.innerHTML = items.map(function(s){
+      return '<div class="sensor-card ' + (s.cls||'') + '" data-sid="' + s.id + '" style="--clr:' + s.clr + '">' +
+        '<div class="sc-icon">' + (s.icon||'') + '</div>' +
+        '<div class="sc-lbl">' + s.lbl + '</div>' +
+        '<div class="sc-val-row"><span class="sc-val">' + s.val + '</span><span class="sc-unit">' + s.unit + '</span></div>' +
+        '<div class="sc-sub">' + (s.sub||'') + '</div>' +
+        '</div>';
+    }).join('');
+    sensorBarBuilt = true;
+    return;
+  }
+
+  // 이후: 값만 업데이트 (DOM 안 갈아엎음 → 깜박임 X)
+  items.forEach(function(s) {
+    var card = bar.querySelector('[data-sid="' + s.id + '"]');
+    if (!card) return;
+    var valEl = card.querySelector('.sc-val');
+    if (valEl && valEl.textContent !== String(s.val)) valEl.textContent = s.val;
+    var subEl = card.querySelector('.sc-sub');
+    if (subEl && subEl.textContent !== s.sub) subEl.textContent = s.sub;
+    // 풍향 아이콘만 동적 (회전)
+    if (s.dynamicIcon) {
+      var iconEl = card.querySelector('.sc-icon');
+      if (iconEl) iconEl.innerHTML = s.icon;
+    }
+  });
 }
 function bearingToCompass(deg) {
   var dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
   return dirs[Math.round(deg/22.5)%16];
 }
 
-// ── 2) 6개 구역 카드 (3×2) — 글자 크게 + 새 명칭 ──
+// ── 2) 6개 구역 카드 (3×2) — 글자 크게 + 새 명칭 + 깜박임 방지 ──
+var zonesGridBuilt = false;
 function renderZonesGridV6() {
   var grid = document.getElementById('zonesGrid');
   if (!grid) return;
-  var html = '';
+
+  // 첫 렌더링: 전체 구조 생성
+  if (!zonesGridBuilt || grid.children.length !== 6) {
+    var html = '';
+    for (var z=1; z<=6; z++) {
+      html += '<div class="zone-card" data-zone="' + z + '" onclick="onZoneClick(' + z + ')">' +
+        '<div class="z-head">' +
+          '<div>' +
+            '<div class="z-name-zone">구역 ' + z + '</div>' +
+            '<div class="z-name-detail">' + (ZONE_NAMES_V6[z]||'') + '</div>' +
+          '</div>' +
+          '<span class="z-bdg">--</span>' +
+        '</div>' +
+        '<div class="z-temp-row">' +
+          '<span class="z-temp">--</span>' +
+          '<span class="z-temp-unit">℃</span>' +
+        '</div>' +
+        '<div class="z-info">' +
+          '<span>임계 60℃</span>' +
+          '<span class="z-diff">--</span>' +
+        '</div>' +
+        '<div class="bar-bg"><div class="bar-f" style="width:0%"></div></div>' +
+        '</div>';
+    }
+    grid.innerHTML = html;
+    zonesGridBuilt = true;
+  }
+
+  // 값 업데이트만 (DOM 유지)
   for (var z=1; z<=6; z++) {
     var t = (typeof getZoneTempById === 'function') ? getZoneTempById(z) : (wx.paveTemp + (z-3)*0.5);
     var lvl = t >= 60 ? 'danger' : t >= 58 ? 'caution' : 'normal';
     var lvlText = lvl==='danger' ? '⚠ 위험' : lvl==='caution' ? '🟡 주의' : '✓ 정상';
     var pct = Math.min(100, t / 70 * 100);
-    html += '<div class="zone-card ' + lvl + '" onclick="onZoneClick(' + z + ')">' +
-      '<div class="z-head">' +
-        '<div>' +
-          '<div class="z-name-zone">구역 ' + z + '</div>' +
-          '<div class="z-name-detail">' + (ZONE_NAMES_V6[z]||'') + '</div>' +
-        '</div>' +
-        '<span class="z-bdg ' + lvl + '">' + lvlText + '</span>' +
-      '</div>' +
-      '<div class="z-temp-row">' +
-        '<span class="z-temp ' + lvl + '">' + t.toFixed(1) + '</span>' +
-        '<span class="z-temp-unit">℃</span>' +
-      '</div>' +
-      '<div class="z-info">' +
-        '<span>임계 60℃</span>' +
-        '<span>' + (t >= 60 ? '+' + (t-60).toFixed(1) + '℃' : '-' + (60-t).toFixed(1) + '℃') + '</span>' +
-      '</div>' +
-      '<div class="bar-bg"><div class="bar-f ' + lvl + '" style="width:' + pct + '%"></div></div>' +
-      '</div>';
+    var diffStr = t >= 60 ? '+' + (t-60).toFixed(1) + '℃' : '−' + (60-t).toFixed(1) + '℃';
+
+    var card = grid.querySelector('[data-zone="' + z + '"]');
+    if (!card) continue;
+
+    // 클래스 (위험도)
+    var newClass = 'zone-card ' + lvl;
+    if (card.className !== newClass) card.className = newClass;
+
+    // 배지
+    var bdg = card.querySelector('.z-bdg');
+    if (bdg) {
+      var newBdgClass = 'z-bdg ' + lvl;
+      if (bdg.className !== newBdgClass) bdg.className = newBdgClass;
+      if (bdg.textContent !== lvlText) bdg.textContent = lvlText;
+    }
+    // 온도
+    var temp = card.querySelector('.z-temp');
+    if (temp) {
+      var newTempClass = 'z-temp ' + lvl;
+      if (temp.className !== newTempClass) temp.className = newTempClass;
+      var newVal = t.toFixed(1);
+      if (temp.textContent !== newVal) temp.textContent = newVal;
+    }
+    // 차이
+    var diff = card.querySelector('.z-diff');
+    if (diff && diff.textContent !== diffStr) diff.textContent = diffStr;
+    // 바
+    var barF = card.querySelector('.bar-f');
+    if (barF) {
+      var newBarClass = 'bar-f ' + lvl;
+      if (barF.className !== newBarClass) barF.className = newBarClass;
+      barF.style.width = pct + '%';
+    }
   }
-  grid.innerHTML = html;
 }
 
 function onZoneClick(z) {
   showToast('구역 ' + z + ' (' + (ZONE_NAMES_V6[z]||'') + ') 선택됨', '#1565c0');
 }
 
-// ── 3) 메인 시간대별 차트 ──
+// ── 3) 일일 추이 차트 (0시~24시) — 자정 자동 리셋 ──
 var chartInstV6 = null;
+var dailyTempData = [];   // {hour: 0-24 소수, temp: ℃, src: 'measured'|'estimated'}
+var dailyDataDate = '';   // 'YYYY-MM-DD' — 날짜 바뀌면 리셋
+var DAILY_KEY = 'aura_daily_v2';
+var openMeteoFetched = false;  // 오늘 Open-Meteo 보충 시도 여부
+
+function loadDailyData() {
+  try {
+    var raw = localStorage.getItem(DAILY_KEY);
+    if (!raw) return;
+    var saved = JSON.parse(raw);
+    var today = new Date().toISOString().slice(0,10);
+    if (saved.date === today) {
+      dailyTempData = saved.data || [];
+      dailyDataDate = saved.date;
+      openMeteoFetched = !!saved.openMeteoFetched;
+    } else {
+      // 날짜 바뀜 → 자정 리셋
+      dailyTempData = [];
+      dailyDataDate = today;
+      openMeteoFetched = false;
+      saveDailyData();
+    }
+  } catch(e) {
+    dailyTempData = [];
+    dailyDataDate = new Date().toISOString().slice(0,10);
+  }
+}
+
+function saveDailyData() {
+  try {
+    localStorage.setItem(DAILY_KEY, JSON.stringify({
+      date: dailyDataDate,
+      data: dailyTempData,
+      openMeteoFetched: openMeteoFetched
+    }));
+  } catch(e) {}
+}
+
+function recordDailyTemp() {
+  // 자정 자동 리셋 체크
+  var today = new Date().toISOString().slice(0,10);
+  if (dailyDataDate && dailyDataDate !== today) {
+    dailyTempData = [];
+    dailyDataDate = today;
+    openMeteoFetched = false;
+    saveDailyData();
+  } else if (!dailyDataDate) {
+    dailyDataDate = today;
+  }
+
+  var now = new Date();
+  var hr = now.getHours() + now.getMinutes()/60 + now.getSeconds()/3600;
+  var t = wx.paveTemp;
+
+  // 마지막 측정점이 5분 이내면 덮어쓰기 아니면 추가
+  var last = dailyTempData.length ? dailyTempData[dailyTempData.length-1] : null;
+  if (last && last.src === 'measured' && (hr - last.hour) < 0.083) {
+    last.temp = t;
+    last.hour = hr;
+  } else {
+    dailyTempData.push({hour: hr, temp: t, src: 'measured'});
+  }
+  saveDailyData();
+}
+
+// ── Open-Meteo로 빈 구간 보충 (오늘 0시~현재) ──
+function fillDailyFromOpenMeteo() {
+  if (openMeteoFetched) return;  // 하루 1회만
+  var today = new Date().toISOString().slice(0,10);
+  var nowHr = new Date().getHours();
+  if (nowHr === 0) return;  // 0시면 보충할 게 없음
+
+  openMeteoFetched = true;  // 즉시 표시 (중복 호출 방지)
+  saveDailyData();
+
+  fetchHistoryWeather(today, today)
+    .then(function() {
+      var estimatedPoints = [];
+      for (var h = 0; h < nowHr; h++) {
+        var hist = getHistoryWeather(today, h);
+        if (!hist) continue;
+
+        // AI 모델로 포장온도 역산 (있으면)
+        var pt;
+        if (mlModel) {
+          var savedWx = {at:wx.airTemp, sol:wx.solar, hum:wx.humidity, ws:wx.windSpeed};
+          wx.airTemp = hist.airTemp != null ? hist.airTemp : savedWx.at;
+          wx.solar = hist.solar != null ? hist.solar : savedWx.sol;
+          wx.humidity = hist.humidity != null ? hist.humidity : savedWx.hum;
+          wx.windSpeed = hist.windSpeed != null ? hist.windSpeed : savedWx.ws;
+          var opts = mlModel.opts || {advanced:false, zonedummy:false};
+          var x = buildPredictFeatures(opts, mlModel.zoneKeys || [], null);
+          pt = parseFloat(predict(mlModel, x).toFixed(1));
+          // 원복
+          wx.airTemp=savedWx.at; wx.solar=savedWx.sol;
+          wx.humidity=savedWx.hum; wx.windSpeed=savedWx.ws;
+        } else {
+          // 모델 없으면 단순 추정 (기온 + 일사량 비례)
+          pt = (hist.airTemp || 20) + (hist.solar || 0) * 8;
+        }
+        estimatedPoints.push({hour: h, temp: pt, src: 'estimated'});
+      }
+
+      // 측정 데이터와 합치되, 측정 데이터가 우선
+      var merged = estimatedPoints.concat(dailyTempData);
+      merged.sort(function(a,b){return a.hour - b.hour;});
+      dailyTempData = merged;
+      saveDailyData();
+
+      // 차트 새로고침
+      if (currentMainTab === 'mon') renderChartV6();
+      console.log('Open-Meteo 보충 완료: ' + estimatedPoints.length + '개 추정점');
+    })
+    .catch(function(err) {
+      console.warn('Open-Meteo 보충 실패:', err.message);
+      openMeteoFetched = false;  // 실패 시 다음 기회에 재시도 가능하도록
+      saveDailyData();
+    });
+}
+
 function renderChartV6() {
   var canvas = document.getElementById('newTempChart');
   if (!canvas) return;
   var ctx = canvas.getContext('2d');
-  var now = new Date();
-  var offs = [-120, -90, -60, -30, 0, 30, 60, 90, 120];
-  var labels = [], past = [], future = [];
-  var base = wx.paveTemp;
-  var curve = [-3,-2,-1,-.5,0,.8,1.5,1.8,1.6];
-  offs.forEach(function(m, i) {
-    var t = new Date(now.getTime() + m * 60000);
-    labels.push((m > 0 ? '▶ ' : '') + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'));
-    var v;
-    if (mlModel) {
-      var opts = mlModel.opts || { advanced: false, zonedummy: false };
-      var zKeys = mlModel.zoneKeys || [];
-      var savedAt = wx.airTemp, savedSol = wx.solar;
-      wx.airTemp = savedAt + m / 60 * 0.05;
-      wx.solar = Math.max(0, savedSol + (m > 0 ? -m / 60 * 0.05 : m / 60 * 0.03));
-      var x = buildPredictFeatures(opts, zKeys, null);
-      v = parseFloat(predict(mlModel, x).toFixed(1));
-      wx.airTemp = savedAt; wx.solar = savedSol;
-    } else {
-      v = parseFloat((base + curve[i]).toFixed(1));
-    }
-    past.push(i <= 4 ? v : null);
-    future.push(i >= 4 ? v : null);
+
+  // 데이터 준비
+  recordDailyTemp();
+
+  // Open-Meteo 보충 시도 (한 번만)
+  if (!openMeteoFetched && new Date().getHours() > 0) {
+    setTimeout(fillDailyFromOpenMeteo, 200);
+  }
+
+  // 측정/추정 분리 (Chart.js dataset 2개)
+  var estimatedData = [];
+  var measuredData = [];
+  dailyTempData.forEach(function(d) {
+    if (d.src === 'estimated') estimatedData.push({x:d.hour, y:d.temp});
+    else measuredData.push({x:d.hour, y:d.temp});
   });
-  if (chartInstV6) { chartInstV6.destroy(); }
-  chartInstV6 = new Chart(ctx, {
-    type:'line',
-    data:{ labels:labels, datasets:[
-      { label:'관측/현재', data:past, borderColor:'#1565c0', backgroundColor:'rgba(21,101,192,.08)',
-        pointBackgroundColor:past.map(function(_,i){return i===4?'#ff6f00':'#1565c0';}),
-        pointRadius:past.map(function(_,i){return i===4?7:3;}), tension:.4, fill:true, borderWidth:2 },
-      { label:'예측', data:future, borderColor:'#6a1b9a', backgroundColor:'rgba(106,27,154,.06)',
-        borderDash:[6,4], tension:.4, pointRadius:3, fill:true, borderWidth:2 }
-    ]},
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      animation:{duration:600, easing:'easeOutQuart'},
-      plugins:{
-        legend:{ labels:{color:'#5a6a7e',font:{size:10}, boxWidth:14} },
-        annotation:{ annotations:{
-          critLine:{ type:'line', yMin:60, yMax:60, borderColor:'#c62828',
-            borderWidth:1.5, borderDash:[5,4],
-            label:{display:true,content:'임계 60℃',backgroundColor:'rgba(198,40,40,.85)',color:'#fff',font:{size:9,weight:'bold'}} }
-        }}
+
+  // 미래 예측 (현재~24시)
+  var futureData = [];
+  var nowHr = new Date().getHours() + new Date().getMinutes()/60;
+  if (mlModel) {
+    for (var fh = Math.ceil(nowHr * 2)/2; fh <= 24; fh += 0.5) {
+      // 시간 변화에 따른 일사량 변동 (간단한 사인파)
+      var solFactor = Math.max(0, Math.sin((fh - 6) / 12 * Math.PI));
+      var baseSolar = wx.solar > 0 ? wx.solar / Math.max(0.1, Math.sin((nowHr - 6) / 12 * Math.PI)) : 2.5;
+      var futSolar = baseSolar * solFactor;
+      var futAirTemp = wx.airTemp;  // 단순화: 기온은 현재값 유지
+      // AI 예측
+      var savedWx = {at:wx.airTemp, sol:wx.solar};
+      wx.airTemp = futAirTemp; wx.solar = futSolar;
+      var opts = mlModel.opts || {advanced:false, zonedummy:false};
+      var x = buildPredictFeatures(opts, mlModel.zoneKeys || [], null);
+      var pt = parseFloat(predict(mlModel, x).toFixed(1));
+      wx.airTemp = savedWx.at; wx.solar = savedWx.sol;
+      futureData.push({x: fh, y: pt});
+    }
+  }
+
+  var chartData = {
+    datasets: [
+      {
+        label: '추정 (자정~접속전)',
+        data: estimatedData,
+        borderColor: '#9e9e9e',
+        backgroundColor: 'rgba(158,158,158,.08)',
+        borderWidth: 1.5,
+        borderDash: [4, 3],
+        pointRadius: 1.5,
+        pointBackgroundColor: '#9e9e9e',
+        tension: 0.4,
+        fill: true
       },
-      scales:{
-        y:{ ticks:{color:'#5a6a7e',font:{size:9}}, grid:{color:'#e8edf5'},
-            suggestedMin:20, suggestedMax:75 },
-        x:{ ticks:{color:'#5a6a7e',font:{size:9}}, grid:{color:'#e8edf5'} }
+      {
+        label: '실측',
+        data: measuredData,
+        borderColor: '#ff6f00',
+        backgroundColor: function(ctx) {
+          var chart = ctx.chart;
+          var area = chart.chartArea;
+          if (!area) return 'rgba(255,111,0,.1)';
+          var grad = ctx.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+          grad.addColorStop(0, 'rgba(198,40,40,.25)');
+          grad.addColorStop(0.5, 'rgba(255,111,0,.15)');
+          grad.addColorStop(1, 'rgba(46,125,50,.04)');
+          return grad;
+        },
+        borderWidth: 2.5,
+        pointRadius: function(ctx) {
+          // 마지막 점만 크게
+          return ctx.dataIndex === ctx.dataset.data.length - 1 ? 6 : 2;
+        },
+        pointBackgroundColor: function(ctx) {
+          return ctx.dataIndex === ctx.dataset.data.length - 1 ? '#c62828' : '#ff6f00';
+        },
+        tension: 0.3,
+        fill: true
+      },
+      {
+        label: '예측 (향후)',
+        data: futureData,
+        borderColor: '#6a1b9a',
+        backgroundColor: 'rgba(106,27,154,.05)',
+        borderWidth: 2,
+        borderDash: [6, 4],
+        pointRadius: 2,
+        pointBackgroundColor: '#9c27b0',
+        tension: 0.4,
+        fill: false
       }
-    }
-  });
+    ]
+  };
+
+  // ★ 깜박임 해결 — 첫 생성 후엔 update만
+  if (chartInstV6) {
+    chartInstV6.data.datasets[0].data = estimatedData;
+    chartInstV6.data.datasets[1].data = measuredData;
+    chartInstV6.data.datasets[2].data = futureData;
+    chartInstV6.update('none');  // 애니메이션 없이 부드럽게
+  } else {
+    chartInstV6 = new Chart(ctx, {
+      type: 'line',
+      data: chartData,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {duration: 600, easing: 'easeOutQuart'},
+        plugins: {
+          legend: {
+            labels: {color:'#5a6a7e', font:{size:10}, boxWidth:14, padding:8}
+          },
+          annotation: {
+            annotations: {
+              critLine: {
+                type: 'line', yMin: 60, yMax: 60,
+                borderColor: '#c62828', borderWidth: 1.5, borderDash: [5,4],
+                label: {
+                  display: true, content: '임계 60℃',
+                  backgroundColor: 'rgba(198,40,40,.85)',
+                  color: '#fff', font: {size:10, weight:'bold'},
+                  position: 'end'
+                }
+              },
+              nowLine: {
+                type: 'line',
+                xMin: nowHr, xMax: nowHr,
+                borderColor: '#1565c0', borderWidth: 1.5, borderDash: [3,3],
+                label: {
+                  display: true, content: '지금',
+                  backgroundColor: 'rgba(21,101,192,.85)',
+                  color: '#fff', font: {size:9, weight:'bold'},
+                  position: 'start'
+                }
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: {color:'#5a6a7e', font:{size:10}},
+            grid: {color:'#e8edf5'},
+            min: 20, max: 75,
+            title: {display:true, text:'포장온도 (℃)', color:'#5a6a7e', font:{size:10, weight:'bold'}}
+          },
+          x: {
+            type: 'linear', min: 0, max: 24,
+            ticks: {
+              color:'#5a6a7e', font:{size:10}, stepSize: 3,
+              callback: function(v) { return String(v).padStart(2,'0') + '시'; }
+            },
+            grid: {color:'#e8edf5'},
+            title: {display:true, text:'시각', color:'#5a6a7e', font:{size:10, weight:'bold'}}
+          }
+        }
+      }
+    });
+  }
+
+  // 차트 모델 배지
   var bdg = document.getElementById('chartModelBdgNew');
   if (bdg) {
     if (mlModel) {
@@ -3754,6 +4047,14 @@ function renderChartV6() {
     } else {
       bdg.textContent = '추정식';
     }
+  }
+
+  // 차트 제목 업데이트
+  var titleEl = document.querySelector('.chart-zone .chart-title');
+  if (titleEl) {
+    var d = new Date();
+    var dateStr = d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0');
+    titleEl.innerHTML = '📈 일일 포장온도 추이 <span style="font-size:.7rem;color:var(--txt-3);font-weight:500;">· ' + dateStr + ' (00시~24시 자동 리셋)</span>';
   }
 }
 
@@ -4050,25 +4351,51 @@ function renderCoefPane() {
       '📐 학습된 모델이 없습니다.<br><br>AI 학습 탭에서 모델을 먼저 학습시키세요.</div>';
     return;
   }
-  var mx = Math.max.apply(null, mlModel.coefs.map(Math.abs));
-  var coefDescriptions = {
-    '대기온도(℃)':   '기온 1℃ 상승 시',
-    '일사량(MJ/㎡)': '일사량 1MJ/㎡ 증가 시',
-    '습도(%)':       '습도 1% 증가 시',
-    '풍속(m/s)':     '풍속 1m/s 증가 시',
-    '일사량²':        '일사량² (비선형 가속 효과)',
-    '풍속×일사량':    '풍속×일사량 (교호작용)'
-  };
 
-  // 기본 변수 / 비선형 / 구역더미 분리
+  // 평균 일사량 계산 (학습 데이터 기준)
+  var avgSol = 2.0;
+  if (anaData && anaData.rawRows && anaData.rawRows.length) {
+    var sols = anaData.rawRows.map(function(r){return r.sol;}).filter(function(v){return !isNaN(v)&&isFinite(v);});
+    if (sols.length) avgSol = sols.reduce(function(a,b){return a+b;},0) / sols.length;
+  }
+  // 평균 풍속도 (교호항 계산용)
+  var avgWs = 3.0;
+  if (anaData && anaData.rawRows && anaData.rawRows.length) {
+    var wss = anaData.rawRows.map(function(r){return r.ws;}).filter(function(v){return !isNaN(v)&&isFinite(v);});
+    if (wss.length) avgWs = wss.reduce(function(a,b){return a+b;},0) / wss.length;
+  }
+
+  // 계수 분류 + 인덱스 찾기
   var basic = [], nonlinear = [], zone = [];
+  var idxSol = -1, idxSolSq = -1, idxWs = -1, idxWsSol = -1;
   mlModel.coefs.forEach(function(c, i) {
     var fname = mlModel.featureNames[i];
+    if (fname === '일사량(MJ/㎡)') idxSol = i;
+    if (fname === '일사량²') idxSolSq = i;
+    if (fname === '풍속(m/s)') idxWs = i;
+    if (fname === '풍속×일사량') idxWsSol = i;
     var item = {name:fname, coef:c, idx:i};
     if (fname.indexOf('구역=') === 0) zone.push(item);
     else if (fname === '일사량²' || fname === '풍속×일사량') nonlinear.push(item);
     else basic.push(item);
   });
+
+  // ★ 합산 효과 계산 (개선안 1)
+  // 일사량 1MJ/㎡ 증가 시 = 일사량 계수 + 일사량² 미분효과(2×avgSol) + 풍속×일사량 효과(avgWs)
+  var solCombined = null;
+  if (idxSol >= 0) {
+    solCombined = mlModel.coefs[idxSol];
+    if (idxSolSq >= 0) solCombined += 2 * avgSol * mlModel.coefs[idxSolSq];
+    if (idxWsSol >= 0) solCombined += avgWs * mlModel.coefs[idxWsSol];
+  }
+  // 풍속 1m/s 증가 시 = 풍속 계수 + 풍속×일사량 효과(avgSol)
+  var wsCombined = null;
+  if (idxWs >= 0) {
+    wsCombined = mlModel.coefs[idxWs];
+    if (idxWsSol >= 0) wsCombined += avgSol * mlModel.coefs[idxWsSol];
+  }
+
+  var mx = Math.max.apply(null, mlModel.coefs.map(Math.abs));
 
   var html = '';
   // 평가 배너
@@ -4085,19 +4412,43 @@ function renderCoefPane() {
     (mlModel.coefs.reduce(function(a,b){return a+Math.abs(b);},0) / mlModel.coefs.length).toFixed(2) + '</div></div>';
   html += '</div>';
 
-  // 그리드 배치 - 기본 변수 + 비선형
+  // ★ 변수별 종합 영향도 (운영자가 이해하기 쉬운 표시)
+  html += '<div class="coef-card" style="margin-bottom:12px;border-left:4px solid var(--accent);">' +
+    '<div class="coef-card-title">🎯 변수별 종합 영향도 — 운영 기준</div>' +
+    '<div style="font-size:.7rem;color:var(--txt-3);margin-bottom:8px;">평균 일사량 ' + avgSol.toFixed(2) + ' MJ/㎡, 평균 풍속 ' + avgWs.toFixed(2) + ' m/s 기준 1단위 증가 시 효과</div>' +
+    '<div class="coef-list">';
+
+  // 대기온도
+  var c1 = mlModel.coefs[mlModel.featureNames.indexOf('대기온도(℃)')];
+  if (c1 !== undefined) {
+    html += renderCoefSimple('대기온도', '기온 1℃ 상승 시', c1, mx);
+  }
+  // 일사량 (합산)
+  if (solCombined !== null) {
+    html += renderCoefSimple('일사량 (종합)', '평균 조건에서 1MJ/㎡ 증가 시', solCombined, mx, true);
+  }
+  // 습도
+  var c3 = mlModel.coefs[mlModel.featureNames.indexOf('습도(%)')];
+  if (c3 !== undefined) {
+    html += renderCoefSimple('습도', '습도 1% 증가 시', c3, mx);
+  }
+  // 풍속 (합산)
+  if (wsCombined !== null) {
+    html += renderCoefSimple('풍속 (종합)', '평균 조건에서 1m/s 증가 시', wsCombined, mx, true);
+  }
+
+  html += '</div></div>';
+
+  // 그리드 배치 - 원본 계수 (참고용)
+  html += '<div style="font-size:.74rem;color:var(--txt-2);margin:14px 0 6px;font-weight:600;">📐 원본 회귀 계수 (통계 분석용)</div>';
   html += '<div class="coef-grid">';
   // 기본 변수 카드
   html += '<div class="coef-card"><div class="coef-card-title">🌡️ 기본 변수 (선형)</div><div class="coef-list">';
   basic.forEach(function(item) {
     var c = item.coef;
-    var desc = coefDescriptions[item.name] || '';
-    var arrow = c >= 0 ? '↑' : '↓';
-    var effect = desc ? '→ ' + desc + ' 포장온도 ' + Math.abs(c).toFixed(2) + '℃ ' + arrow : '';
     html += '<div class="coef-item">' +
       '<div style="flex:1;">' +
       '<div class="coef-name">' + item.name + '</div>' +
-      (effect ? '<div class="coef-desc">' + effect + '</div>' : '') +
       '</div>' +
       '<div class="coef-bar"><div class="coef-bar-f" style="width:' + (Math.abs(c)/mx*100) + '%;background:' + (c>=0?'#1565c0':'#c62828') + ';"></div></div>' +
       '<div class="coef-val ' + (c>=0?'coef-pos':'coef-neg') + '">' + (c>=0?'+':'') + c.toFixed(3) + '</div>' +
@@ -4110,22 +4461,18 @@ function renderCoefPane() {
     html += '<div class="coef-card"><div class="coef-card-title">⚡ 비선형 / 교호항</div><div class="coef-list">';
     nonlinear.forEach(function(item) {
       var c = item.coef;
-      var desc = coefDescriptions[item.name] || '';
-      var arrow = c >= 0 ? '↑' : '↓';
-      var effect = desc ? '→ ' + desc : '';
       html += '<div class="coef-item">' +
         '<div style="flex:1;">' +
         '<div class="coef-name">' + item.name + '</div>' +
-        (effect ? '<div class="coef-desc">' + effect + '</div>' : '') +
         '</div>' +
         '<div class="coef-bar"><div class="coef-bar-f" style="width:' + (Math.abs(c)/mx*100) + '%;background:' + (c>=0?'#1565c0':'#c62828') + ';"></div></div>' +
         '<div class="coef-val ' + (c>=0?'coef-pos':'coef-neg') + '">' + (c>=0?'+':'') + c.toFixed(3) + '</div>' +
         '</div>';
     });
     html += '</div>';
-    html += '<div style="margin-top:10px;padding:8px;background:var(--ybg);border:1px solid #ffcc80;border-radius:5px;font-size:.7rem;color:var(--accent-d);">' +
-      '💡 <strong>음수의 의미:</strong> 일사량 단독 계수가 음수이고 일사량² 계수가 양수이면, ' +
-      '"일사량이 강할수록 가속적으로 더 뜨거워진다"는 비선형 관계를 학습한 것입니다.</div>';
+    html += '<div style="margin-top:10px;padding:8px;background:var(--ybg);border:1px solid #ffcc80;border-radius:5px;font-size:.7rem;color:var(--accent-d);line-height:1.5;">' +
+      '💡 <strong>참고:</strong> 일사량 단독 계수는 음수로 보일 수 있지만, 일사량² 항과 묶여서 작용합니다. ' +
+      '실제 운영에서는 위의 "변수별 종합 영향도"를 참고하세요.</div>';
     html += '</div>';
   }
   html += '</div>';
@@ -4146,6 +4493,21 @@ function renderCoefPane() {
   }
 
   el.innerHTML = html;
+}
+
+// 종합 영향도 한 줄 렌더링 (양수만 보이도록 절대값)
+function renderCoefSimple(name, desc, c, mx, isCombined) {
+  var arrow = c >= 0 ? '↑' : '↓';
+  var clr = c >= 0 ? 'var(--red)' : 'var(--primary)';  // 온도 증가 = 빨강, 감소 = 파랑
+  var sign = c >= 0 ? '+' : '−';
+  return '<div class="coef-item">' +
+    '<div style="flex:1;">' +
+    '<div class="coef-name">' + name + (isCombined ? ' <span style="font-size:.62rem;color:var(--accent);font-weight:700;">[종합]</span>' : '') + '</div>' +
+    '<div class="coef-desc">→ ' + desc + ' 포장온도 ' + sign + ' ' + Math.abs(c).toFixed(2) + '℃ ' + arrow + '</div>' +
+    '</div>' +
+    '<div class="coef-bar"><div class="coef-bar-f" style="width:' + (Math.abs(c)/mx*100) + '%;background:' + clr + ';"></div></div>' +
+    '<div class="coef-val" style="color:' + clr + ';">' + (c>=0?'+':'') + c.toFixed(3) + '</div>' +
+    '</div>';
 }
 
 // ── 11) 데이터 현황 탭 ──
