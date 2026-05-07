@@ -8,160 +8,660 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-:root{--navy:#1F4E79;--nl:#2E6DA4;--nd:#153856;--green:#1a7a4a;--gbg:#e8f5ee;--yellow:#c47a00;--ybg:#fff8e1;--red:#b71c1c;--rbg:#fdecea;--gray:#f4f6f9;--bdr:#d0d9e4;--txt:#1a2332;--sub:#5a6a7e;}
+/* ════════════════════════════════════════════════════════════════
+   A.U.R.A v6.0 — 다크 모드 관제 대시보드
+   1920×1080 메인 화면 한눈에 / 스크롤 없음
+   ════════════════════════════════════════════════════════════════ */
+:root{
+  /* 다크 베이스 */
+  --bg-1: #0a0e1a;        /* 가장 어두운 배경 */
+  --bg-2: #111827;        /* 카드 배경 */
+  --bg-3: #1a2235;        /* 카드 hover */
+  --bg-4: #243049;        /* 강조 영역 */
+  --bdr-1: #2a3552;       /* 일반 테두리 */
+  --bdr-2: #3a466a;       /* 강조 테두리 */
+  /* 텍스트 */
+  --txt-1: #e6edf6;       /* 본문 */
+  --txt-2: #a8b2c7;       /* 부제 */
+  --txt-3: #6c7793;       /* 흐릿 */
+  /* 강조 (관제 톤) */
+  --accent: #4fc3f7;      /* 시안 — 평상 */
+  --accent-2: #64b5f6;    /* 파랑 — 정보 */
+  --green: #4caf50;       /* 정상 */
+  --gbg: rgba(76,175,80,.15);
+  --yellow: #ffb74d;      /* 주의 */
+  --ybg: rgba(255,183,77,.15);
+  --red: #ef5350;         /* 위험 */
+  --rbg: rgba(239,83,80,.18);
+  --purple: #b39ddb;      /* AI */
+  --pbg: rgba(179,157,219,.12);
+  /* 호환용 (기존 변수명) */
+  --navy: var(--accent);
+  --nl: var(--accent-2);
+  --nd: #1c2842;
+  --gray: var(--bg-2);
+  --bdr: var(--bdr-1);
+  --txt: var(--txt-1);
+  --sub: var(--txt-2);
+  --rbg-old: var(--rbg);
+}
+
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Segoe UI','Apple SD Gothic Neo',sans-serif;background:var(--gray);color:var(--txt);min-height:100vh;}
-header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;box-shadow:0 3px 12px rgba(0,0,0,.3);position:sticky;top:0;z-index:100;}
-.logo-area{display:flex;align-items:center;gap:14px;}
-.logo-badge{background:#fff;color:var(--navy);font-weight:900;font-size:1.2rem;width:50px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-1px;}
-.logo-text h1{font-size:1rem;font-weight:800;letter-spacing:1px;}
-.logo-text p{font-size:.7rem;opacity:.85;margin-top:2px;}
-.hdr-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.tl-wrap{display:flex;gap:6px;background:rgba(0,0,0,.25);padding:7px 11px;border-radius:20px;}
-.tl{width:16px;height:16px;border-radius:50%;opacity:.3;transition:all .4s;}
-.tl.on{opacity:1;box-shadow:0 0 8px currentColor;}
-.tl-r{background:#ff4444;color:#ff4444;}
-.tl-y{background:#ffcc00;color:#ffcc00;}
-.tl-g{background:#44dd88;color:#44dd88;}
-#clock{font-size:.85rem;font-weight:600;white-space:nowrap;}
-.btn-hdr{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);color:#fff;padding:6px 12px;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;}
-.btn-hdr:hover{background:rgba(255,255,255,.28);}
-.banner{display:flex;align-items:center;gap:8px;padding:5px 20px;font-size:.72rem;font-weight:600;flex-wrap:wrap;}
-.ban-kma{background:#0d2137;color:#7ec8e3;}
-.ban-metar{background:#1a1a0d;color:#e3d87e;}
-.ban-ml{background:#1a0d2b;color:#c8a8e8;display:none;}
-.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-.dot-live{background:#44dd88;animation:blink 2s infinite;}
-.dot-err{background:#ff4444;}
-.dot-load{background:#ffcc00;animation:blink .8s infinite;}
-.dot-man{background:#88aaff;}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-.ban-r{margin-left:auto;opacity:.6;font-size:.67rem;}
-#statusBar{padding:9px 20px;font-weight:700;font-size:.88rem;display:flex;align-items:center;gap:10px;transition:background .5s,color .5s;}
-#statusBar.normal{background:#c8f0dc;color:#0d5c30;}
-#statusBar.caution{background:#fff3c4;color:#7a4f00;}
-#statusBar.warning{background:#ffd6d6;color:#8b0000;}
-#statusBar.activated{background:#c8f0dc;color:#0d5c30;}
-.tabs{display:flex;background:#fff;border-bottom:2px solid var(--bdr);padding:0 20px;overflow-x:auto;}
-.tab{padding:10px 16px;font-size:.8rem;font-weight:700;color:var(--sub);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s;}
-.tab.active{color:var(--navy);border-bottom-color:var(--navy);}
-.tab-panel{display:none;}
-.tab-panel.active{display:block;}
-.main{display:grid;grid-template-columns:290px 1fr;gap:14px;padding:14px;}
-@media(max-width:900px){.main{grid-template-columns:1fr;}}
-.card{background:#fff;border-radius:14px;padding:15px;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid var(--bdr);}
-.card-title{font-size:.75rem;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--navy);padding-bottom:7px;margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.bdg{display:inline-flex;align-items:center;gap:3px;font-size:.58rem;font-weight:700;padding:2px 6px;border-radius:8px;white-space:nowrap;}
-.bdg-kma{background:#e3f0fb;color:#1565c0;border:1px solid #90caf9;}
-.bdg-metar{background:#fff8e1;color:#7a4f00;border:1px solid #ffe082;}
-.bdg-ml{background:#ede7f6;color:#4a148c;border:1px solid #ce93d8;}
-.bdg-err{background:#fdecea;color:#b71c1c;border:1px solid #ef9a9a;}
-.bdg-load{background:#fff8e1;color:#7a4f00;border:1px solid #ffe082;}
-.si{display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid #eef0f4;}
-.si:last-child{border-bottom:none;}
-.sl{flex:1;}
-.slr{display:flex;align-items:center;gap:5px;margin-bottom:2px;flex-wrap:wrap;}
-.sl-lbl{font-size:.77rem;color:var(--sub);}
-.sbar{width:100%;height:5px;background:#e0e6ef;border-radius:3px;margin-top:3px;}
-.sbar-f{height:100%;border-radius:3px;transition:width 1s;}
-.sr{text-align:right;padding-left:8px;flex-shrink:0;}
-.sv{font-size:1.25rem;font-weight:800;}
-.su{font-size:.67rem;color:var(--sub);}
-.ssub{font-size:.66rem;color:var(--sub);margin-top:1px;}
-.metar-raw{background:#0d1117;color:#58d68d;font-family:'Courier New',monospace;font-size:.72rem;padding:8px 10px;border-radius:8px;word-break:break-all;line-height:1.6;min-height:30px;}
-.mg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;}
-.mi{background:#f8fafc;border-radius:8px;padding:6px 8px;border:1px solid var(--bdr);}
-.mi-lbl{font-size:.6rem;color:var(--sub);margin-bottom:2px;font-weight:600;text-transform:uppercase;}
-.mi-val{font-size:.95rem;font-weight:800;color:var(--navy);}
-.mi-sub{font-size:.6rem;color:var(--sub);margin-top:1px;}
-.sec-div{height:1px;background:var(--bdr);margin:10px 0;}
-.mir{display:flex;gap:6px;}
-.mi-input{flex:1;padding:6px 8px;border:2px solid var(--bdr);border-radius:8px;font-family:'Courier New',monospace;font-size:.74rem;}
-.mi-input:focus{outline:none;border-color:var(--nl);}
-.btn-parse{padding:6px 11px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:.74rem;font-weight:700;cursor:pointer;}
-.chart-wrap{position:relative;height:210px;}
-.zg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px;}
-@media(max-width:600px){.zg{grid-template-columns:repeat(2,1fr);}}
-.zc{border-radius:10px;padding:8px 10px;text-align:center;border:2px solid transparent;transition:all .4s;}
-.zc.normal{background:var(--gbg);border-color:#a0d8b8;}
-.zc.caution{background:var(--ybg);border-color:#ffe082;}
-.zc.warning{background:var(--rbg);border-color:#ef9a9a;animation:pulse 1.5s infinite;}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(183,28,28,.3)}50%{box-shadow:0 0 0 6px rgba(183,28,28,0)}}
-.zn{font-size:.68rem;color:var(--sub);margin-bottom:2px;}
-.zt{font-size:1.35rem;font-weight:900;}
-.zc.normal .zt{color:var(--green);}
-.zc.caution .zt{color:var(--yellow);}
-.zc.warning .zt{color:var(--red);}
-.zl{font-size:.62rem;font-weight:700;margin-top:2px;}
-.zc.normal .zl{color:var(--green);}
-.zc.caution .zl{color:var(--yellow);}
-.zc.warning .zl{color:var(--red);}
-#aiText{font-size:.82rem;line-height:1.75;color:#2c3e50;background:#f0f4fa;border-left:4px solid var(--navy);padding:10px 12px;border-radius:0 8px 8px 0;}
-.ai-bdg{display:inline-block;background:var(--navy);color:#fff;font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:10px;margin-bottom:6px;}
-.br{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
-.btn{flex:1;min-width:90px;padding:9px 8px;border:none;border-radius:10px;font-size:.77rem;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:4px;}
-.btn:active{transform:scale(.97);}
-.btn-act{background:var(--red);color:#fff;}
-.btn-act:hover{background:#8b0000;}
-.btn-act.done{background:var(--green);}
-.btn-man{background:var(--ybg);color:#7a4f00;border:2px solid #ffe082;}
-.btn-log{background:#e8edf5;color:var(--navy);border:2px solid var(--bdr);}
-.btn-ref{background:#e3f0fb;color:#1565c0;border:2px solid #90caf9;}
-.btn-ml{background:linear-gradient(135deg,#4a148c,#7b1fa2);color:#fff;}
-.btn-rpt{background:#e8f5e9;color:#1b5e20;border:2px solid #a5d6a7;}
-.man-bdg{display:none;background:#fff3c4;color:#7a4f00;border:1px solid #ffe082;border-radius:6px;padding:5px 10px;font-size:.75rem;font-weight:600;margin-top:6px;}
-.ml-drop{border:2px dashed var(--bdr);border-radius:12px;padding:22px;text-align:center;cursor:pointer;transition:all .3s;margin-bottom:12px;}
-.ml-drop:hover,.ml-drop.drag{border-color:var(--nl);background:#f0f4fa;}
-.ml-stat{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:12px;}
-.ml-stat-item{background:#f8fafc;border-radius:10px;padding:11px;text-align:center;border:1px solid var(--bdr);}
-.ml-stat-lbl{font-size:.67rem;color:var(--sub);margin-bottom:3px;}
-.ml-stat-val{font-size:1.25rem;font-weight:800;color:var(--navy);}
-.ml-prog{background:#e0e6ef;border-radius:10px;height:7px;margin:7px 0;overflow:hidden;}
-.ml-prog-f{height:100%;border-radius:10px;background:linear-gradient(90deg,#7b1fa2,#9c27b0);transition:width .5s;}
-.ml-coef-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #eef0f4;font-size:.77rem;}
-.ml-coef-bar{height:4px;border-radius:2px;margin-top:2px;}
-.fi-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.74rem;}
-.fi-item{background:#f0f4fa;border-radius:6px;padding:6px 8px;}
-.fi-lbl{color:var(--sub);font-size:.67rem;margin-bottom:2px;}
-.fi-val{font-weight:700;color:var(--navy);}
-.ana-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px;}
-@media(max-width:700px){.ana-grid{grid-template-columns:1fr;}}
-.top3-item{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:10px;border:1px solid var(--bdr);margin-bottom:7px;}
-.top3-rank{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.82rem;flex-shrink:0;}
-.top3-item:nth-child(1) .top3-rank{background:#ffd700;color:#7a4f00;}
-.top3-item:nth-child(2) .top3-rank{background:#c0c0c0;color:#444;}
-.top3-item:nth-child(3) .top3-rank{background:#cd7f32;color:#fff;}
-.reduce-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:4px;}
-.reduce-item{background:#f0f4fa;border-radius:8px;padding:8px;text-align:center;}
-.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;padding:20px;}
-.modal-ov.open{display:flex;}
-.modal{background:#fff;border-radius:16px;width:100%;max-width:500px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3);}
-.modal-hdr{padding:14px 18px;background:var(--navy);color:#fff;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center;}
-.modal-hdr h2{font-size:.92rem;}
-.modal-cls{background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1;}
-.modal-body{padding:14px 18px;overflow-y:auto;}
-.log-item{padding:7px 10px;border-radius:8px;margin-bottom:6px;font-size:.75rem;border-left:4px solid;}
-.log-item.info{background:#e8f4fd;border-color:#2196F3;color:#0d47a1;}
-.log-item.warn{background:var(--ybg);border-color:#ffc107;color:#7a4f00;}
-.log-item.alert{background:var(--rbg);border-color:var(--red);color:var(--red);}
-.log-item.ok{background:var(--gbg);border-color:var(--green);color:var(--green);}
-.log-item.api{background:#f3e5f5;border-color:#9c27b0;color:#4a148c;}
-.log-item.metar{background:#fff8e1;border-color:#f9a825;color:#7a4f00;}
-.log-item.ml{background:#ede7f6;border-color:#7b1fa2;color:#4a148c;}
-.lt{font-weight:700;margin-right:5px;}
-.bg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-@media(max-width:900px){.bg-grid{grid-template-columns:1fr;}}
-.s-input{width:100%;padding:9px 11px;border:2px solid var(--bdr);border-radius:8px;font-size:.82rem;}
-.s-input:focus{outline:none;border-color:var(--nl);}
-.s-row{display:flex;gap:7px;margin-top:12px;}
-.s-btn{flex:1;padding:10px;border:none;border-radius:10px;font-size:.82rem;font-weight:700;cursor:pointer;}
-.s-btn-save{background:var(--navy);color:#fff;}
-.s-btn-cancel{background:#e8edf5;color:var(--navy);border:2px solid var(--bdr);}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);color:#fff;padding:12px 22px;border-radius:12px;font-size:.84rem;font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.3);white-space:nowrap;pointer-events:none;}
-@media print{header,.tabs,.banner,#statusBar,.br,.modal-ov{display:none!important;}.tab-panel{display:block!important;}body{background:#fff;}.card{box-shadow:none;border:1px solid #ccc;}}
+html, body{height:100%;overflow:hidden;}
+body{
+  font-family:'Segoe UI','Apple SD Gothic Neo',sans-serif;
+  background:var(--bg-1);
+  color:var(--txt-1);
+  font-size:13px;
+  line-height:1.5;
+}
+
+/* ═══════ 그리드 레이아웃 — 1920x1080 한 화면 ═══════ */
+.app-grid{
+  display:grid;
+  grid-template-rows:54px 1fr 240px;
+  grid-template-columns:200px 1fr 320px;
+  grid-template-areas:
+    "header header header"
+    "side main right"
+    "side bottom right";
+  height:100vh;
+  width:100vw;
+  gap:6px;
+  padding:6px;
+}
+@media(max-width:1700px){
+  .app-grid{grid-template-columns:180px 1fr 280px;grid-template-rows:50px 1fr 220px;}
+}
+@media(max-width:1400px){
+  .app-grid{grid-template-columns:160px 1fr 240px;}
+  body{font-size:12px;}
+}
+
+/* ═══════ 헤더 ═══════ */
+.app-header{
+  grid-area:header;
+  background:linear-gradient(135deg,#0d1525 0%,#152138 50%,#0d1525 100%);
+  border:1px solid var(--bdr-1);
+  border-radius:6px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 18px;gap:14px;
+}
+.logo-area{display:flex;align-items:center;gap:12px;}
+.logo{
+  width:38px;height:38px;border-radius:7px;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  color:#0a0e1a;font-weight:900;font-size:.78rem;
+  display:flex;align-items:center;justify-content:center;line-height:1.05;letter-spacing:-.5px;
+  box-shadow:0 0 12px rgba(79,195,247,.3);
+}
+.logo-text{display:flex;flex-direction:column;}
+.logo-title{font-weight:800;font-size:.95rem;color:var(--txt-1);letter-spacing:.5px;}
+.logo-sub{font-size:.66rem;color:var(--txt-3);}
+.app-version{
+  font-family:monospace;font-size:.66rem;color:var(--accent);
+  background:rgba(79,195,247,.1);padding:2px 8px;border-radius:3px;
+  border:1px solid rgba(79,195,247,.3);margin-left:6px;
+}
+
+.alert-strip{
+  flex:1;display:flex;align-items:center;gap:10px;
+  background:rgba(239,83,80,.08);border:1px solid rgba(239,83,80,.3);
+  border-radius:6px;padding:7px 14px;margin:0 14px;
+  animation:pulse-warn 2.5s infinite;
+  min-height:36px;
+}
+.alert-strip.normal{
+  background:rgba(76,175,80,.08);border-color:rgba(76,175,80,.3);
+  animation:none;
+}
+.alert-strip.warning{
+  background:rgba(255,183,77,.08);border-color:rgba(255,183,77,.3);
+  animation:none;
+}
+@keyframes pulse-warn{
+  0%,100%{box-shadow:0 0 0 0 rgba(239,83,80,.3);}
+  50%{box-shadow:0 0 0 4px rgba(239,83,80,0);}
+}
+.alert-icon{font-size:1.1rem;}
+.alert-text{flex:1;font-size:.78rem;font-weight:600;}
+.alert-text.normal{color:var(--green);}
+.alert-text.warning{color:var(--yellow);}
+.alert-text.danger{color:var(--red);}
+
+.header-clock{
+  font-family:monospace;font-size:.86rem;color:var(--accent);
+  background:#0a0e1a;padding:6px 12px;border-radius:5px;
+  border:1px solid var(--bdr-1);min-width:140px;text-align:center;
+}
+.header-btns{display:flex;gap:6px;}
+.btn-hdr{
+  background:var(--bg-3);color:var(--txt-1);border:1px solid var(--bdr-1);
+  padding:7px 11px;font-size:.72rem;font-weight:600;cursor:pointer;
+  border-radius:5px;transition:all .15s;
+}
+.btn-hdr:hover{background:var(--bg-4);border-color:var(--accent);color:var(--accent);}
+
+/* ═══════ 사이드 메뉴 ═══════ */
+.app-side{
+  grid-area:side;
+  background:var(--bg-2);border:1px solid var(--bdr-1);border-radius:6px;
+  display:flex;flex-direction:column;padding:10px;gap:3px;
+  overflow:hidden;
+}
+.side-section{
+  font-size:.62rem;color:var(--txt-3);text-transform:uppercase;letter-spacing:1.5px;
+  margin:8px 6px 4px;font-weight:600;
+}
+.side-section:first-child{margin-top:0;}
+.side-btn{
+  display:flex;align-items:center;gap:9px;
+  padding:8px 10px;background:transparent;color:var(--txt-2);
+  border:none;border-left:3px solid transparent;
+  font-size:.78rem;font-weight:500;cursor:pointer;text-align:left;
+  border-radius:4px;transition:all .15s;font-family:inherit;
+}
+.side-btn:hover{background:var(--bg-3);color:var(--txt-1);}
+.side-btn.active{
+  background:var(--bg-3);color:var(--accent);border-left-color:var(--accent);
+  font-weight:700;
+}
+.side-btn .ic{font-size:.95rem;flex:none;}
+.side-status{
+  margin-top:auto;padding:9px 8px;border-top:1px solid var(--bdr-1);
+  font-size:.66rem;color:var(--txt-3);
+}
+.side-status .stat-line{
+  display:flex;justify-content:space-between;padding:2px 0;
+}
+.side-status .ok{color:var(--green);}
+.side-status .ng{color:var(--red);}
+
+/* ═══════ 메인 영역 ═══════ */
+.app-main{
+  grid-area:main;
+  background:var(--bg-2);border:1px solid var(--bdr-1);border-radius:6px;
+  display:grid;grid-template-rows:auto auto 1fr;
+  gap:6px;padding:8px;overflow:hidden;
+}
+
+/* 1) 메인 센서 패널 (대형) */
+.sensor-bar{
+  display:grid;grid-template-columns:repeat(7, 1fr);gap:6px;
+}
+.sensor-card{
+  background:linear-gradient(135deg,#162038 0%,#1c2a45 100%);
+  border:1px solid var(--bdr-1);border-radius:6px;
+  padding:9px 11px;display:flex;flex-direction:column;justify-content:space-between;
+  position:relative;overflow:hidden;min-height:78px;
+}
+.sensor-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--clr,#4fc3f7),transparent);
+}
+.sensor-card.pave{background:linear-gradient(135deg,#2a1a1a 0%,#3a1f1f 100%);border-color:rgba(239,83,80,.3);}
+.sensor-card.pave::before{background:linear-gradient(90deg,transparent,var(--red),transparent);}
+.sc-lbl{font-size:.65rem;color:var(--txt-2);font-weight:500;letter-spacing:.3px;}
+.sc-val{
+  font-family:'Segoe UI',monospace;
+  font-size:1.55rem;font-weight:800;color:var(--clr,#4fc3f7);line-height:1;letter-spacing:-1px;
+}
+.sensor-card.pave .sc-val{color:#ff6b6b;text-shadow:0 0 12px rgba(255,107,107,.3);}
+.sc-unit{font-size:.62rem;color:var(--txt-3);margin-left:2px;font-weight:500;}
+.sc-sub{font-size:.62rem;color:var(--txt-3);}
+
+/* 2) 6개 구역 카드 (3×2) */
+.zones-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:6px;
+  min-height:170px;
+}
+.zone-card{
+  background:linear-gradient(135deg,#142037 0%,#1a2843 100%);
+  border:1px solid var(--bdr-1);border-radius:6px;
+  padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between;
+  position:relative;cursor:pointer;transition:all .2s;overflow:hidden;
+}
+.zone-card:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 4px 12px rgba(79,195,247,.15);}
+.zone-card.normal{border-left:4px solid var(--green);}
+.zone-card.caution{border-left:4px solid var(--yellow);}
+.zone-card.danger{border-left:4px solid var(--red);animation:zone-pulse 2s infinite;}
+@keyframes zone-pulse{
+  0%,100%{box-shadow:inset 0 0 0 1px rgba(239,83,80,.2);}
+  50%{box-shadow:inset 0 0 0 1px rgba(239,83,80,.5),0 0 14px rgba(239,83,80,.3);}
+}
+.z-head{display:flex;justify-content:space-between;align-items:flex-start;}
+.z-name{font-size:.78rem;font-weight:700;color:var(--txt-1);}
+.z-bdg{font-size:.6rem;padding:2px 7px;border-radius:8px;font-weight:700;letter-spacing:.3px;}
+.z-bdg.normal{background:var(--gbg);color:var(--green);}
+.z-bdg.caution{background:var(--ybg);color:var(--yellow);}
+.z-bdg.danger{background:var(--rbg);color:var(--red);}
+.z-temp-row{display:flex;align-items:baseline;gap:4px;margin:5px 0 3px;}
+.z-temp{
+  font-family:monospace;font-size:1.85rem;font-weight:800;line-height:1;letter-spacing:-1px;
+}
+.z-temp.normal{color:var(--green);}
+.z-temp.caution{color:var(--yellow);}
+.z-temp.danger{color:var(--red);text-shadow:0 0 12px rgba(239,83,80,.3);}
+.z-temp-unit{font-size:.7rem;color:var(--txt-3);font-weight:500;}
+.z-info{display:flex;justify-content:space-between;font-size:.66rem;color:var(--txt-2);margin-top:auto;}
+.z-info .bar-bg{
+  width:100%;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin-top:5px;
+}
+.z-info .bar-f{height:100%;border-radius:2px;transition:width .5s;}
+.z-info .bar-f.normal{background:var(--green);}
+.z-info .bar-f.caution{background:var(--yellow);}
+.z-info .bar-f.danger{background:var(--red);}
+
+/* 3) 차트 */
+.chart-zone{
+  background:linear-gradient(135deg,#0e1729 0%,#152038 100%);
+  border:1px solid var(--bdr-1);border-radius:6px;
+  padding:8px 10px;display:flex;flex-direction:column;min-height:0;overflow:hidden;
+}
+.chart-head{
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;
+}
+.chart-title{font-size:.78rem;font-weight:700;color:var(--txt-1);}
+.chart-bdg{
+  font-size:.62rem;padding:2px 7px;border-radius:3px;
+  background:var(--pbg);color:var(--purple);font-weight:600;
+}
+.chart-body{flex:1;min-height:0;position:relative;}
+
+/* ═══════ 우측 사이드 (결정 패널) ═══════ */
+.app-right{
+  grid-area:right;
+  display:flex;flex-direction:column;gap:6px;overflow:hidden;
+}
+.right-card{
+  background:var(--bg-2);border:1px solid var(--bdr-1);border-radius:6px;
+  padding:10px;display:flex;flex-direction:column;
+}
+.right-card .rc-title{
+  font-size:.72rem;font-weight:700;color:var(--txt-1);
+  display:flex;align-items:center;gap:6px;margin-bottom:7px;
+  padding-bottom:6px;border-bottom:1px solid var(--bdr-1);
+}
+.right-card .rc-title .ic{color:var(--accent);}
+.priority-list{
+  display:flex;flex-direction:column;gap:4px;
+}
+.pri-item{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 8px;background:var(--bg-3);border-radius:4px;
+  border-left:3px solid var(--green);
+}
+.pri-item.caution{border-left-color:var(--yellow);}
+.pri-item.danger{border-left-color:var(--red);background:rgba(239,83,80,.08);}
+.pri-rank{font-family:monospace;font-weight:700;color:var(--accent);font-size:.78rem;width:18px;}
+.pri-name{flex:1;font-size:.74rem;color:var(--txt-1);font-weight:600;}
+.pri-temp{font-family:monospace;font-size:.86rem;font-weight:700;}
+.pri-temp.normal{color:var(--green);}
+.pri-temp.caution{color:var(--yellow);}
+.pri-temp.danger{color:var(--red);}
+.pri-empty{font-size:.7rem;color:var(--txt-3);text-align:center;padding:10px;}
+
+/* 살수 결정 패널 */
+.spk-panel{display:flex;flex-direction:column;gap:7px;}
+.spk-info{font-size:.7rem;color:var(--txt-2);}
+.spk-btns{display:flex;gap:6px;}
+.btn-spk{
+  flex:1;padding:9px 8px;border:none;border-radius:5px;cursor:pointer;
+  font-size:.74rem;font-weight:700;transition:all .15s;font-family:inherit;
+}
+.btn-approve{background:linear-gradient(135deg,#1976d2,#42a5f5);color:#fff;}
+.btn-approve:hover{box-shadow:0 0 12px rgba(33,150,243,.4);}
+.btn-manual{background:var(--bg-4);color:var(--txt-1);border:1px solid var(--bdr-2);}
+.btn-manual:hover{border-color:var(--accent);color:var(--accent);}
+.btn-spk:disabled{opacity:.4;cursor:not-allowed;}
+
+/* 운영 로그 */
+.log-list{
+  flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:3px;
+  font-size:.7rem;
+}
+.log-list::-webkit-scrollbar{width:4px;}
+.log-list::-webkit-scrollbar-thumb{background:var(--bdr-2);border-radius:2px;}
+.log-item{
+  display:flex;gap:7px;padding:4px 6px;background:var(--bg-3);border-radius:3px;
+  border-left:2px solid var(--accent);
+}
+.log-item.ok{border-left-color:var(--green);}
+.log-item.warn{border-left-color:var(--yellow);}
+.log-item.spk{border-left-color:var(--accent);}
+.log-item.ml{border-left-color:var(--purple);}
+.log-time{color:var(--txt-3);font-family:monospace;font-size:.62rem;flex:none;}
+.log-msg{color:var(--txt-2);flex:1;line-height:1.4;}
+
+/* ═══════ 하단 보조 패널 (탭 전환) ═══════ */
+.app-bottom{
+  grid-area:bottom;
+  background:var(--bg-2);border:1px solid var(--bdr-1);border-radius:6px;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.bottom-tabs{
+  display:flex;border-bottom:1px solid var(--bdr-1);
+  background:linear-gradient(180deg,#0a0e1a 0%,transparent 100%);
+}
+.bottom-tab{
+  padding:9px 18px;background:transparent;color:var(--txt-2);
+  border:none;font-size:.74rem;font-weight:600;cursor:pointer;
+  border-bottom:2px solid transparent;transition:all .15s;font-family:inherit;
+  display:flex;align-items:center;gap:6px;
+}
+.bottom-tab:hover{color:var(--txt-1);}
+.bottom-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(79,195,247,.05);}
+.bottom-tab .ic{font-size:.85rem;}
+.bottom-content{
+  flex:1;overflow-y:auto;padding:10px 14px;
+}
+.bottom-content::-webkit-scrollbar{width:6px;}
+.bottom-content::-webkit-scrollbar-thumb{background:var(--bdr-2);border-radius:3px;}
+.bottom-pane{display:none;}
+.bottom-pane.active{display:block;}
+
+/* 하단 패널 공통 — 카드 */
+.bp-grid{display:grid;gap:8px;}
+.bp-card{
+  background:var(--bg-3);border:1px solid var(--bdr-1);border-radius:5px;
+  padding:9px 11px;
+}
+.bp-card-title{
+  font-size:.7rem;font-weight:700;color:var(--accent);margin-bottom:6px;
+  text-transform:uppercase;letter-spacing:.5px;
+}
+.bp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;}
+.bp-stat{
+  background:var(--bg-3);border:1px solid var(--bdr-1);border-radius:5px;
+  padding:8px 10px;text-align:center;
+}
+.bp-stat-lbl{font-size:.62rem;color:var(--txt-3);text-transform:uppercase;letter-spacing:.5px;}
+.bp-stat-val{font-family:monospace;font-size:1.1rem;font-weight:800;color:var(--accent);margin-top:2px;}
+.bp-stat-val.r2{color:var(--purple);}
+.bp-stat-val.green{color:var(--green);}
+
+/* 회귀계수 — 다크 */
+.coef-list{display:flex;flex-direction:column;gap:3px;font-size:.72rem;}
+.coef-item{
+  display:flex;align-items:center;gap:8px;padding:4px 6px;background:var(--bg-2);border-radius:3px;
+}
+.coef-item-name{flex:1;color:var(--txt-1);}
+.coef-item-bar{height:3px;border-radius:2px;background:rgba(255,255,255,.05);width:80px;position:relative;overflow:hidden;}
+.coef-item-bar-f{height:100%;border-radius:2px;}
+.coef-item-val{font-family:monospace;font-weight:700;font-size:.72rem;min-width:54px;text-align:right;}
+.coef-pos{color:var(--accent-2);}
+.coef-neg{color:var(--red);}
+
+/* 데이터 표 */
+.data-table{
+  width:100%;border-collapse:collapse;font-size:.7rem;color:var(--txt-1);
+}
+.data-table thead{position:sticky;top:0;background:var(--bg-3);}
+.data-table th{
+  padding:5px 8px;text-align:left;font-weight:600;font-size:.64rem;
+  color:var(--accent);text-transform:uppercase;letter-spacing:.3px;
+  border-bottom:1px solid var(--bdr-1);
+}
+.data-table td{padding:4px 8px;border-bottom:1px solid var(--bdr-1);}
+.data-table tr:hover td{background:var(--bg-3);}
+
+/* METAR 다크 */
+.metar-raw{
+  background:#0a0e1a;border:1px solid var(--bdr-1);border-radius:5px;
+  padding:8px 11px;font-family:monospace;font-size:.78rem;
+  color:var(--accent);letter-spacing:.5px;
+}
+
+/* 분석 패널 */
+.analysis-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+
+/* ═══════ 옛 호환용 클래스 (기존 JS가 참조) ═══════ */
+.tab-bar{display:none !important;} /* 옛날 탭 바 안보이게 */
+.tab-panel{display:block;}  /* 옛날 패널은 모두 우리가 직접 제어 */
+.tab-panel.hidden-legacy{display:none !important;}
+.card{background:var(--bg-3);border:1px solid var(--bdr-1);border-radius:5px;padding:8px 10px;margin-bottom:6px;}
+.card-title{font-size:.74rem;font-weight:700;color:var(--accent);margin-bottom:6px;}
+
+/* 옛 스타일 호환 */
+.banner{padding:8px 12px;border-radius:5px;margin-bottom:6px;}
+.banner-ok{background:var(--gbg);color:var(--green);border:1px solid rgba(76,175,80,.3);}
+.banner-warn{background:var(--ybg);color:var(--yellow);border:1px solid rgba(255,183,77,.3);}
+.banner-danger{background:var(--rbg);color:var(--red);border:1px solid rgba(239,83,80,.3);}
+.banner-info{background:rgba(79,195,247,.1);color:var(--accent);border:1px solid rgba(79,195,247,.3);}
+
+/* 버튼 호환 */
+.btn{
+  padding:6px 12px;background:var(--bg-3);color:var(--txt-1);
+  border:1px solid var(--bdr-1);border-radius:4px;cursor:pointer;
+  font-size:.74rem;font-weight:600;font-family:inherit;
+}
+.btn:hover{background:var(--bg-4);border-color:var(--accent);}
+.btn-ml{background:linear-gradient(135deg,#7e57c2,#9575cd);color:#fff;border:none;}
+.btn-ref{background:linear-gradient(135deg,#1976d2,#42a5f5);color:#fff;border:none;}
+.btn-log{background:var(--bg-4);color:var(--txt-1);}
+.btn-tog{background:var(--bg-3);}
+.btn-tog.on{background:var(--accent);color:#0a0e1a;}
+.btn-tog.off{background:var(--bg-4);}
+
+/* 폼 입력 */
+input[type=text],input[type=number],input[type=password],input[type=date],input[type=time],select,textarea{
+  background:var(--bg-1);color:var(--txt-1);border:1px solid var(--bdr-1);
+  border-radius:4px;padding:6px 9px;font-size:.78rem;font-family:inherit;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);}
+label{color:var(--txt-2);font-size:.74rem;}
+
+/* ML 패널 */
+.ml-prog{height:6px;background:var(--bg-1);border-radius:3px;overflow:hidden;}
+.ml-prog-f{height:100%;background:linear-gradient(90deg,var(--accent),var(--purple));transition:width .3s;}
+.fi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.fi-item{font-size:.7rem;}
+.fi-lbl{color:var(--txt-3);font-size:.62rem;}
+.fi-val{color:var(--txt-1);font-weight:600;}
+
+/* 모달/오버레이 */
+.modal-ov{
+  position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:5000;
+  display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px);
+}
+.modal-ov.show{display:flex;}
+.modal{
+  background:var(--bg-2);border:1px solid var(--bdr-1);border-radius:8px;
+  padding:18px;min-width:400px;max-width:90vw;max-height:85vh;overflow-y:auto;
+  color:var(--txt-1);
+}
+.modal h3{font-size:.95rem;color:var(--accent);margin-bottom:12px;}
+
+/* 토스트 */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--bg-3);color:var(--txt-1);padding:10px 18px;border-radius:6px;
+  font-size:.78rem;font-weight:600;z-index:9999;
+  border:1px solid var(--bdr-2);box-shadow:0 4px 18px rgba(0,0,0,.5);
+  white-space:nowrap;pointer-events:none;
+}
+
+/* 설정 모달 */
+.set-grid{display:grid;gap:9px;}
+.set-row{display:flex;flex-direction:column;gap:4px;}
+.set-row label{font-size:.72rem;color:var(--txt-2);}
+.set-actions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end;}
+.s-btn{padding:8px 16px;border-radius:5px;border:none;cursor:pointer;font-size:.78rem;font-weight:700;font-family:inherit;}
+.s-btn-save{background:var(--accent);color:#0a0e1a;}
+.s-btn-cancel{background:var(--bg-4);color:var(--txt-1);border:1px solid var(--bdr-1);}
+
+/* 인쇄 */
+@media print{
+  .app-side,.app-right,.bottom-tabs,.btn-hdr,.alert-strip{display:none!important;}
+  body{background:#fff;color:#000;}
+  .app-grid{grid-template-columns:1fr;grid-template-rows:auto auto;}
+}
+
+/* 옛 JS가 .tab-panel을 토글하는 경우 처리 */
+#tab-mon{display:contents;}
+#tab-ml,#tab-data,#tab-metar,#tab-ana{display:none;}
+.legacy-only{display:none;}
+
 </style>
 </head>
 <body>
+
+<!-- ════════════════════════════════════════════════════════
+     v6.0 다크 대시보드 그리드 컨테이너 (1920×1080 한 화면)
+     기존 HTML은 화면 하단으로 옮겨지며, JS가 필요 요소를 이리로 이동시킴
+     ════════════════════════════════════════════════════════ -->
+<div class="app-grid" id="appGrid">
+
+  <!-- 헤더 -->
+  <div class="app-header" id="appHeader">
+    <div class="logo-area">
+      <div class="logo">A.U<br>.R.A</div>
+      <div class="logo-text">
+        <div class="logo-title">A.U.R.A SYSTEM</div>
+        <div class="logo-sub">Automated Utility for Runway Aspersion · 울산공항 RKPU</div>
+      </div>
+      <span class="app-version">v6.0 DARK</span>
+    </div>
+    <div class="alert-strip normal" id="alertStrip">
+      <span class="alert-icon">✓</span>
+      <span class="alert-text normal" id="alertStripText">정상 — 모든 구역이 임계값 이하입니다</span>
+    </div>
+    <div class="header-clock" id="appClock">--:--:--</div>
+    <div class="header-btns">
+      <button class="btn-hdr" onclick="openSettings()">⚙️ API 설정</button>
+      <button class="btn-hdr" onclick="if(confirm('로그아웃 하시겠습니까?'))AURA_logout()">🔒 로그아웃</button>
+    </div>
+  </div>
+
+  <!-- 좌측 사이드 메뉴 -->
+  <div class="app-side">
+    <div class="side-section">하단 패널 전환</div>
+    <button class="side-btn active" data-bottom="ml" onclick="setBottomTab('ml')">
+      <span class="ic">🤖</span> AI 학습 모델
+    </button>
+    <button class="side-btn" data-bottom="data" onclick="setBottomTab('data')">
+      <span class="ic">📋</span> 데이터 현황
+    </button>
+    <button class="side-btn" data-bottom="metar" onclick="setBottomTab('metar')">
+      <span class="ic">✈️</span> METAR
+    </button>
+    <button class="side-btn" data-bottom="ana" onclick="setBottomTab('ana')">
+      <span class="ic">📊</span> 분석
+    </button>
+    <button class="side-btn" data-bottom="log" onclick="setBottomTab('log')">
+      <span class="ic">📝</span> 운영 로그
+    </button>
+
+    <div class="side-section">시스템 상태</div>
+    <div class="side-status">
+      <div class="stat-line">
+        <span>기상청</span><span class="ok" id="ss-kma">●</span>
+      </div>
+      <div class="stat-line">
+        <span>METAR</span><span class="ok" id="ss-metar">●</span>
+      </div>
+      <div class="stat-line">
+        <span>AI 모델</span><span class="ok" id="ss-ml">●</span>
+      </div>
+      <div class="stat-line" style="margin-top:5px;padding-top:5px;border-top:1px solid var(--bdr-1);">
+        <span>운영자</span><span style="color:var(--accent);">관제사</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 메인 영역 -->
+  <div class="app-main">
+    <!-- 1) 메인 센서 패널 (대형) -->
+    <div class="sensor-bar" id="sensorBar">
+      <!-- 7개 센서 카드가 JS로 렌더링됨 -->
+    </div>
+
+    <!-- 2) 6개 구역 카드 (3×2) -->
+    <div class="zones-grid" id="zonesGrid">
+      <!-- 6개 구역 카드가 JS로 렌더링됨 -->
+    </div>
+
+    <!-- 3) 차트 -->
+    <div class="chart-zone">
+      <div class="chart-head">
+        <div class="chart-title">📈 포장온도 시간대별 예측</div>
+        <span class="chart-bdg" id="chartModelBdgNew">대기 중</span>
+      </div>
+      <div class="chart-body">
+        <canvas id="newTempChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- 우측 사이드 -->
+  <div class="app-right">
+    <!-- 우선순위 패널 -->
+    <div class="right-card" style="flex:1;min-height:0;">
+      <div class="rc-title"><span class="ic">🚨</span> 살수 우선순위</div>
+      <div class="priority-list" id="newPriorityList">
+        <div class="pri-empty">데이터 수집 중...</div>
+      </div>
+    </div>
+
+    <!-- 살수 결정 패널 -->
+    <div class="right-card">
+      <div class="rc-title"><span class="ic">💧</span> 살수 결정</div>
+      <div class="spk-panel">
+        <div class="spk-info" id="spkInfo">위험 구역 없음</div>
+        <div class="spk-btns">
+          <button class="btn-spk btn-approve" id="btnApprove" onclick="approveSprinkle()" disabled>승인</button>
+          <button class="btn-spk btn-manual" onclick="toggleManualMode()">수동 모드</button>
+        </div>
+        <div style="font-size:.66rem;color:var(--txt-3);">
+          ⓘ 자동 결정은 60℃ 이상 시 가동
+        </div>
+      </div>
+    </div>
+
+    <!-- 운영로그 (최근) -->
+    <div class="right-card" style="flex:1;min-height:0;">
+      <div class="rc-title"><span class="ic">📝</span> 최근 활동</div>
+      <div class="log-list" id="newLogList">
+        <div class="pri-empty">기록 없음</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 하단 보조 패널 (탭 전환) -->
+  <div class="app-bottom">
+    <div class="bottom-tabs">
+      <button class="bottom-tab active" data-bottom="ml" onclick="setBottomTab('ml')">
+        <span class="ic">🤖</span> AI 학습
+      </button>
+      <button class="bottom-tab" data-bottom="data" onclick="setBottomTab('data')">
+        <span class="ic">📋</span> 데이터 현황
+      </button>
+      <button class="bottom-tab" data-bottom="metar" onclick="setBottomTab('metar')">
+        <span class="ic">✈️</span> METAR
+      </button>
+      <button class="bottom-tab" data-bottom="ana" onclick="setBottomTab('ana')">
+        <span class="ic">📊</span> 분석
+      </button>
+      <button class="bottom-tab" data-bottom="log" onclick="setBottomTab('log')">
+        <span class="ic">📝</span> 로그
+      </button>
+    </div>
+    <div class="bottom-content" id="bottomContent">
+      <!-- 각 탭의 내용이 JS로 렌더링되거나 기존 HTML이 이동됨 -->
+      <div class="bottom-pane active" id="bp-ml"><div style="text-align:center;padding:20px;color:var(--txt-3);">AI 학습 정보 로딩 중...</div></div>
+      <div class="bottom-pane" id="bp-data"><div style="text-align:center;padding:20px;color:var(--txt-3);">데이터 현황 로딩 중...</div></div>
+      <div class="bottom-pane" id="bp-metar"><div style="text-align:center;padding:20px;color:var(--txt-3);">METAR 로딩 중...</div></div>
+      <div class="bottom-pane" id="bp-ana"><div style="text-align:center;padding:20px;color:var(--txt-3);">분석 로딩 중...</div></div>
+      <div class="bottom-pane" id="bp-log"><div style="text-align:center;padding:20px;color:var(--txt-3);">로그 없음</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     숨겨진 레거시 영역 — 기존 HTML 그대로 (JS 호환용)
+     CSS의 .legacy-only로 화면에서 숨김. 단 기존 ID들은 JS에서 사용.
+     ════════════════════════════════════════════════════════ -->
+<div class="legacy-only" id="legacyArea">
 
 <header>
   <div class="logo-area">
@@ -608,6 +1108,8 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
     </div>
   </div>
 </div>
+
+</div><!-- ★ legacy-only 영역 닫기 (모든 기존 HTML이 여기 안에 있음) -->
 
 <!-- 로그 모달 -->
 <div class="modal-ov" id="logModal">
@@ -2894,6 +3396,576 @@ setInterval(function() {
   updateAlertBanner();
   renderPriorityPanel();
 }, 5000);
+
+/* ════════════════════════════════════════════════════════════════
+   v6.0 다크 대시보드 통합 JS
+   기존 wx, mlModel, zones 등의 변수와 함수를 그대로 활용
+   ════════════════════════════════════════════════════════════════ */
+var ZONE_NAMES_V6 = {
+  1: '활주로 36번단', 2: '활주로 중앙', 3: '활주로 18번단',
+  4: '계류장', 5: '유도로 A', 6: '유도로 B'
+};
+
+// ── 1) 메인 센서 패널 렌더링 (7개 카드: 포장온도, 기온, 일사량, 습도, 풍속, 풍향, 이슬점) ──
+function renderSensorBarV6() {
+  var d = wx;
+  var bar = document.getElementById('sensorBar');
+  if (!bar) return;
+  var items = [
+    { lbl:'포장온도',  val: fmtT(d.paveTemp),     unit:'℃',     clr:'#ff6b6b', cls:'pave',
+      sub: mlModel ? 'AI 예측' : '추정식' },
+    { lbl:'기온',      val: fmtT(d.airTemp),      unit:'℃',     clr:'#ffa726', sub:'기상청' },
+    { lbl:'일사량',    val: fmtSol(d.solar),      unit:'MJ/㎡', clr:'#ffeb3b', sub:'기상청' },
+    { lbl:'습도',      val: fmtH(d.humidity),     unit:'%',     clr:'#4fc3f7', sub:'기상청' },
+    { lbl:'풍속',      val: fmtW(d.windSpeed),    unit:'m/s',   clr:'#4caf50', sub:'기상청' },
+    { lbl:'풍향',      val: (d.windDir != null ? d.windDir : '—'), unit:'°', clr:'#81c784',
+      sub: d.windDir != null ? bearingToCompass(d.windDir) : '' },
+    { lbl:'이슬점',    val: (d.dewpt != null ? fmtT(d.dewpt) : '—'), unit:'℃', clr:'#ce93d8', sub:'METAR' }
+  ];
+  bar.innerHTML = items.map(function(s){
+    return '<div class="sensor-card ' + (s.cls||'') + '" style="--clr:' + s.clr + '">' +
+      '<div class="sc-lbl">' + s.lbl + '</div>' +
+      '<div><span class="sc-val">' + s.val + '</span><span class="sc-unit">' + s.unit + '</span></div>' +
+      '<div class="sc-sub">' + (s.sub||'') + '</div>' +
+      '</div>';
+  }).join('');
+}
+function bearingToCompass(deg) {
+  var dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg/22.5)%16];
+}
+
+// ── 2) 6개 구역 카드 (3×2) ──
+function renderZonesGridV6() {
+  var grid = document.getElementById('zonesGrid');
+  if (!grid) return;
+  var html = '';
+  for (var z=1; z<=6; z++) {
+    var t = (typeof getZoneTempById === 'function') ? getZoneTempById(z) : (wx.paveTemp + (z-3)*0.5);
+    var lvl = t >= 60 ? 'danger' : t >= 58 ? 'caution' : 'normal';
+    var lvlText = lvl==='danger' ? '위험' : lvl==='caution' ? '주의' : '정상';
+    var pct = Math.min(100, t / 70 * 100);
+    html += '<div class="zone-card ' + lvl + '" onclick="onZoneClick(' + z + ')">' +
+      '<div class="z-head">' +
+        '<span class="z-name">' + (ZONE_NAMES_V6[z]||('구역 '+z)) + '</span>' +
+        '<span class="z-bdg ' + lvl + '">' + lvlText + '</span>' +
+      '</div>' +
+      '<div class="z-temp-row">' +
+        '<span class="z-temp ' + lvl + '">' + t.toFixed(1) + '</span>' +
+        '<span class="z-temp-unit">℃</span>' +
+      '</div>' +
+      '<div class="z-info">' +
+        '<span>구역 ' + z + '</span>' +
+        '<span>임계 60℃</span>' +
+      '</div>' +
+      '<div class="bar-bg"><div class="bar-f ' + lvl + '" style="width:' + pct + '%"></div></div>' +
+      '</div>';
+  }
+  grid.innerHTML = html;
+}
+
+// 구역 카드 클릭 — 임시
+function onZoneClick(z) {
+  showToast('구역 ' + z + ' (' + (ZONE_NAMES_V6[z]||'') + ') 선택됨', '#4fc3f7');
+}
+
+// ── 3) 차트 (메인 차트 위치를 새 캔버스로) ──
+var chartInstV6 = null;
+function renderChartV6() {
+  var canvas = document.getElementById('newTempChart');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  // 기존 buildChart는 #tempChart 사용 — v6 차트는 별도 인스턴스
+  var now = new Date();
+  var offs = [-120, -90, -60, -30, 0, 30, 60, 90, 120];
+  var labels = [], past = [], future = [];
+  var base = wx.paveTemp;
+  var curve = [-3,-2,-1,-.5,0,.8,1.5,1.8,1.6];
+  offs.forEach(function(m, i) {
+    var t = new Date(now.getTime() + m * 60000);
+    labels.push((m > 0 ? '▶ ' : '') + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'));
+    var v;
+    if (mlModel) {
+      var opts = mlModel.opts || { advanced: false, zonedummy: false };
+      var zKeys = mlModel.zoneKeys || [];
+      var savedAt = wx.airTemp, savedSol = wx.solar;
+      wx.airTemp = savedAt + m / 60 * 0.05;
+      wx.solar = Math.max(0, savedSol + (m > 0 ? -m / 60 * 0.05 : m / 60 * 0.03));
+      var x = buildPredictFeatures(opts, zKeys, null);
+      v = parseFloat(predict(mlModel, x).toFixed(1));
+      wx.airTemp = savedAt; wx.solar = savedSol;
+    } else {
+      v = parseFloat((base + curve[i]).toFixed(1));
+    }
+    past.push(i <= 4 ? v : null);
+    future.push(i >= 4 ? v : null);
+  });
+  if (chartInstV6) { chartInstV6.destroy(); }
+  chartInstV6 = new Chart(ctx, {
+    type:'line',
+    data:{ labels:labels, datasets:[
+      { label:'관측/현재', data:past, borderColor:'#4fc3f7', backgroundColor:'rgba(79,195,247,.1)',
+        pointBackgroundColor:past.map(function(_,i){return i===4?'#fff':'#4fc3f7';}),
+        pointRadius:past.map(function(_,i){return i===4?7:3;}), tension:.4, fill:true, borderWidth:2 },
+      { label:'예측', data:future, borderColor:'#b39ddb', backgroundColor:'rgba(179,157,219,.1)',
+        borderDash:[6,4], tension:.4, pointRadius:3, fill:true, borderWidth:2 }
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ labels:{color:'#a8b2c7',font:{size:10}, boxWidth:14} },
+        annotation:{ annotations:{
+          critLine:{ type:'line', yMin:60, yMax:60, borderColor:'#ef5350',
+            borderWidth:1.5, borderDash:[4,4],
+            label:{display:true,content:'임계 60℃',backgroundColor:'rgba(239,83,80,.85)',color:'#fff',font:{size:9}} }
+        }}
+      },
+      scales:{
+        y:{ ticks:{color:'#a8b2c7',font:{size:9}}, grid:{color:'rgba(255,255,255,.05)'},
+            suggestedMin:20, suggestedMax:75 },
+        x:{ ticks:{color:'#a8b2c7',font:{size:9}}, grid:{color:'rgba(255,255,255,.05)'} }
+      }
+    }
+  });
+  // 차트 모델 배지
+  var bdg = document.getElementById('chartModelBdgNew');
+  if (bdg) {
+    if (mlModel) {
+      bdg.textContent = '🤖 AI 모델 R²=' + mlModel.r2.toFixed(3);
+      bdg.style.background = 'rgba(179,157,219,.2)';
+      bdg.style.color = '#b39ddb';
+    } else {
+      bdg.textContent = '추정식';
+      bdg.style.background = 'rgba(108,119,147,.2)';
+      bdg.style.color = '#a8b2c7';
+    }
+  }
+}
+
+// ── 4) 우선순위 패널 (다크 버전) ──
+function renderPriorityV6() {
+  var list = document.getElementById('newPriorityList');
+  if (!list) return;
+  var arr = [];
+  for (var z=1; z<=6; z++) {
+    var t = (typeof getZoneTempById === 'function') ? getZoneTempById(z) : 50;
+    arr.push({zone:z, name:ZONE_NAMES_V6[z]||('구역 '+z), temp:t});
+  }
+  arr.sort(function(a,b){return b.temp - a.temp;});
+  // 상위 6개 모두 표시 (구역 모두 보고 싶으니까)
+  var html = arr.slice(0,6).map(function(p, i) {
+    var lvl = p.temp >= 60 ? 'danger' : p.temp >= 58 ? 'caution' : 'normal';
+    return '<div class="pri-item ' + lvl + '">' +
+      '<span class="pri-rank">' + (i+1) + '</span>' +
+      '<span class="pri-name">' + p.name + '</span>' +
+      '<span class="pri-temp ' + lvl + '">' + p.temp.toFixed(1) + '℃</span>' +
+      '</div>';
+  }).join('');
+  list.innerHTML = html;
+
+  // 살수 결정 패널 정보
+  var top = arr[0];
+  var spkInfo = document.getElementById('spkInfo');
+  var btnApprove = document.getElementById('btnApprove');
+  if (top.temp >= 60) {
+    spkInfo.innerHTML = '⚠️ <strong style="color:#ef5350">' + top.name + '</strong> 위험 (' + top.temp.toFixed(1) + '℃)';
+    if (btnApprove) btnApprove.disabled = false;
+  } else if (top.temp >= 58) {
+    spkInfo.innerHTML = '🟡 <strong style="color:#ffb74d">' + top.name + '</strong> 주의 (' + top.temp.toFixed(1) + '℃)';
+    if (btnApprove) btnApprove.disabled = true;
+  } else {
+    spkInfo.innerHTML = '✓ 모든 구역 정상';
+    if (btnApprove) btnApprove.disabled = true;
+  }
+}
+
+// 살수 승인 버튼
+function approveSprinkle() {
+  var arr = [];
+  for (var z=1; z<=6; z++) {
+    var t = (typeof getZoneTempById === 'function') ? getZoneTempById(z) : 0;
+    if (t >= 60) arr.push({zone:z, temp:t});
+  }
+  if (!arr.length) {
+    showToast('60℃ 이상 위험 구역이 없습니다', '#a8b2c7');
+    return;
+  }
+  if (!confirm(arr.length + '개 구역에 살수를 승인합니다.\n계속하시겠습니까?')) return;
+  var t = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+  arr.forEach(function(a) {
+    logs.unshift({type:'spk', time:t, msg:'살수 승인 — 구역 ' + a.zone + ' (' + a.temp.toFixed(1) + '℃)'});
+  });
+  showToast('✅ ' + arr.length + '개 구역 살수 승인됨', '#4caf50');
+  renderLogV6();
+}
+
+function toggleManualMode() {
+  showToast('수동 모드 전환됨', '#4fc3f7');
+}
+
+// ── 5) 헤더 경보 스트립 ──
+function updateAlertStrip() {
+  var strip = document.getElementById('alertStrip');
+  var text = document.getElementById('alertStripText');
+  if (!strip || !text) return;
+  var dangerZones = [];
+  var cautionZones = [];
+  for (var z=1; z<=6; z++) {
+    var t = (typeof getZoneTempById === 'function') ? getZoneTempById(z) : 0;
+    if (t >= 60) dangerZones.push({z:z, t:t});
+    else if (t >= 58) cautionZones.push({z:z, t:t});
+  }
+  if (dangerZones.length) {
+    strip.className = 'alert-strip';
+    text.className = 'alert-text danger';
+    var icon = strip.querySelector('.alert-icon');
+    if (icon) icon.textContent = '⚠️';
+    text.textContent = '⚠️ 위험 ' + dangerZones.length + '개 구역 — ' +
+      dangerZones.map(function(d){return ZONE_NAMES_V6[d.z]+' '+d.t.toFixed(1)+'℃';}).join(', ');
+  } else if (cautionZones.length) {
+    strip.className = 'alert-strip warning';
+    text.className = 'alert-text warning';
+    var icon2 = strip.querySelector('.alert-icon');
+    if (icon2) icon2.textContent = '🟡';
+    text.textContent = '주의 ' + cautionZones.length + '개 구역 — ' +
+      cautionZones.map(function(d){return ZONE_NAMES_V6[d.z]+' '+d.t.toFixed(1)+'℃';}).join(', ');
+  } else {
+    strip.className = 'alert-strip normal';
+    text.className = 'alert-text normal';
+    var icon3 = strip.querySelector('.alert-icon');
+    if (icon3) icon3.textContent = '✓';
+    text.textContent = '정상 — 모든 구역이 임계값 이하입니다';
+  }
+}
+
+// ── 6) 시계 ──
+function updateClockV6() {
+  var c = document.getElementById('appClock');
+  if (!c) return;
+  var d = new Date();
+  var pad = function(n){return String(n).padStart(2,'0');};
+  c.textContent = pad(d.getMonth()+1) + '.' + pad(d.getDate()) + ' ' +
+    pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+
+// ── 7) 사이드 시스템 상태 ──
+function updateSideStatusV6() {
+  var kma = document.getElementById('ss-kma');
+  var metar = document.getElementById('ss-metar');
+  var ml = document.getElementById('ss-ml');
+  var hasKey = (typeof getKey === 'function') ? !!getKey() : true;
+  if (kma) { kma.className = hasKey ? 'ok' : 'ng'; kma.textContent = hasKey ? '●' : '●'; }
+  if (metar) { metar.className = 'ok'; metar.textContent = '●'; }
+  if (ml) { ml.className = mlModel ? 'ok' : 'ng'; ml.textContent = '●'; }
+}
+
+// ── 8) 운영로그 ──
+function renderLogV6() {
+  var list = document.getElementById('newLogList');
+  if (!list) return;
+  if (!logs || !logs.length) {
+    list.innerHTML = '<div class="pri-empty">기록 없음</div>';
+    return;
+  }
+  var html = logs.slice(0,12).map(function(l){
+    return '<div class="log-item ' + (l.type||'') + '">' +
+      '<span class="log-time">' + (l.time||'--:--') + '</span>' +
+      '<span class="log-msg">' + l.msg + '</span>' +
+      '</div>';
+  }).join('');
+  list.innerHTML = html;
+}
+
+// ── 9) 하단 탭 전환 ──
+var currentBottomTab = 'ml';
+function setBottomTab(name) {
+  currentBottomTab = name;
+  document.querySelectorAll('.bottom-tab, .side-btn[data-bottom]').forEach(function(b){
+    b.classList.toggle('active', b.getAttribute('data-bottom') === name);
+  });
+  document.querySelectorAll('.bottom-pane').forEach(function(p){
+    p.classList.toggle('active', p.id === 'bp-' + name);
+  });
+  renderBottomPane(name);
+}
+
+// ── 10) 하단 패널 컨텐츠 렌더링 ──
+function renderBottomPane(name) {
+  var pane = document.getElementById('bp-' + name);
+  if (!pane) return;
+  if (name === 'ml') renderBottomML(pane);
+  else if (name === 'data') renderBottomData(pane);
+  else if (name === 'metar') renderBottomMetar(pane);
+  else if (name === 'ana') renderBottomAna(pane);
+  else if (name === 'log') renderBottomLog(pane);
+}
+
+function renderBottomML(pane) {
+  if (!mlModel) {
+    pane.innerHTML = '<div style="text-align:center;padding:30px;color:var(--txt-3);">' +
+      '🤖 AI 모델이 학습되지 않았습니다.<br><br>' +
+      '<button class="btn btn-ml" onclick="openMLPanel()">엑셀 업로드 / 모델 학습 →</button>' +
+      '</div>';
+    return;
+  }
+  var fInfo = fileInfoCache;
+  var html = '<div class="bp-stats">' +
+    '<div class="bp-stat"><div class="bp-stat-lbl">학습 데이터</div><div class="bp-stat-val green">' + mlModel.n + '건</div></div>' +
+    '<div class="bp-stat"><div class="bp-stat-lbl">전체 R²</div><div class="bp-stat-val r2">' + mlModel.r2.toFixed(3) + '</div></div>' +
+    '<div class="bp-stat"><div class="bp-stat-lbl">RMSE</div><div class="bp-stat-val">' + mlModel.rmse.toFixed(2) + '℃</div></div>' +
+    '<div class="bp-stat"><div class="bp-stat-lbl">구역 모델</div><div class="bp-stat-val">' + Object.keys(zoneModels).length + '개</div></div>' +
+    '</div>';
+  // 회귀계수
+  if (mlModel.coefs && mlModel.featureNames) {
+    var mx = Math.max.apply(null, mlModel.coefs.map(Math.abs));
+    html += '<div class="bp-card"><div class="bp-card-title">📐 회귀 계수 (변수 영향도)</div><div class="coef-list">';
+    mlModel.coefs.forEach(function(c, i) {
+      var cls = c >= 0 ? 'coef-pos' : 'coef-neg';
+      html += '<div class="coef-item">' +
+        '<span class="coef-item-name">' + mlModel.featureNames[i] + '</span>' +
+        '<div class="coef-item-bar"><div class="coef-item-bar-f" style="width:' + (Math.abs(c)/mx*100) + '%;background:' + (c>=0?'#64b5f6':'#ef5350') + '"></div></div>' +
+        '<span class="coef-item-val ' + cls + '">' + (c>=0?'+':'') + c.toFixed(3) + '</span>' +
+        '</div>';
+    });
+    html += '</div></div>';
+  }
+  // 액션 버튼들
+  html += '<div style="display:flex;gap:6px;margin-top:8px;">' +
+    '<button class="btn btn-ml" onclick="openMLPanel()">📂 엑셀 업로드 / 옵션 변경</button>' +
+    '<button class="btn" onclick="if(typeof retrainCurrent===\'function\')retrainCurrent()">🔄 재학습</button>' +
+    '<button class="btn" onclick="if(confirm(\'모델을 삭제하시겠습니까?\'))clearModelFromStorage()">🗑 모델 삭제</button>' +
+    '</div>';
+  pane.innerHTML = html;
+}
+
+function renderBottomData(pane) {
+  var allData = [];
+  // 현장 입력
+  if (typeof dataLog !== 'undefined') {
+    for (var i=0; i<dataLog.length; i++) {
+      var d = dataLog[i];
+      allData.push({date:d.date, time:d.time, zone:d.zone, at:d.airTemp, sol:d.solar,
+        hum:d.humidity, ws:d.windSpeed, pt:d.pt, spk:d.spk, vol:d.vol, ta:d.ta, src:'현장'});
+    }
+  }
+  // 학습 데이터
+  if (anaData && anaData.rawRows) {
+    for (var j=0; j<anaData.rawRows.length; j++) {
+      var r = anaData.rawRows[j];
+      allData.push({date:r.date, time:r.time, zone:r.zone, at:r.at, sol:r.sol,
+        hum:r.hum, ws:r.ws, pt:r.pt, spk:r.spk, vol:r.vol, ta:r.ta, src:'학습'});
+    }
+  }
+  if (!allData.length) {
+    pane.innerHTML = '<div style="text-align:center;padding:30px;color:var(--txt-3);">📋 데이터가 없습니다.<br><br>' +
+      '<button class="btn btn-ml" onclick="openFieldInput()">+ 현장 데이터 입력</button>' +
+      '</div>';
+    return;
+  }
+  // 표 (최근 100건만)
+  var page = allData.slice(0, 100);
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+    '<span style="font-size:.74rem;color:var(--txt-2);">총 ' + allData.length + '건 (최근 100건 표시)</span>' +
+    '<button class="btn btn-ml" onclick="openFieldInput()" style="padding:5px 10px;">+ 현장 입력</button>' +
+    '</div>';
+  html += '<table class="data-table"><thead><tr>' +
+    '<th>일자</th><th>시간</th><th>구역</th><th>기온</th><th>일사량</th><th>습도</th><th>풍속</th>' +
+    '<th>포장온도</th><th>살수</th><th>살수량</th><th>살수후</th><th>출처</th>' +
+    '</tr></thead><tbody>';
+  page.forEach(function(r){
+    var ptCls = r.pt>=60?'coef-neg':(r.pt>=58?'':'coef-pos');
+    var taStr = (r.ta!==''&&r.ta!==null&&r.ta!==undefined&&!isNaN(r.ta))?Number(r.ta).toFixed(1)+'℃':'—';
+    var volStr = (r.vol!==''&&r.vol!==null&&r.vol!==undefined&&!isNaN(r.vol)&&r.vol>0)?Math.round(r.vol)+'L':'—';
+    html += '<tr>' +
+      '<td>' + (r.date||'—') + '</td>' +
+      '<td>' + (r.time||'—') + '</td>' +
+      '<td>' + (ZONE_NAMES_V6[r.zone]||r.zone) + '</td>' +
+      '<td>' + fmtT(r.at) + '</td>' +
+      '<td>' + fmtSol(r.sol) + '</td>' +
+      '<td>' + fmtH(r.hum) + '</td>' +
+      '<td>' + fmtW(r.ws) + '</td>' +
+      '<td class="' + ptCls + '" style="font-weight:700;">' + fmtT(r.pt) + '℃</td>' +
+      '<td>' + (r.spk?'✓':'—') + '</td>' +
+      '<td>' + volStr + '</td>' +
+      '<td>' + taStr + '</td>' +
+      '<td><span style="font-size:.62rem;color:var(--txt-3);">' + r.src + '</span></td>' +
+      '</tr>';
+  });
+  html += '</tbody></table>';
+  pane.innerHTML = html;
+}
+
+function renderBottomMetar(pane) {
+  var raw = (typeof metarData !== 'undefined' && metarData.raw) ? metarData.raw : '— 수신 대기 중 —';
+  var html = '<div class="bp-card">' +
+    '<div class="bp-card-title">✈️ METAR · RKPU</div>' +
+    '<div class="metar-raw">' + raw + '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px;">';
+  var fields = [
+    {l:'지상풍', v: metarData ? metarData.wind : '—'},
+    {l:'시정', v: metarData ? metarData.vis : '—'},
+    {l:'하늘상태', v: metarData ? metarData.cloud : '—'},
+    {l:'기온', v: metarData && metarData.temp != null ? metarData.temp+'℃' : '—'},
+    {l:'이슬점', v: metarData && metarData.dewpt != null ? metarData.dewpt+'℃' : '—'},
+    {l:'QNH', v: metarData && metarData.qnh ? metarData.qnh : '—'}
+  ];
+  fields.forEach(function(f){
+    html += '<div class="bp-stat"><div class="bp-stat-lbl">' + f.l + '</div><div style="font-size:.85rem;color:var(--txt-1);font-weight:700;margin-top:2px;">' + f.v + '</div></div>';
+  });
+  html += '</div></div>';
+  // 수동 입력
+  html += '<div class="bp-card" style="margin-top:8px;">' +
+    '<div class="bp-card-title">📝 METAR 수동 입력</div>' +
+    '<div style="display:flex;gap:6px;">' +
+    '<input id="metarInputV6" placeholder="RKPU 220600Z 18005KT 9999 SKC 16/08 Q1015" style="flex:1;">' +
+    '<button class="btn btn-ml" onclick="parseMetarV6()">파싱</button>' +
+    '</div>' +
+    '<div style="font-size:.66rem;color:var(--txt-3);margin-top:5px;">💡 <a href="https://aviationweather.gov/metar?ids=RKPU" target="_blank" style="color:var(--accent);">aviationweather.gov</a> 에서 복사 후 붙여넣기</div>' +
+    '</div>';
+  pane.innerHTML = html;
+}
+function parseMetarV6() {
+  var v = document.getElementById('metarInputV6');
+  if (!v) return;
+  var input = document.getElementById('metarInput');
+  if (input) { input.value = v.value; }
+  if (typeof parseMetarInput === 'function') parseMetarInput();
+  showToast('METAR 파싱 완료', '#4fc3f7');
+  setTimeout(function(){ renderBottomPane('metar'); }, 100);
+}
+
+function renderBottomAna(pane) {
+  if (!anaData || !anaData.rawRows || !anaData.rawRows.length) {
+    pane.innerHTML = '<div style="text-align:center;padding:30px;color:var(--txt-3);">📊 분석 데이터가 없습니다. AI 학습 후 표시됩니다.</div>';
+    return;
+  }
+  var rows = anaData.rawRows;
+  var preds = anaData.preds || [];
+  var Y = anaData.Y || [];
+  // 통계
+  var ptVals = rows.map(function(r){return r.pt;});
+  var ptMean = ptVals.reduce(function(a,b){return a+b;},0) / ptVals.length;
+  var ptMax = Math.max.apply(null, ptVals);
+  var ptMin = Math.min.apply(null, ptVals);
+  var spkN = rows.filter(function(r){return r.spk;}).length;
+
+  var html = '<div class="bp-stats">' +
+    '<div class="bp-stat"><div class="bp-stat-lbl">평균 포장온도</div><div class="bp-stat-val">' + ptMean.toFixed(1) + '℃</div></div>' +
+    '<div class="bp-stat"><div class="bp-stat-lbl">최고 포장온도</div><div class="bp-stat-val" style="color:#ef5350">' + ptMax.toFixed(1) + '℃</div></div>' +
+    '<div class="bp-stat"><div class="bp-stat-lbl">최저 포장온도</div><div class="bp-stat-val green">' + ptMin.toFixed(1) + '℃</div></div>' +
+    '<div class="bp-stat"><div class="bp-stat-lbl">살수 발생</div><div class="bp-stat-val" style="color:#4fc3f7">' + spkN + '회</div></div>' +
+    '</div>';
+  // 구역별 통계
+  html += '<div class="bp-card" style="margin-top:8px;"><div class="bp-card-title">📍 구역별 평균 온도</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;">';
+  for (var z=1; z<=6; z++) {
+    var zr = rows.filter(function(r){return r.zone===z;});
+    if (zr.length === 0) continue;
+    var zm = zr.map(function(r){return r.pt;}).reduce(function(a,b){return a+b;},0) / zr.length;
+    var zmodel = zoneModels[z];
+    html += '<div style="background:var(--bg-2);border:1px solid var(--bdr-1);border-radius:4px;padding:7px;text-align:center;">' +
+      '<div style="font-size:.62rem;color:var(--txt-3);">' + (ZONE_NAMES_V6[z]||('구역'+z)) + '</div>' +
+      '<div style="font-family:monospace;font-size:.95rem;color:var(--accent);font-weight:700;margin:2px 0;">' + zm.toFixed(1) + '℃</div>' +
+      '<div style="font-size:.6rem;color:var(--txt-3);">데이터 ' + zr.length + '건</div>' +
+      (zmodel ? '<div style="font-size:.6rem;color:var(--purple);">R² ' + zmodel.r2.toFixed(2) + '</div>' : '') +
+      '</div>';
+  }
+  html += '</div></div>';
+  pane.innerHTML = html;
+}
+
+function renderBottomLog(pane) {
+  if (!logs || !logs.length) {
+    pane.innerHTML = '<div style="text-align:center;padding:30px;color:var(--txt-3);">📝 운영 로그가 없습니다.</div>';
+    return;
+  }
+  var html = '<div class="log-list" style="max-height:none;">';
+  logs.forEach(function(l){
+    html += '<div class="log-item ' + (l.type||'') + '" style="padding:7px 10px;font-size:.74rem;">' +
+      '<span class="log-time">' + (l.time||'--:--') + '</span>' +
+      '<span class="log-msg">' + l.msg + '</span>' +
+      '</div>';
+  });
+  html += '</div>';
+  pane.innerHTML = html;
+}
+
+// ── ML/현장입력 패널 모달로 띄우기 ──
+function openMLPanel() {
+  var legacyArea = document.getElementById('legacyArea');
+  var tabML = document.getElementById('tab-ml');
+  if (!tabML) return;
+  showLegacyModal('AI 학습 모델', tabML);
+}
+function openFieldInput() {
+  var tabData = document.getElementById('tab-data');
+  if (!tabData) return;
+  showLegacyModal('데이터 현황 / 현장 입력', tabData);
+}
+function showLegacyModal(title, content) {
+  var modal = document.getElementById('legacyModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'legacyModal';
+    modal.className = 'modal-ov';
+    modal.innerHTML = '<div class="modal" style="min-width:90vw;max-width:1200px;height:85vh;display:flex;flex-direction:column;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+      '<h3 id="legacyModalTitle"></h3>' +
+      '<button class="s-btn s-btn-cancel" onclick="closeLegacyModal()">✕ 닫기</button>' +
+      '</div>' +
+      '<div id="legacyModalBody" style="flex:1;overflow-y:auto;padding:10px;background:var(--bg-1);border-radius:5px;"></div>' +
+      '</div>';
+    document.body.appendChild(modal);
+  }
+  document.getElementById('legacyModalTitle').textContent = title;
+  var body = document.getElementById('legacyModalBody');
+  body.innerHTML = '';
+  // legacy 영역의 콘텐츠를 직접 모달로 이동시키지 말고 cloning 대신 display 토글
+  var cloneEl = content.cloneNode(true);
+  cloneEl.style.display = 'block';
+  cloneEl.classList.remove('hidden-legacy');
+  // 클릭 핸들러가 ID 기반이므로 원본 ID는 보존되어야 함 → 원본을 직접 보여주는 방식 사용
+  body.innerHTML = '';
+  body.appendChild(content);  // 원본 이동 (DOM 단일 위치)
+  content.style.display = 'block';
+  modal.dataset.contentId = content.id;
+  modal.classList.add('show');
+}
+function closeLegacyModal() {
+  var modal = document.getElementById('legacyModal');
+  if (!modal) return;
+  var contentId = modal.dataset.contentId;
+  if (contentId) {
+    var content = document.getElementById(contentId);
+    var legacyArea = document.getElementById('legacyArea');
+    if (content && legacyArea) {
+      legacyArea.appendChild(content);
+      content.style.display = '';
+    }
+  }
+  modal.classList.remove('show');
+}
+
+// ── 통합 업데이트 함수 ──
+function v6FullUpdate() {
+  try { renderSensorBarV6(); } catch(e) { console.warn('sensorBar:', e); }
+  try { renderZonesGridV6(); } catch(e) { console.warn('zones:', e); }
+  try { renderChartV6(); } catch(e) { console.warn('chart:', e); }
+  try { renderPriorityV6(); } catch(e) { console.warn('priority:', e); }
+  try { updateAlertStrip(); } catch(e) { console.warn('alert:', e); }
+  try { updateSideStatusV6(); } catch(e) { console.warn('side:', e); }
+  try { renderLogV6(); } catch(e) { console.warn('log:', e); }
+  try { renderBottomPane(currentBottomTab); } catch(e) { console.warn('bottom:', e); }
+}
+
+// 초기화 + 인터벌
+setTimeout(function() {
+  v6FullUpdate();
+  setInterval(v6FullUpdate, 5000);
+  setInterval(updateClockV6, 1000);
+  updateClockV6();
+  setBottomTab('ml');  // 기본 탭
+}, 500);
 </script>
 </body>
 </html>
