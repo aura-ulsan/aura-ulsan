@@ -683,8 +683,14 @@ label{color:var(--txt-2);font-size:.74rem;}
         <div class="zones-grid" id="zonesGrid"></div>
         <div class="chart-zone">
           <div class="chart-head">
-            <div class="chart-title">📈 포장온도 시간대별 예측 (±2시간)</div>
+            <div class="chart-title">📈 포장온도 예측 추이 — 살수 미실시 vs 살수 실시</div>
             <span class="chart-bdg" id="chartModelBdgNew">대기 중</span>
+          </div>
+          <div id="sprinkleTrendSummary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:7px;"></div>
+          <div style="display:flex;gap:12px;align-items:center;font-size:.68rem;color:var(--txt-2);margin-bottom:4px;">
+            <span><b style="display:inline-block;width:18px;border-top:3px dashed #e53935;vertical-align:middle;margin-right:4px;"></b>살수 미실시 예상</span>
+            <span><b style="display:inline-block;width:18px;border-top:3px dashed #1565c0;vertical-align:middle;margin-right:4px;"></b>살수 실시 예상</span>
+            <span><b style="display:inline-block;width:18px;border-top:3px solid #ff6f00;vertical-align:middle;margin-right:4px;"></b>현재/실측</span>
           </div>
           <div class="chart-body">
             <canvas id="newTempChart"></canvas>
@@ -2586,51 +2592,73 @@ function buildChart() {
   var base = mlModel ? predictPave() : wx.paveTemp;
   var offs = [-120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180];
   var curve = [-7.9, -6.3, -4.8, -2.4, 0, 1.3, 2.7, 2.0, 0.6, -1.7, -3.8];
-  var labels = [], past = [], future = [];
+  var labels = [], past = [], noSprinkle = [], withSprinkle = [];
+  var currentEffect = predictCoolingEffect(null, base);
+
   offs.forEach(function(m, i) {
     var t = new Date(now.getTime() + m * 60000);
     labels.push((m > 0 ? '▶ ' : '') + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'));
     var v;
     if (mlModel) {
-      // ★ 모델 옵션에 맞춰 동적으로 변수 구성
       var opts = mlModel.opts || { advanced: false, zonedummy: false };
       var zKeys = mlModel.zoneKeys || [];
-      // 시간 보정값 적용한 wx 임시 객체
       var savedWx = {at: wx.airTemp, sol: wx.solar};
       wx.airTemp = savedWx.at + m / 60 * 0.05;
       wx.solar = Math.max(0, savedWx.sol + (m > 0 ? -m / 60 * 0.05 : m / 60 * 0.03));
       var x = buildPredictFeatures(opts, zKeys, null);
       v = parseFloat(predict(mlModel, x).toFixed(1));
-      // 원복
       wx.airTemp = savedWx.at;
       wx.solar = savedWx.sol;
     } else {
       v = parseFloat((base + curve[i]).toFixed(1));
     }
+
     past.push(i <= 4 ? v : null);
-    future.push(i >= 4 ? v : null);
+    noSprinkle.push(i >= 4 ? v : null);
+
+    // 살수 실시 시 예상 추이: 현재 살수효과를 적용하고 시간이 지나며 냉각효과가 점진적으로 감소한다고 가정
+    if (i >= 4) {
+      var minAfter = Math.max(0, m);
+      var decay = Math.max(0.15, 1 - (minAfter / 180) * 0.85);
+      var cooled = Math.max(0, v - currentEffect * decay);
+      withSprinkle.push(parseFloat(cooled.toFixed(1)));
+    } else {
+      withSprinkle.push(null);
+    }
   });
+
+  var titleEl = document.querySelector('.chart-title');
+  if (titleEl) titleEl.textContent = '📈 포장온도 예측 추이 — 살수 미실시 vs 살수 실시';
+  var bdg = document.getElementById('chartModelBdgNew') || document.getElementById('chartModelBdg');
+  if (bdg) bdg.textContent = (mlModel ? 'AI 예측 + 냉각식' : '추정 + 냉각효과');
+
   if (chartInst) { chartInst.destroy(); chartInst = null; }
-  chartInst = new Chart(document.getElementById('tempChart'), {
+  var ctx = document.getElementById('tempChart') || document.getElementById('newTempChart');
+  if (!ctx) return;
+  var allVals = past.concat(noSprinkle).concat(withSprinkle).filter(function(v){ return v !== null && !isNaN(v); });
+  var minY = Math.max(0, Math.min.apply(null, allVals) - 4);
+  var maxY = Math.max(65, Math.max.apply(null, allVals) + 5);
+  chartInst = new Chart(ctx, {
     type: 'line',
     data: { labels: labels, datasets: [
-      { label: '실측/현재(℃)', data: past, borderColor: '#888', backgroundColor: 'rgba(100,100,100,.06)',
+      { label: '실측/현재(℃)', data: past, borderColor: '#777', backgroundColor: 'rgba(100,100,100,.06)',
         pointBackgroundColor: past.map(function(_, i) { return i === 4 ? '#1F4E79' : '#aaa'; }),
-        pointRadius: past.map(function(_, i) { return i === 4 ? 8 : 4; }), tension: 0.4, fill: true, borderWidth: 2 },
-      { label: mlModel ? 'AI 예측(℃)' : '예측(℃)', data: future,
-        borderColor: mlModel ? '#7b1fa2' : '#e53935',
-        backgroundColor: mlModel ? 'rgba(123,31,162,.07)' : 'rgba(229,57,53,.07)',
-        borderDash: [5, 4],
-        pointBackgroundColor: future.map(function(v) { return v === null ? 'transparent' : v >= 60 ? '#e53935' : v >= 58 ? '#fb8c00' : '#43a047'; }),
-        pointRadius: future.map(function(v) { return v === null ? 0 : 5; }),
-        tension: 0.4, fill: true, borderWidth: 2 },
+        pointRadius: past.map(function(_, i) { return i === 4 ? 8 : 4; }), tension: 0.4, fill: false, borderWidth: 2 },
+      { label: '살수 미실시 예상(℃)', data: noSprinkle,
+        borderColor: '#e53935', backgroundColor: 'rgba(229,57,53,.06)', borderDash: [5, 4],
+        pointBackgroundColor: noSprinkle.map(function(v) { return v === null ? 'transparent' : v >= 60 ? '#e53935' : v >= 58 ? '#fb8c00' : '#43a047'; }),
+        pointRadius: noSprinkle.map(function(v) { return v === null ? 0 : 5; }), tension: 0.4, fill: false, borderWidth: 2 },
+      { label: '살수 실시 예상(℃)', data: withSprinkle,
+        borderColor: '#1565c0', backgroundColor: 'rgba(21,101,192,.08)', borderDash: [2, 3],
+        pointBackgroundColor: withSprinkle.map(function(v) { return v === null ? 'transparent' : '#1565c0'; }),
+        pointRadius: withSprinkle.map(function(v) { return v === null ? 0 : 5; }), tension: 0.4, fill: false, borderWidth: 2.5 },
       { label: '경보 기준(60℃)', data: Array(labels.length).fill(60),
-        borderColor: 'rgba(229,57,53,.5)', borderDash: [8, 4], borderWidth: 1.5, pointRadius: 0, fill: false }
+        borderColor: 'rgba(229,57,53,.55)', borderDash: [8, 4], borderWidth: 1.5, pointRadius: 0, fill: false }
     ]},
     options: { responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 14 } }, tooltip: { callbacks: { label: function(c) { return ' ' + c.parsed.y + '℃'; } } } },
+      plugins: { legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 14 } }, tooltip: { callbacks: { label: function(c) { return ' ' + c.dataset.label + ': ' + c.parsed.y + '℃'; } } } },
       scales: {
-        y: { min: Math.max(0, base - 10), max: base + 12, ticks: { callback: function(v) { return v + '℃'; }, font: { size: 11 } }, grid: { color: '#eef0f4' } },
+        y: { min: minY, max: maxY, ticks: { callback: function(v) { return v + '℃'; }, font: { size: 11 } }, grid: { color: '#eef0f4' } },
         x: { ticks: { font: { size: 10 } }, grid: { color: '#eef0f4' } }
       }
     }
@@ -2683,6 +2711,20 @@ function renderAll() {
   renderPostSprinklePanel();
 }
 
+function getCoolingCurvePoint(baseTemp, zoneId, minAfter, noSprinkleTemp) {
+  var effect = predictCoolingEffect(zoneId, baseTemp);
+  var decay = Math.max(0.15, 1 - (Math.max(0, minAfter) / 180) * 0.85);
+  return parseFloat(Math.max(0, noSprinkleTemp - effect * decay).toFixed(1));
+}
+
+function estimateReturnUnder60(currentTemp, postTemp) {
+  if (currentTemp < 60) return '이미 안전범위';
+  if (postTemp < 60) return '즉시~10분';
+  var rate = Math.max(0.05, Math.abs(calcRiseRate()) || 0.08);
+  var mins = Math.ceil((postTemp - 59.9) / rate);
+  return mins > 0 ? ('약 ' + mins + '분') : '즉시~10분';
+}
+
 function renderPostSprinklePanel() {
   var el = document.getElementById('postSprinklePanel');
   if (!el) return;
@@ -2694,17 +2736,30 @@ function renderPostSprinklePanel() {
   el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">' +
     zones.map(function(z) {
       var cur = getZoneTempById(z.id);
+      var effect = predictCoolingEffect(z.id, cur);
       var post = postSprinkleTemp(z.id);
-      var eff = predictCoolingEffect(z.id, cur);
+      var noSpr30 = parseFloat((cur + Math.max(0, calcRiseRate()) * 30).toFixed(1));
+      if (!isFinite(noSpr30) || noSpr30 < cur) noSpr30 = cur;
+      var withSpr30 = getCoolingCurvePoint(cur, z.id, 30, noSpr30);
+      var recover = estimateReturnUnder60(cur, post);
       var color = cur >= 60 ? '#b71c1c' : cur >= 58 ? '#c47a00' : '#1a7a4a';
-      return '<div style="background:#f8fafc;border-radius:8px;padding:7px;text-align:center;border:1px solid var(--bdr);">' +
-        '<div style="font-size:.65rem;color:var(--sub);margin-bottom:2px;">' + z.name + '</div>' +
-        '<div style="font-size:.85rem;font-weight:800;color:' + color + ';">' + cur + '℃</div>' +
-        '<div style="font-size:.62rem;color:#1565c0;">▼' + eff.toFixed(1) + '℃</div>' +
-        '<div style="font-size:.82rem;font-weight:700;color:#1a7a4a;">' + post + '℃</div>' +
-        '</div>';
+      return '<div style="background:#f8fafc;border-radius:8px;padding:8px;border:1px solid var(--bdr);">' +
+        '<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;margin-bottom:4px;">' +
+          '<div style="font-size:.7rem;font-weight:800;color:var(--navy);">' + z.name + '</div>' +
+          '<div style="font-size:.62rem;color:var(--sub);">' + z.sub + '</div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;text-align:center;">' +
+          '<div><div style="font-size:.6rem;color:var(--sub);">현재</div><div style="font-size:.95rem;font-weight:900;color:' + color + ';">' + cur + '℃</div></div>' +
+          '<div><div style="font-size:.6rem;color:var(--sub);">살수후</div><div style="font-size:.95rem;font-weight:900;color:#1565c0;">' + post + '℃</div></div>' +
+          '<div><div style="font-size:.6rem;color:var(--sub);">저감</div><div style="font-size:.95rem;font-weight:900;color:#1a7a4a;">▼' + effect.toFixed(1) + '</div></div>' +
+        '</div>' +
+        '<div style="margin-top:6px;padding-top:5px;border-top:1px dashed var(--bdr);font-size:.64rem;color:var(--sub);line-height:1.55;">' +
+          '30분 후: 미살수 <strong style="color:#b71c1c;">' + noSpr30 + '℃</strong> / 살수 <strong style="color:#1565c0;">' + withSpr30 + '℃</strong><br>' +
+          '60℃ 이하 복귀: <strong style="color:#1a7a4a;">' + recover + '</strong>' +
+        '</div>' +
+      '</div>';
     }).join('') + '</div>' +
-    '<div style="font-size:.67rem;color:var(--sub);margin-top:6px;text-align:right;">현재온도 → ' + (coolingModel ? '살수효과 회귀식' : '평균 살수효과') + ' → 살수후 예상온도</div>';
+    '<div style="font-size:.67rem;color:var(--sub);margin-top:6px;text-align:right;">살수 미실시 추이와 살수 실시 추이를 비교 표시합니다. 적용식: ' + (coolingModel ? '살수효과 회귀식' : '평균 살수효과') + '</div>';
 }
 
 function activateSprinkler() {
@@ -3523,14 +3578,20 @@ function renderPriorityPanel() {
   el.innerHTML = list.map(function(z, i) {
     var postTemp = postSprinkleTemp(z.id);
     var effect = predictCoolingEffect(z.id, z.temp);
-    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;margin-bottom:5px;background:' + bgColors[z.status] + ';border:1px solid ' + colors[z.status] + '20;">' +
-      '<div style="width:22px;height:22px;border-radius:50%;background:' + colors[z.status] + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;">' + (i + 1) + '</div>' +
+    var noSpr30 = parseFloat((z.temp + Math.max(0, calcRiseRate()) * 30).toFixed(1));
+    if (!isFinite(noSpr30) || noSpr30 < z.temp) noSpr30 = z.temp;
+    var withSpr30 = getCoolingCurvePoint(z.temp, z.id, 30, noSpr30);
+    var recover = estimateReturnUnder60(z.temp, postTemp);
+    var advice = z.temp >= 60 ? '즉시 살수' : (z.temp >= 58 ? '살수 준비' : '감시 유지');
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;margin-bottom:5px;background:' + bgColors[z.status] + ';border:1px solid ' + colors[z.status] + '20;">' +
+      '<div style="width:24px;height:24px;border-radius:50%;background:' + colors[z.status] + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;">' + (i + 1) + '</div>' +
       '<div style="flex:1;min-width:0;">' +
-        '<div style="font-size:.78rem;font-weight:700;">' + z.name + ' <span style="font-weight:400;color:var(--sub);font-size:.68rem;">· ' + z.sub + '</span></div>' +
+        '<div style="font-size:.78rem;font-weight:800;">' + z.name + ' <span style="font-weight:400;color:var(--sub);font-size:.68rem;">· ' + z.sub + '</span></div>' +
+        '<div style="font-size:.64rem;color:var(--sub);margin-top:2px;">30분 후 미살수 ' + noSpr30 + '℃ → 살수 ' + withSpr30 + '℃ / 복귀 ' + recover + '</div>' +
       '</div>' +
       '<div style="text-align:right;flex-shrink:0;">' +
-        '<div style="font-size:1.05rem;font-weight:800;color:' + colors[z.status] + ';">' + z.temp + '℃</div>' +
-        '<div style="font-size:.65rem;color:var(--sub);">살수후 예상 ' + postTemp + '℃ (▼' + effect.toFixed(1) + ')</div>' +
+        '<div style="font-size:1.05rem;font-weight:900;color:' + colors[z.status] + ';">' + z.temp + '℃</div>' +
+        '<div style="font-size:.65rem;color:#1565c0;font-weight:700;">' + advice + ' · ▼' + effect.toFixed(1) + '℃</div>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -3812,6 +3873,11 @@ function renderZonesGridV6() {
           '<span>임계 60℃</span>' +
           '<span class="z-diff">--</span>' +
         '</div>' +
+        '<div class="z-sprinkle-compare" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:5px;font-size:.62rem;text-align:center;border-top:1px dashed var(--bdr-1);padding-top:5px;">' +
+          '<div><div style="color:var(--txt-3);">미살수30분</div><strong class="z-nospr" style="color:#b71c1c;">--</strong></div>' +
+          '<div><div style="color:var(--txt-3);">살수후</div><strong class="z-post" style="color:#1565c0;">--</strong></div>' +
+          '<div><div style="color:var(--txt-3);">복귀</div><strong class="z-return" style="color:#1a7a4a;">--</strong></div>' +
+        '</div>' +
         '<div class="bar-bg"><div class="bar-f" style="width:0%"></div></div>' +
         '</div>';
     }
@@ -3826,22 +3892,23 @@ function renderZonesGridV6() {
     var lvlText = lvl==='danger' ? '⚠ 위험' : lvl==='caution' ? '🟡 주의' : '✓ 정상';
     var pct = Math.min(100, t / 70 * 100);
     var diffStr = t >= 60 ? '+' + (t-60).toFixed(1) + '℃' : '−' + (60-t).toFixed(1) + '℃';
+    var noSpr30 = parseFloat((t + Math.max(0, calcRiseRate()) * 30).toFixed(1));
+    if (!isFinite(noSpr30) || noSpr30 < t) noSpr30 = t;
+    var post = postSprinkleTemp(z);
+    var recover = estimateReturnUnder60(t, post);
 
     var card = grid.querySelector('[data-zone="' + z + '"]');
     if (!card) continue;
 
-    // 클래스 (위험도)
     var newClass = 'zone-card ' + lvl;
     if (card.className !== newClass) card.className = newClass;
 
-    // 배지
     var bdg = card.querySelector('.z-bdg');
     if (bdg) {
       var newBdgClass = 'z-bdg ' + lvl;
       if (bdg.className !== newBdgClass) bdg.className = newBdgClass;
       if (bdg.textContent !== lvlText) bdg.textContent = lvlText;
     }
-    // 온도
     var temp = card.querySelector('.z-temp');
     if (temp) {
       var newTempClass = 'z-temp ' + lvl;
@@ -3849,10 +3916,14 @@ function renderZonesGridV6() {
       var newVal = t.toFixed(1);
       if (temp.textContent !== newVal) temp.textContent = newVal;
     }
-    // 차이
     var diff = card.querySelector('.z-diff');
     if (diff && diff.textContent !== diffStr) diff.textContent = diffStr;
-    // 바
+    var noSpr = card.querySelector('.z-nospr');
+    if (noSpr) noSpr.textContent = noSpr30.toFixed(1) + '℃';
+    var postEl = card.querySelector('.z-post');
+    if (postEl) postEl.textContent = post.toFixed(1) + '℃';
+    var retEl = card.querySelector('.z-return');
+    if (retEl) retEl.textContent = recover;
     var barF = card.querySelector('.bar-f');
     if (barF) {
       var newBarClass = 'bar-f ' + lvl;
@@ -3988,20 +4059,43 @@ function fillDailyFromOpenMeteo() {
     });
 }
 
+
+function renderSprinkleTrendSummary() {
+  var el = document.getElementById('sprinkleTrendSummary');
+  if (!el) return;
+  var temps = (typeof getZoneTemps === 'function') ? getZoneTemps() : [wx.paveTemp];
+  var cur = Math.max.apply(null, temps.map(function(v){ return Number(v)||0; }));
+  if (!isFinite(cur) || cur <= 0) cur = Number(wx.paveTemp)||0;
+  var riseRate = Math.max(0, (typeof calcRiseRate === 'function' ? calcRiseRate() : 0.03));
+  var noSpr30 = parseFloat((cur + riseRate * 30).toFixed(1));
+  var effect = (typeof predictCoolingEffect === 'function') ? predictCoolingEffect(null, cur) : ((sprinkleEffect && sprinkleEffect.all) || 8);
+  var postNow = parseFloat(Math.max(0, cur - effect).toFixed(1));
+  var post30 = parseFloat(Math.max(0, noSpr30 - effect * 0.82).toFixed(1));
+  var returnTxt = (typeof estimateReturnUnder60 === 'function') ? estimateReturnUnder60(cur, postNow) : (postNow < 60 ? '즉시' : '산정중');
+  var riskTxt = cur >= 60 ? '즉시 살수 권고' : (cur >= 58 ? '주의 모니터링' : '정상 감시');
+  var cards = [
+    {t:'현재 최고온도', v:cur.toFixed(1)+'℃', s:riskTxt, c:cur>=60?'#c62828':(cur>=58?'#e65100':'#2e7d32')},
+    {t:'30분 후 미살수', v:noSpr30.toFixed(1)+'℃', s:'자연상승/예측선', c:'#e53935'},
+    {t:'30분 후 살수', v:post30.toFixed(1)+'℃', s:'예상 저감 ▼'+effect.toFixed(1)+'℃', c:'#1565c0'},
+    {t:'60℃ 이하 복귀', v:returnTxt, s:'살수 실시 기준', c:'#1a7a4a'}
+  ];
+  el.innerHTML = cards.map(function(x){
+    return '<div style="background:#fff;border:1px solid var(--bdr-1);border-left:4px solid '+x.c+';border-radius:7px;padding:7px 9px;box-shadow:0 1px 3px rgba(0,0,0,.04);">' +
+      '<div style="font-size:.62rem;color:var(--txt-3);font-weight:700;letter-spacing:.2px;">'+x.t+'</div>' +
+      '<div style="font-size:1.05rem;font-weight:900;color:'+x.c+';line-height:1.2;margin-top:1px;">'+x.v+'</div>' +
+      '<div style="font-size:.62rem;color:var(--txt-2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+x.s+'</div>' +
+    '</div>';
+  }).join('');
+}
+
 function renderChartV6() {
   var canvas = document.getElementById('newTempChart');
   if (!canvas) return;
   var ctx = canvas.getContext('2d');
 
-  // 데이터 준비
   recordDailyTemp();
+  if (!openMeteoFetched && new Date().getHours() > 0) setTimeout(fillDailyFromOpenMeteo, 200);
 
-  // Open-Meteo 보충 시도 (한 번만)
-  if (!openMeteoFetched && new Date().getHours() > 0) {
-    setTimeout(fillDailyFromOpenMeteo, 200);
-  }
-
-  // 측정/추정 분리 (Chart.js dataset 2개)
   var estimatedData = [];
   var measuredData = [];
   dailyTempData.forEach(function(d) {
@@ -4009,87 +4103,53 @@ function renderChartV6() {
     else measuredData.push({x:d.hour, y:d.temp});
   });
 
-  // 미래 예측 (현재~24시)
-  var futureData = [];
-  var nowHr = new Date().getHours() + new Date().getMinutes()/60;
-  if (mlModel) {
-    for (var fh = Math.ceil(nowHr * 2)/2; fh <= 24; fh += 0.5) {
-      // 시간 변화에 따른 일사량 변동 (간단한 사인파)
+  var noSprinkleData = [];
+  var withSprinkleData = [];
+  var now = new Date();
+  var nowHr = now.getHours() + now.getMinutes()/60;
+  var currentBase = mlModel ? predictPave() : wx.paveTemp;
+  var effect = predictCoolingEffect(null, currentBase);
+
+  for (var fh = Math.ceil(nowHr * 2)/2; fh <= Math.min(24, nowHr + 3); fh += 0.5) {
+    var pt;
+    if (mlModel) {
       var solFactor = Math.max(0, Math.sin((fh - 6) / 12 * Math.PI));
-      var baseSolar = wx.solar > 0 ? wx.solar / Math.max(0.1, Math.sin((nowHr - 6) / 12 * Math.PI)) : 2.5;
+      var denom = Math.max(0.1, Math.sin((nowHr - 6) / 12 * Math.PI));
+      var baseSolar = wx.solar > 0 ? wx.solar / denom : 2.5;
       var futSolar = baseSolar * solFactor;
-      var futAirTemp = wx.airTemp;  // 단순화: 기온은 현재값 유지
-      // AI 예측
       var savedWx = {at:wx.airTemp, sol:wx.solar};
-      wx.airTemp = futAirTemp; wx.solar = futSolar;
+      wx.airTemp = wx.airTemp; wx.solar = futSolar;
       var opts = mlModel.opts || {advanced:false, zonedummy:false};
       var x = buildPredictFeatures(opts, mlModel.zoneKeys || [], null);
-      var pt = parseFloat(predict(mlModel, x).toFixed(1));
+      pt = parseFloat(predict(mlModel, x).toFixed(1));
       wx.airTemp = savedWx.at; wx.solar = savedWx.sol;
-      futureData.push({x: fh, y: pt});
+    } else {
+      var minAfterFallback = (fh - nowHr) * 60;
+      pt = parseFloat((currentBase + Math.max(0, calcRiseRate()) * minAfterFallback).toFixed(1));
+      if (!isFinite(pt)) pt = currentBase;
     }
+    var minAfter = (fh - nowHr) * 60;
+    var decay = Math.max(0.15, 1 - (Math.max(0, minAfter) / 180) * 0.85);
+    var cooled = parseFloat(Math.max(0, pt - effect * decay).toFixed(1));
+    noSprinkleData.push({x: fh, y: pt});
+    withSprinkleData.push({x: fh, y: cooled});
   }
 
   var chartData = {
     datasets: [
-      {
-        label: '추정 (자정~접속전)',
-        data: estimatedData,
-        borderColor: '#9e9e9e',
-        backgroundColor: 'rgba(158,158,158,.08)',
-        borderWidth: 1.5,
-        borderDash: [4, 3],
-        pointRadius: 1.5,
-        pointBackgroundColor: '#9e9e9e',
-        tension: 0.4,
-        fill: true
-      },
-      {
-        label: '실측',
-        data: measuredData,
-        borderColor: '#ff6f00',
-        backgroundColor: function(ctx) {
-          var chart = ctx.chart;
-          var area = chart.chartArea;
-          if (!area) return 'rgba(255,111,0,.1)';
-          var grad = ctx.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
-          grad.addColorStop(0, 'rgba(198,40,40,.25)');
-          grad.addColorStop(0.5, 'rgba(255,111,0,.15)');
-          grad.addColorStop(1, 'rgba(46,125,50,.04)');
-          return grad;
-        },
-        borderWidth: 2.5,
-        pointRadius: function(ctx) {
-          // 마지막 점만 크게
-          return ctx.dataIndex === ctx.dataset.data.length - 1 ? 6 : 2;
-        },
-        pointBackgroundColor: function(ctx) {
-          return ctx.dataIndex === ctx.dataset.data.length - 1 ? '#c62828' : '#ff6f00';
-        },
-        tension: 0.3,
-        fill: true
-      },
-      {
-        label: '예측 (향후)',
-        data: futureData,
-        borderColor: '#6a1b9a',
-        backgroundColor: 'rgba(106,27,154,.05)',
-        borderWidth: 2,
-        borderDash: [6, 4],
-        pointRadius: 2,
-        pointBackgroundColor: '#9c27b0',
-        tension: 0.4,
-        fill: false
-      }
+      { label: '추정 (자정~접속전)', data: estimatedData, borderColor: '#9e9e9e', backgroundColor: 'rgba(158,158,158,.08)', borderWidth: 1.5, borderDash: [4, 3], pointRadius: 1.5, pointBackgroundColor: '#9e9e9e', tension: 0.4, fill: true },
+      { label: '실측', data: measuredData, borderColor: '#ff6f00', backgroundColor: 'rgba(255,111,0,.10)', borderWidth: 2.5, pointRadius: function(ctx) { return ctx.dataIndex === ctx.dataset.data.length - 1 ? 6 : 2; }, pointBackgroundColor: function(ctx) { return ctx.dataIndex === ctx.dataset.data.length - 1 ? '#c62828' : '#ff6f00'; }, tension: 0.3, fill: true },
+      { label: '살수 미실시 예상', data: noSprinkleData, borderColor: '#e53935', backgroundColor: 'rgba(229,57,53,.05)', borderWidth: 2, borderDash: [6, 4], pointRadius: 2.5, pointBackgroundColor: '#e53935', tension: 0.4, fill: false },
+      { label: '살수 실시 예상', data: withSprinkleData, borderColor: '#1565c0', backgroundColor: 'rgba(21,101,192,.05)', borderWidth: 2.5, borderDash: [2, 3], pointRadius: 2.5, pointBackgroundColor: '#1565c0', tension: 0.4, fill: false }
     ]
   };
 
-  // ★ 깜박임 해결 — 첫 생성 후엔 update만
   if (chartInstV6) {
     chartInstV6.data.datasets[0].data = estimatedData;
     chartInstV6.data.datasets[1].data = measuredData;
-    chartInstV6.data.datasets[2].data = futureData;
-    chartInstV6.update('none');  // 애니메이션 없이 부드럽게
+    chartInstV6.data.datasets[2].data = noSprinkleData;
+    chartInstV6.data.datasets[3].data = withSprinkleData;
+    chartInstV6.update('none');
   } else {
     chartInstV6 = new Chart(ctx, {
       type: 'line',
@@ -4098,73 +4158,22 @@ function renderChartV6() {
         responsive: true,
         maintainAspectRatio: false,
         animation: {duration: 600, easing: 'easeOutQuart'},
-        plugins: {
-          legend: {
-            labels: {color:'#5a6a7e', font:{size:10}, boxWidth:14, padding:8}
-          },
-          annotation: {
-            annotations: {
-              critLine: {
-                type: 'line', yMin: 60, yMax: 60,
-                borderColor: '#c62828', borderWidth: 1.5, borderDash: [5,4],
-                label: {
-                  display: true, content: '임계 60℃',
-                  backgroundColor: 'rgba(198,40,40,.85)',
-                  color: '#fff', font: {size:10, weight:'bold'},
-                  position: 'end'
-                }
-              },
-              nowLine: {
-                type: 'line',
-                xMin: nowHr, xMax: nowHr,
-                borderColor: '#1565c0', borderWidth: 1.5, borderDash: [3,3],
-                label: {
-                  display: true, content: '지금',
-                  backgroundColor: 'rgba(21,101,192,.85)',
-                  color: '#fff', font: {size:9, weight:'bold'},
-                  position: 'start'
-                }
-              }
-            }
-          }
-        },
+        plugins: { legend: { labels: {color:'#5a6a7e', font:{size:10}, boxWidth:14, padding:8} } },
         scales: {
-          y: {
-            ticks: {color:'#5a6a7e', font:{size:10}},
-            grid: {color:'#e8edf5'},
-            min: 20, max: 75,
-            title: {display:true, text:'포장온도 (℃)', color:'#5a6a7e', font:{size:10, weight:'bold'}}
-          },
-          x: {
-            type: 'linear', min: 0, max: 24,
-            ticks: {
-              color:'#5a6a7e', font:{size:10}, stepSize: 3,
-              callback: function(v) { return String(v).padStart(2,'0') + '시'; }
-            },
-            grid: {color:'#e8edf5'},
-            title: {display:true, text:'시각', color:'#5a6a7e', font:{size:10, weight:'bold'}}
-          }
+          y: { ticks: {color:'#5a6a7e', font:{size:10}}, grid: {color:'#e8edf5'}, min: 20, max: 75, title: {display:true, text:'포장온도 (℃)', color:'#5a6a7e', font:{size:10, weight:'bold'}} },
+          x: { type: 'linear', min: 0, max: 24, ticks: { color:'#5a6a7e', font:{size:10}, stepSize: 3, callback: function(v) { return String(v).padStart(2,'0') + '시'; } }, grid: {color:'#e8edf5'}, title: {display:true, text:'시각', color:'#5a6a7e', font:{size:10, weight:'bold'}} }
         }
       }
     });
   }
 
-  // 차트 모델 배지
   var bdg = document.getElementById('chartModelBdgNew');
-  if (bdg) {
-    if (mlModel) {
-      bdg.textContent = '🤖 AI R²=' + mlModel.r2.toFixed(3);
-    } else {
-      bdg.textContent = '추정식';
-    }
-  }
-
-  // 차트 제목 업데이트
+  if (bdg) bdg.textContent = mlModel ? 'AI + 살수효과식' : '추정 + 냉각효과';
   var titleEl = document.querySelector('.chart-zone .chart-title');
   if (titleEl) {
     var d = new Date();
     var dateStr = d.getFullYear() + '.' + String(d.getMonth()+1).padStart(2,'0') + '.' + String(d.getDate()).padStart(2,'0');
-    titleEl.innerHTML = '📈 일일 포장온도 추이 <span style="font-size:.7rem;color:var(--txt-3);font-weight:500;">· ' + dateStr + ' (00시~24시 자동 리셋)</span>';
+    titleEl.innerHTML = '📈 포장온도 예측 추이 — 살수 미실시 vs 살수 실시 <span style="font-size:.7rem;color:var(--txt-3);font-weight:500;">· ' + dateStr + '</span>';
   }
 }
 
@@ -4320,7 +4329,8 @@ function setMainTab(name) {
   if (name === 'mon') {
     renderSensorBarV6();
     renderZonesGridV6();
-    setTimeout(function(){ renderChartV6(); }, 50);
+    renderSprinkleTrendSummary();
+    setTimeout(function(){ renderChartV6(); renderSprinkleTrendSummary(); }, 50);
   } else if (name === 'ml') {
     renderMLPane();
   } else if (name === 'coef') {
@@ -4827,6 +4837,7 @@ function v6FullUpdate() {
   if (currentMainTab === 'mon') {
     try { renderSensorBarV6(); } catch(e){}
     try { renderZonesGridV6(); } catch(e){}
+    try { renderSprinkleTrendSummary(); } catch(e){}
     try { renderChartV6(); } catch(e){}
   }
 }
