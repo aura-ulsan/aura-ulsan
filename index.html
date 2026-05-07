@@ -336,20 +336,20 @@ header{background:linear-gradient(135deg,var(--nd),var(--navy) 60%,var(--nl));co
           <input type="checkbox" id="opt-advanced" checked style="margin-top:3px;">
           <div>
             <div style="font-weight:600;color:var(--navy);">비선형/교호항 사용 <span style="font-size:.66rem;font-weight:400;color:var(--sub);">(권장)</span></div>
-            <div style="font-size:.68rem;color:var(--sub);">일사량² · 풍속×일사량 · 시간 변수 추가 → R² 향상</div>
+            <div style="font-size:.68rem;color:var(--sub);">일사량² + 풍속×일사량 추가 → 비선형 관계 학습</div>
           </div>
         </label>
         <label style="display:flex;align-items:flex-start;gap:8px;font-size:.76rem;margin-bottom:6px;cursor:pointer;">
-          <input type="checkbox" id="opt-zonedummy" checked style="margin-top:3px;">
+          <input type="checkbox" id="opt-zonedummy" style="margin-top:3px;">
           <div>
             <div style="font-weight:600;color:var(--navy);">구역별 보정 (구역더미 변수)</div>
-            <div style="font-size:.68rem;color:var(--sub);">구역마다 다른 평균 온도 차이 학습</div>
+            <div style="font-size:.68rem;color:var(--sub);">구역마다 다른 평균 온도 차이 학습 — 보통 구역별 개별 모델로 충분</div>
           </div>
         </label>
         <label style="display:flex;align-items:flex-start;gap:8px;font-size:.76rem;margin-bottom:6px;cursor:pointer;">
-          <input type="checkbox" id="opt-nospk" style="margin-top:3px;">
+          <input type="checkbox" id="opt-nospk" checked style="margin-top:3px;">
           <div>
-            <div style="font-weight:600;color:var(--navy);">살수 안 한 데이터만 학습</div>
+            <div style="font-weight:600;color:var(--navy);">살수 안 한 데이터만 학습 <span style="font-size:.66rem;font-weight:400;color:var(--sub);">(권장)</span></div>
             <div style="font-size:.68rem;color:var(--sub);">살수 효과로 인한 잡음 제거 → 정확도↑ 단, 학습 데이터량↓</div>
           </div>
         </label>
@@ -670,12 +670,12 @@ function saveTrainOpts() {
 function loadTrainOpts() {
   try {
     var raw = localStorage.getItem(LS_OPT_KEY);
-    if (!raw) return;
+    if (!raw) return;  // 저장값 없으면 HTML의 checked 기본값 유지 (새 기본: 비선형✓ + 살수=0만✓)
     var opts = JSON.parse(raw);
     var setIfExists = function(id, v) { var el = document.getElementById(id); if (el) el.checked = v; };
     setIfExists('opt-advanced', opts.advanced !== false);
-    setIfExists('opt-zonedummy', opts.zonedummy !== false);
-    setIfExists('opt-nospk', !!opts.nospk);
+    setIfExists('opt-zonedummy', !!opts.zonedummy);  // ★ 기본 OFF
+    setIfExists('opt-nospk', opts.nospk !== false);  // ★ 기본 ON
     setIfExists('opt-noimputed', !!opts.noimputed);
   } catch(e){}
 }
@@ -1546,16 +1546,16 @@ function renderFileInfo() {
 
 // ── 선형회귀 ──────────────────────────
 // ════════════════════════════════════════════════════════
-// ★ 변수 확장 — 옵션에 따라 비선형/교호/시간/구역더미 추가
+// ★ 변수 확장 — 옵션에 따라 비선형/교호/구역더미 추가
+//   (시간변수 cos/sin은 측정시간 다양성 부족으로 자동 제거)
 // ════════════════════════════════════════════════════════
 function buildFeatures(rawRows, opts, zoneKeys) {
   var X = [], Y = [];
   var names = ['대기온도(℃)', '일사량(MJ/㎡)', '습도(%)', '풍속(m/s)'];
   if (opts.advanced) {
-    names = names.concat(['일사량²', '풍속×일사량', 'cos(시간)', 'sin(시간)']);
+    names = names.concat(['일사량²', '풍속×일사량']);  // ★ 시간변수 제거
   }
   if (opts.zonedummy && zoneKeys && zoneKeys.length > 1) {
-    // 첫 번째 구역을 기준(reference)으로 두고 나머지를 더미 변수로
     for (var zi = 1; zi < zoneKeys.length; zi++) {
       names.push('구역=' + zoneKeys[zi]);
     }
@@ -1565,13 +1565,9 @@ function buildFeatures(rawRows, opts, zoneKeys) {
     var r = rawRows[i];
     var feat = [r.at, r.sol, r.hum, r.ws];
     if (opts.advanced) {
-      var solSq = r.sol * r.sol;
-      var wsSol = r.ws * r.sol;
-      var hr = r.hr || 12;
-      feat.push(solSq);
-      feat.push(wsSol);
-      feat.push(Math.cos(2 * Math.PI * hr / 24));
-      feat.push(Math.sin(2 * Math.PI * hr / 24));
+      feat.push(r.sol * r.sol);
+      feat.push(r.ws * r.sol);
+      // ★ cos/sin 시간변수 제거
     }
     if (opts.zonedummy && zoneKeys && zoneKeys.length > 1) {
       for (var zi2 = 1; zi2 < zoneKeys.length; zi2++) {
@@ -1586,13 +1582,11 @@ function buildFeatures(rawRows, opts, zoneKeys) {
 
 // ★ 현재 wx 값 + opts로 예측 (실시간용)
 function buildPredictFeatures(opts, zoneKeys, zoneId) {
-  var hr = new Date().getHours();
   var feat = [wx.airTemp, wx.solar, wx.humidity, wx.windSpeed];
   if (opts && opts.advanced) {
     feat.push(wx.solar * wx.solar);
     feat.push(wx.windSpeed * wx.solar);
-    feat.push(Math.cos(2 * Math.PI * hr / 24));
-    feat.push(Math.sin(2 * Math.PI * hr / 24));
+    // ★ 시간변수 제거
   }
   if (opts && opts.zonedummy && zoneKeys && zoneKeys.length > 1) {
     for (var zi = 1; zi < zoneKeys.length; zi++) {
@@ -1698,9 +1692,7 @@ function showMLResults(model, X, Y, preds) {
     '습도(%)':       '습도 1% 증가',
     '풍속(m/s)':     '풍속 1m/s 증가',
     '일사량²':        '일사량² (비선형 가속)',
-    '풍속×일사량':    '풍속×일사량 (교호작용)',
-    'cos(시간)':      '일주기 코사인 성분',
-    'sin(시간)':      '일주기 사인 성분'
+    '풍속×일사량':    '풍속×일사량 (교호작용)'
   };
   document.getElementById('mlCoef').innerHTML = model.coefs.map(function(c, i) {
     var fname = model.featureNames[i];
@@ -1901,14 +1893,18 @@ function buildChart() {
     labels.push((m > 0 ? '▶ ' : '') + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'));
     var v;
     if (mlModel) {
-      var h = (t.getHours() + m / 60 + 24) % 24;
-      v = parseFloat(predict(mlModel, [
-        wx.airTemp + m / 60 * 0.05,
-        Math.max(0, wx.solar + (m > 0 ? -m / 60 * 0.05 : m / 60 * 0.03)),
-        wx.humidity, wx.windSpeed,
-        Math.cos(2 * Math.PI * h / 24),
-        Math.sin(2 * Math.PI * h / 24)
-      ]).toFixed(1));
+      // ★ 모델 옵션에 맞춰 동적으로 변수 구성
+      var opts = mlModel.opts || { advanced: false, zonedummy: false };
+      var zKeys = mlModel.zoneKeys || [];
+      // 시간 보정값 적용한 wx 임시 객체
+      var savedWx = {at: wx.airTemp, sol: wx.solar};
+      wx.airTemp = savedWx.at + m / 60 * 0.05;
+      wx.solar = Math.max(0, savedWx.sol + (m > 0 ? -m / 60 * 0.05 : m / 60 * 0.03));
+      var x = buildPredictFeatures(opts, zKeys, null);
+      v = parseFloat(predict(mlModel, x).toFixed(1));
+      // 원복
+      wx.airTemp = savedWx.at;
+      wx.solar = savedWx.sol;
     } else {
       v = parseFloat((base + curve[i]).toFixed(1));
     }
