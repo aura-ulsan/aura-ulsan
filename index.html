@@ -8,380 +8,674 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-:root{--blue:#0b63ce;--blue2:#0054c8;--navy:#002b68;--orange:#ff6f00;--red:#d71920;--green:#078943;--purple:#7b1fa2;--bg:#f5f8fc;--card:#fff;--line:#cfdbea;--text:#081f45;--muted:#64748b;--soft:#eef4fb;--shadow:0 2px 8px rgba(0,30,80,.07)}
-*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:var(--text);background:#f7fbff;font-size:14px}button{font-family:inherit;cursor:pointer}.app{height:100vh;display:grid;grid-template-rows:76px 50px 1fr 34px;background:#f7fbff}.header{display:grid;grid-template-columns:420px 1fr 520px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line);background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.05)}.brand{display:flex;align-items:center;gap:14px}.logo{width:54px;height:54px;border-radius:8px;background:linear-gradient(135deg,#0b67d1,#064aa4);color:white;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1.05;font-size:17px;box-shadow:0 4px 10px rgba(11,99,206,.3)}.brand-title{font-size:24px;font-weight:900;letter-spacing:.5px}.brand-sub{font-size:13px;color:#48607e;margin-top:2px}.version{font-size:13px;color:#ff6f00;border:1px solid #ff9f40;border-radius:4px;padding:2px 7px;margin-left:6px;font-weight:800;background:#fff7ed}.status-main{height:54px;display:flex;align-items:center;justify-content:center;gap:14px;border:1px solid #a8dcb6;background:#f3fff5;border-radius:8px;color:#087c35;font-size:20px;font-weight:900}.status-main .check{font-size:26px}.header-actions{display:flex;justify-content:flex-end;align-items:center;gap:14px}.clock{height:54px;min-width:230px;border:1px solid var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#0047ba;background:#fbfdff}.hbtn{height:54px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:0 18px;font-size:15px;font-weight:800;color:#06366e}.tabs{height:50px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid var(--line);background:#fff}.tab{height:50px;padding:0 24px;border:0;background:transparent;display:flex;align-items:center;gap:10px;font-size:16px;font-weight:900;color:#344767;border-bottom:4px solid transparent}.tab.active{color:#004bb8;border-bottom-color:#0b63ce}.tab.new::after{content:'NEW';font-size:9px;background:#0054c8;color:#fff;border-radius:9px;padding:2px 5px}.tab-spacer{flex:1}.mini-stat{display:flex;gap:22px;color:#243b62;font-size:14px}.dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px}.pane{display:none;min-height:0}.pane.active{display:grid}.main{min-height:0;padding:14px;grid-template-rows:126px 322px 1fr;gap:12px;overflow:hidden}.sensors{display:grid;grid-template-columns:repeat(7,1fr) 220px;gap:12px}.sensor,.sys-card,.zone,.panel,.placeholder{background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}.sensor{padding:14px 16px;display:grid;grid-template-columns:54px 1fr;align-items:center;min-width:0}.sensor-icon{font-size:42px;text-align:center}.sensor-title{font-weight:900;text-align:center;margin-bottom:6px}.sensor-value{font-size:30px;font-weight:900;text-align:center;line-height:1}.sensor-unit{font-size:13px;margin-left:3px}.sensor-src{text-align:center;font-size:13px;color:#405674;margin-top:7px}.red{color:var(--red)}.orange{color:var(--orange)}.blue{color:#0054c8}.green{color:var(--green)}.purple{color:var(--purple)}.sys-card{padding:12px 14px}.sys-title{font-size:14px;font-weight:900}.sys-ok{display:flex;align-items:center;gap:9px;margin:10px 0;font-size:18px;font-weight:900}.shield{background:#45a348;color:white;border-radius:7px;padding:3px 6px}.sys-row{display:flex;justify-content:space-between;font-size:13px;line-height:1.8}.sys-row b{color:var(--green)}.zones{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.zone{padding:15px 12px;display:flex;flex-direction:column;min-width:0}.zone h3{margin:0;font-size:22px}.zone-sub{font-size:15px;font-weight:800;margin-top:2px;color:#0b234b}.zone-temp{font-size:34px;font-weight:900;color:#c71921;margin-top:8px}.zone-temp.orange{color:#d66a00}.zone-state{font-size:16px;font-weight:900;margin:2px 0 12px}.zone-state .dot{width:14px;height:14px;vertical-align:-2px}.pred-grid{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-bottom:9px}.pred-box{padding:8px 3px;text-align:center;border-right:1px solid var(--line);background:#fbfdff}.pred-box:last-child{border-right:0}.pred-lbl{font-size:12px;font-weight:900;line-height:1.25}.pred-val{font-size:16px;font-weight:900;margin-top:7px}.pred-delta{display:block;font-size:12px;color:#ff6f00}.zone-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:auto}.zone-actions button{height:42px;border-radius:6px;font-size:14px;font-weight:900}.btn-run{border:0;background:linear-gradient(180deg,#1976e8,#004fb9);color:#fff}.btn-end{border:1px solid #ff8a3d;background:#fff8f2;color:#e65100}.btn-sub{border:1px solid var(--line);background:#fff;color:#143563}.zone.sprinkled{border-color:#0b63ce;background:#f4f9ff}.zone.sprinkled .btn-run{background:#0a8f45}.legend{grid-column:1/-1;font-size:13px;color:#233b61;margin-top:-5px}.legend span{margin-right:22px}.legend b{margin-right:4px}.bottom{display:grid;grid-template-columns:1.45fr .62fr .95fr;gap:12px;min-height:0}.panel{padding:12px;min-height:0;display:flex;flex-direction:column}.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:17px;font-weight:900;color:#00419e}.small-btn{height:30px;border:1px solid var(--line);background:#fff;border-radius:6px;font-size:12px;font-weight:900;color:#385071}.summary4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}.summary-card{border:1px solid var(--line);border-radius:7px;background:#fbfdff;padding:10px 12px}.summary-lbl{font-size:12px;font-weight:900;color:#48607e}.summary-val{font-size:22px;font-weight:900;margin-top:5px}.summary-sub{font-size:13px;font-weight:800;margin-top:2px}.chart-wrap{position:relative;flex:1;min-height:0}.perf-table,.log-table,.data-table{width:100%;border-collapse:collapse;font-size:13px}.perf-table th,.perf-table td,.log-table th,.log-table td,.data-table th,.data-table td{border:1px solid var(--line);padding:8px 7px;text-align:center}.perf-table th,.log-table th,.data-table th{background:#f2f6fb;color:#16406f;font-weight:900}.perf-table td:first-child{text-align:left;font-weight:900}.model-state{margin-top:12px;border:1px solid var(--line);border-radius:8px;padding:12px;background:#fbfdff}.model-state h4{margin:0 0 8px}.model-current{font-size:20px;font-weight:900;color:var(--green)}.footer{height:34px;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;padding:0 22px;border-top:1px solid var(--line);background:#fff;color:#00419e;font-weight:900;font-size:13px}.footer div:nth-child(2){text-align:center;color:#0b234b}.footer div:nth-child(3){text-align:right}.data-pane,.coef-pane,.ana-pane,.log-pane,.ai-pane{padding:14px;overflow:auto;background:#f7fbff}.placeholder{padding:18px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.tool-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.primary{height:38px;padding:0 16px;background:#0b63ce;color:white;border:0;border-radius:7px;font-weight:900}.ghost{height:38px;padding:0 16px;background:#fff;color:#123761;border:1px solid var(--line);border-radius:7px;font-weight:900}.modal-bg{position:fixed;inset:0;background:rgba(0,20,50,.42);display:none;align-items:center;justify-content:center;z-index:99}.modal-bg.show{display:flex}.modal{width:430px;background:#fff;border-radius:12px;border:1px solid var(--line);box-shadow:0 20px 60px rgba(0,0,0,.25);padding:22px}.modal h2{margin:0 0 14px}.form-row{display:grid;grid-template-columns:130px 1fr;gap:10px;align-items:center;margin:9px 0}.form-row input,.form-row select{height:38px;border:1px solid var(--line);border-radius:6px;padding:0 10px}.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}.modal-actions button{height:40px;padding:0 18px;border-radius:6px;font-weight:900}.toast{position:fixed;bottom:50px;left:50%;transform:translateX(-50%);background:#083b79;color:white;border-radius:8px;padding:12px 20px;font-weight:900;z-index:120;box-shadow:0 8px 24px rgba(0,0,0,.18)}pre{white-space:pre-wrap;background:#fbfdff;border:1px solid var(--line);border-radius:8px;padding:14px;line-height:1.55;font-family:Consolas,'D2Coding',monospace}.bad{color:#d71920}.ok{color:#078943}@media(max-width:1400px){body{font-size:12px}.header{grid-template-columns:360px 1fr 420px}.tab{padding:0 14px}.main{grid-template-rows:110px 300px 1fr}.zone h3{font-size:19px}.zone-temp{font-size:30px}.pred-lbl{font-size:11px}.sensor-value{font-size:26px}}
-
-
-/* === AURA layout stability patch: prevent card/chart overlap on 1366x768~1920x1080 === */
-.app{min-width:1280px;}
-.main{overflow-y:auto;overflow-x:hidden;grid-template-rows:auto auto minmax(320px,1fr);align-content:start;}
-.sensors,.zones,.bottom{min-width:0;}
-.sensor,.sys-card,.zone,.panel{min-width:0;overflow:hidden;}
-.sensor{min-height:112px;}
-.sensor-title,.sensor-src{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.sensor-value{font-size:clamp(22px,1.55vw,30px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
-.sensor-unit{font-size:clamp(10px,.75vw,13px);}
-.zones{align-items:stretch;}
-.zone{min-height:286px;}
-.zone h3,.zone-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.zone-temp{font-size:clamp(24px,1.85vw,34px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.12;}
-.zone-state{white-space:nowrap;}
-.pred-grid{min-height:76px;}
-.pred-box{min-width:0;overflow:hidden;}
-.pred-lbl{white-space:normal;word-break:keep-all;}
-.pred-val{font-size:clamp(12px,.9vw,16px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
-.pred-delta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.zone-actions button{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.bottom{min-height:330px;align-items:stretch;}
-.chart-wrap{min-height:205px;}
-.perf-table,.log-table{table-layout:fixed;}
-.perf-table th,.perf-table td,.log-table th,.log-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-@media(max-height:820px){
-  html,body{overflow:auto;}
-  .app{height:auto;min-height:100vh;}
-  .main{grid-template-rows:auto auto 330px;overflow:visible;padding-bottom:18px;}
-  .sensor{min-height:102px;padding:10px 12px;}
-  .sensor-icon{font-size:34px;}
-  .sensor-value{font-size:24px;}
-  .zone{min-height:272px;padding:12px 10px;}
-  .zone h3{font-size:20px;}
-  .zone-sub{font-size:13px;}
-  .zone-temp{font-size:28px;}
-  .zone-actions button{height:38px;font-size:13px;}
-  .bottom{min-height:320px;}
-}
-
-
-
-/* =========================================================
-   A.U.R.A v6.2 SIAN4 EXACT LAYOUT OVERRIDE
-   - target: 1200x800 / 1920x1080 관제형 상단탭 대시보드
-   - 목적: 사용자 시안4와 동일한 밀도/간격/카드 배치
-   ========================================================= */
-html,body{height:100%;overflow:hidden;background:#f7fbff;font-size:12px;}
-.app{height:100vh;min-width:1180px;grid-template-rows:66px 42px 1fr 30px;background:#f7fbff;}
-.header{height:66px;grid-template-columns:330px 1fr 350px;padding:6px 10px;gap:10px;}
-.logo{width:46px;height:46px;font-size:14px;border-radius:7px;}
-.brand{gap:10px;min-width:0;}
-.brand-title{font-size:20px;line-height:1;white-space:nowrap;}
-.brand-sub{font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.version{font-size:10px;padding:1px 5px;margin-left:5px;vertical-align:middle;}
-.status-main{height:44px;font-size:16px;border-radius:7px;gap:10px;}
-.status-main .check{font-size:22px;}
-.header-actions{gap:8px;}
-.clock{height:44px;min-width:175px;font-size:15px;line-height:1.25;text-align:center;}
-.hbtn{height:44px;padding:0 12px;font-size:12px;min-width:76px;}
-.tabs{height:42px;padding:0 12px;}
-.tab{height:42px;padding:0 18px;font-size:13px;gap:7px;border-bottom-width:3px;}
-.tab.new::after{font-size:8px;padding:1px 5px;}
-.mini-stat{gap:14px;font-size:11px;align-items:center;white-space:nowrap;}
-.dot{width:7px;height:7px;margin-right:4px;}
-.main{padding:8px;gap:8px;grid-template-rows:86px 252px minmax(245px,1fr);overflow:hidden;}
-.sensors{grid-template-columns:repeat(7,1fr) 170px;gap:8px;}
-.sensor,.sys-card,.zone,.panel{border-radius:7px;box-shadow:0 1px 4px rgba(0,30,80,.06);}
-.sensor{height:86px;min-height:86px;padding:8px 10px;grid-template-columns:40px 1fr;}
-.sensor-icon{font-size:33px;line-height:1;}
-.sensor-title{font-size:12px;margin-bottom:3px;}
-.sensor-value{font-size:24px;letter-spacing:-.5px;}
-.sensor-unit{font-size:10px;margin-left:2px;}
-.sensor-src{font-size:10px;margin-top:4px;}
-.sys-card{height:86px;min-height:86px;padding:8px 10px;}
-.sys-title{font-size:12px;}
-.sys-ok{font-size:14px;margin:7px 0;gap:7px;}
-.shield{font-size:13px;padding:2px 5px;border-radius:5px;}
-.sys-row{font-size:10px;line-height:1.5;}
-.zones{grid-template-columns:repeat(6,1fr);gap:8px;}
-.zone{height:252px;min-height:252px;padding:10px 9px;}
-.zone h3{font-size:17px;line-height:1.05;margin:0;}
-.zone-sub{font-size:11px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.zone-temp{font-size:27px;line-height:1.05;margin-top:8px;white-space:nowrap;letter-spacing:-.8px;}
-.zone-temp small,.zone-temp span{font-size:11px!important;}
-.zone-state{font-size:12px;margin:3px 0 10px;}
-.zone-state .dot{width:10px;height:10px;vertical-align:-1px;}
-.pred-grid{margin-bottom:7px;border-radius:5px;}
-.pred-box{padding:5px 2px;}
-.pred-lbl{font-size:9.5px;line-height:1.22;}
-.pred-val{font-size:12px;margin-top:5px;white-space:nowrap;}
-.pred-delta{font-size:9px;}
-.zone-actions{gap:5px;}
-.zone-actions button{height:32px;font-size:11px;border-radius:5px;}
-.legend{font-size:10px;margin-top:-4px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.legend span{margin-right:15px;}
-.bottom{grid-template-columns:1.48fr .62fr .96fr;gap:8px;min-height:245px;}
-.panel{padding:9px 10px;}
-.panel-head{font-size:13px;margin-bottom:7px;}
-.small-btn{height:25px;font-size:10px;padding:0 8px;}
-.summary4{gap:7px;margin-bottom:7px;}
-.summary-card{padding:7px 8px;border-radius:5px;}
-.summary-lbl{font-size:9.5px;}
-.summary-val{font-size:17px;margin-top:4px;}
-.summary-sub{font-size:10px;margin-top:1px;}
-.chart-wrap{min-height:125px;}
-.perf-table,.log-table,.data-table{font-size:10px;}
-.perf-table th,.perf-table td,.log-table th,.log-table td,.data-table th,.data-table td{padding:6px 5px;}
-.model-state{margin-top:8px;padding:9px;border-radius:6px;}
-.model-state h4{font-size:11px;margin:0 0 6px;}
-.model-current{font-size:16px;}
-.footer{height:30px;padding:0 14px;font-size:11px;}
-@media(max-width:1300px){
-  .app{min-width:1180px;}
-  .header{grid-template-columns:330px 1fr 350px;}
-  .tab{padding:0 15px;}
-  .sensor-value{font-size:23px;}
-  .zone-temp{font-size:26px;}
-  .panel-head{font-size:12.5px;}
-}
-
-
 
 /* ════════════════════════════════════════════════════════════════
-   v6.2 SIAN4 FINAL OVERRIDE — 시안4 그대로
-   1920x1080 · 6구역 가로 1×6 · 글자 대형 · 컴팩트 여백
+   v6.2 SIAN4 PIXEL-PERFECT FINAL — 시안4 픽셀 단위 정확 매칭
+   1920×1080 데스크탑 대시보드
    ════════════════════════════════════════════════════════════════ */
-html,body{font-size:14px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{
+  height:100%;margin:0;
+  font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',sans-serif;
+  color:#0b234b;background:#f5f8fc;font-size:14px;overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer;}
+
 .app{
   height:100vh;
   min-width:1280px;
-  grid-template-rows:72px 50px 1fr 32px;
+  display:grid;
+  grid-template-rows:78px 50px 1fr 32px;
   background:#f5f8fc;
 }
 
-/* 헤더 */
+/* ═══════════ 헤더 ═══════════ */
 .header{
-  height:72px;
-  grid-template-columns:380px 1fr 380px;
-  padding:8px 16px;
-  gap:14px;
+  display:grid;
+  grid-template-columns:380px 1fr 360px;
+  align-items:center;
+  padding:12px 18px;
+  gap:18px;
+  background:#fff;
+  border-bottom:1px solid #d8e0ea;
 }
-.logo{width:50px;height:50px;font-size:15px;border-radius:8px;}
-.brand{gap:12px;}
-.brand-title{font-size:22px;line-height:1.05;}
-.brand-sub{font-size:13px;margin-top:3px;}
-.version{font-size:12px;padding:2px 7px;}
+.brand{display:flex;align-items:center;gap:14px;}
+.logo{
+  width:54px;height:54px;border-radius:8px;
+  background:linear-gradient(135deg,#1a73d6,#0a4ba0);
+  color:#fff;font-weight:900;font-size:14px;
+  display:flex;align-items:center;justify-content:center;
+  line-height:1.1;letter-spacing:.3px;
+  box-shadow:0 3px 10px rgba(11,99,206,.3);
+}
+.brand-title{
+  font-size:24px;font-weight:900;color:#0b234b;
+  letter-spacing:-.3px;line-height:1;
+}
+.brand-sub{
+  font-size:13px;color:#5a6a7e;
+  margin-top:5px;line-height:1;
+}
+.version{
+  display:inline-block;
+  font-size:12px;font-weight:800;
+  color:#ff6f00;
+  border:1px solid #ff9f40;
+  background:#fff7ed;
+  border-radius:5px;padding:3px 8px;
+  margin-left:8px;vertical-align:2px;
+}
+
 .status-main{
-  height:50px;font-size:18px;border-radius:8px;gap:12px;
-  font-weight:900;
+  height:54px;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  background:#f3fff5;
+  border:1px solid #a8dcb6;
+  border-radius:10px;
+  color:#087c35;
+  font-size:18px;font-weight:800;
 }
-.status-main .check{font-size:24px;}
-.header-actions{gap:10px;}
+.status-main .check{
+  font-size:22px;font-weight:900;
+  color:#078943;
+}
+
+.header-actions{display:flex;align-items:center;gap:10px;justify-content:flex-end;}
 .clock{
-  height:50px;min-width:200px;
-  font-size:17px;font-weight:900;
-  border-radius:8px;
+  height:54px;
+  min-width:215px;
+  padding:0 18px;
+  display:flex;align-items:center;justify-content:center;
+  background:#fbfdff;
+  border:1px solid #d8e0ea;
+  border-radius:10px;
+  color:#0047ba;
+  font-size:16px;font-weight:900;
+  white-space:nowrap;
 }
 .hbtn{
-  height:50px;padding:0 16px;
-  font-size:14px;font-weight:800;
-  border-radius:8px;
+  height:54px;
+  padding:0 16px;
+  display:inline-flex;align-items:center;gap:6px;
+  background:#fff;
+  border:1px solid #d8e0ea;
+  border-radius:10px;
+  color:#06366e;
+  font-size:13px;font-weight:800;
+  white-space:nowrap;
 }
+.hbtn:hover{background:#f0f6ff;border-color:#9ab9e0;}
 
-/* 탭 바 */
-.tabs{height:50px;padding:0 16px;}
+/* ═══════════ 탭 바 ═══════════ */
+.tabs{
+  display:flex;align-items:center;
+  padding:0 18px;
+  background:#fff;
+  border-bottom:1px solid #d8e0ea;
+}
 .tab{
-  height:50px;padding:0 22px;
-  font-size:16px;font-weight:900;
-  gap:9px;border-bottom-width:4px;
+  height:50px;
+  padding:0 22px;
+  display:inline-flex;align-items:center;gap:8px;
+  background:transparent;
+  border:0;
+  border-bottom:4px solid transparent;
+  color:#5a6a7e;
+  font-size:15px;font-weight:800;
+  white-space:nowrap;
 }
-.tab.new::after{font-size:9px;padding:2px 6px;}
-.mini-stat{gap:18px;font-size:13px;font-weight:600;align-items:center;}
-.dot{width:9px;height:9px;margin-right:5px;}
+.tab:hover{color:#0b63ce;}
+.tab.active{
+  color:#0b63ce;
+  border-bottom-color:#0b63ce;
+}
+.tab.new::after{
+  content:'NEW';
+  font-size:9px;
+  background:#0054c8;color:#fff;
+  border-radius:9px;padding:2px 6px;
+  font-weight:900;
+  margin-left:2px;
+}
+.tab-spacer{flex:1;}
+.mini-stat{
+  display:flex;gap:18px;
+  font-size:12px;font-weight:600;color:#48607e;
+  align-items:center;
+}
+.mini-stat span{display:inline-flex;align-items:center;}
+.dot{
+  display:inline-block;
+  width:8px;height:8px;
+  border-radius:50%;
+  background:#078943;
+  margin-right:5px;
+}
 
-/* 메인 그리드 — 시안4: 센서(120) + 6구역(290) + 하단(나머지) */
+/* ═══════════ 페인 ═══════════ */
+.pane{display:none;min-height:0;}
+.pane.active{display:grid;}
+
+/* ═══════════ 모니터링 메인 그리드 ═══════════ */
 .main{
-  padding:12px;gap:12px;
-  grid-template-rows:120px 295px 1fr;
+  padding:14px;
+  gap:12px;
+  grid-template-rows:118px 295px 1fr;
   overflow:hidden;
 }
 
-/* 센서 바 — 7개 센서 + 시스템 카드 */
+/* 센서 패널 */
 .sensors{
-  grid-template-columns:repeat(7,1fr) 220px;
+  display:grid;
+  grid-template-columns:repeat(7,1fr) 200px;
   gap:10px;
+}
+.sensor,.sys-card,.zone,.panel,.placeholder{
+  background:#fff;
+  border:1px solid #d8e0ea;
+  border-radius:11px;
+  box-shadow:0 1px 3px rgba(0,30,80,.05);
 }
 .sensor{
-  padding:14px 16px;
-  grid-template-columns:50px 1fr;
+  padding:14px 14px;
+  display:grid;
+  grid-template-columns:48px 1fr;
   gap:10px;
   align-items:center;
-  border-radius:10px;
-  box-shadow:0 1px 4px rgba(0,30,80,.06);
 }
 .sensor-icon{
-  font-size:38px;text-align:center;line-height:1;
+  font-size:36px;line-height:1;
   display:flex;align-items:center;justify-content:center;
+  text-align:center;
 }
 .sensor-title{
-  font-size:14px;font-weight:900;
-  text-align:left;margin-bottom:4px;
-  color:#0b234b;
+  font-size:14px;font-weight:800;color:#0b234b;
+  margin-bottom:3px;
+  text-align:left;
 }
 .sensor-value{
   font-size:24px;font-weight:900;
-  text-align:left;line-height:1.05;
   letter-spacing:-.5px;
+  text-align:left;line-height:1;
 }
-.sensor-unit{font-size:12px;margin-left:3px;color:#5a6a7e;font-weight:700;}
+.sensor-unit{
+  font-size:13px;font-weight:700;
+  color:#5a6a7e;
+  margin-left:3px;
+}
 .sensor-src{
-  text-align:left;font-size:12px;
-  color:#5a6a7e;margin-top:5px;font-weight:600;
+  font-size:12px;color:#5a6a7e;
+  margin-top:5px;font-weight:600;
+  text-align:left;
 }
-.sys-card{padding:12px 14px;border-radius:10px;}
-.sys-title{font-size:14px;font-weight:900;}
-.sys-ok{margin:8px 0;font-size:16px;font-weight:900;gap:8px;}
-.shield{padding:3px 6px;font-size:13px;}
-.sys-row{font-size:12px;line-height:1.7;}
 
-/* ★ 6구역 가로 1×6 (시안4 핵심) */
+.red{color:#d71920;}
+.orange{color:#ff6f00;}
+.blue{color:#0054c8;}
+.green{color:#078943;}
+.purple{color:#7b1fa2;}
+
+.sys-card{
+  padding:13px 14px;
+  display:flex;flex-direction:column;
+}
+.sys-title{
+  font-size:13px;font-weight:900;color:#0b234b;
+  margin-bottom:7px;
+}
+.sys-ok{
+  display:flex;align-items:center;gap:8px;
+  font-size:15px;font-weight:900;
+  color:#078943;
+  margin-bottom:8px;
+}
+.shield{
+  width:22px;height:22px;
+  background:#45a348;color:#fff;
+  border-radius:5px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;
+}
+.sys-row{
+  display:flex;justify-content:space-between;
+  font-size:12px;
+  padding:2px 0;
+  color:#48607e;
+}
+.sys-row b{color:#078943;font-weight:800;}
+
+/* ═══════════ 구역 카드 (가로 1×6) ═══════════ */
 .zones{
+  display:grid;
   grid-template-columns:repeat(6,1fr);
   gap:10px;
   align-items:stretch;
 }
 .zone{
-  padding:14px 12px;
-  border-radius:10px;
+  padding:12px 13px;
   display:flex;flex-direction:column;
   min-width:0;
-  box-shadow:0 1px 4px rgba(0,30,80,.06);
-  min-height:0;
+  position:relative;
+  cursor:pointer;
+  transition:all .15s;
+}
+.zone:hover{
+  border-color:#0b63ce;
+  box-shadow:0 3px 12px rgba(11,99,206,.12);
 }
 .zone h3{
-  font-size:20px;font-weight:900;line-height:1.05;
-  margin:0;color:#0b234b;
+  font-size:20px;font-weight:900;
+  color:#0b234b;
+  line-height:1.05;
+  margin:0 0 3px;
+  letter-spacing:-.3px;
 }
 .zone-sub{
   font-size:13px;font-weight:700;
-  margin-top:3px;color:#48607e;
-  line-height:1.25;
-  white-space:normal;
+  color:#48607e;
+  line-height:1.3;
+  margin-bottom:8px;
+  min-height:34px;
   word-break:keep-all;
-  min-height:32px;  /* 두 줄 고정 (이름 길이 일관) */
 }
 .zone-temp{
   font-size:30px;font-weight:900;
-  margin-top:8px;letter-spacing:-1px;
-  color:#c71921;line-height:1;
+  color:#d71920;
+  line-height:1;
+  letter-spacing:-1.5px;
+  margin:0 0 4px;
 }
-.zone-temp.orange{color:#d66a00;}
+.zone-temp.orange{color:#ff6f00;}
 .zone-temp.green{color:#078943;}
-.zone-state{
-  font-size:14px;font-weight:900;
-  margin:4px 0 10px;
-  display:flex;align-items:center;gap:6px;
-}
-.zone-state .dot{width:11px;height:11px;}
-.zone-state.red .dot{background:#d71920;}
-.zone-state.orange .dot{background:#ff6f00;}
-.zone-state.green .dot{background:#078943;}
-
-/* 예측 그리드 (3열) */
-.pred-grid{
-  border-radius:7px;margin-bottom:8px;
-}
-.pred-box{padding:7px 3px;}
-.pred-lbl{
-  font-size:11px;font-weight:900;line-height:1.2;
+.zone-temp .zt-unit{
+  font-size:13px;font-weight:700;
   color:#48607e;
+  margin-left:4px;
+  letter-spacing:0;
+}
+.zone-state{
+  display:flex;align-items:center;gap:6px;
+  font-size:13px;font-weight:800;
+  color:#078943;
+  margin-bottom:10px;
+}
+.zone-state .dot{
+  width:10px;height:10px;
+  background:#078943;
+}
+.zone-state.red{color:#d71920;}
+.zone-state.red .dot{background:#d71920;}
+.zone-state.orange{color:#ff6f00;}
+.zone-state.orange .dot{background:#ff6f00;}
+
+/* 미니 예측 표 (3열) */
+.pred-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  border:1px solid #d8e0ea;
+  border-radius:7px;
+  overflow:hidden;
+  margin-bottom:10px;
+  background:#fbfdff;
+}
+.pred-box{
+  padding:7px 4px;
+  text-align:center;
+  border-right:1px solid #d8e0ea;
+  display:flex;flex-direction:column;
+  gap:4px;
+  min-width:0;
+}
+.pred-box:last-child{border-right:0;}
+.pred-lbl{
+  font-size:11px;font-weight:800;
+  color:#48607e;
+  line-height:1.2;
 }
 .pred-val{
-  font-size:14px;font-weight:900;margin-top:5px;
-  line-height:1.05;
+  font-size:13px;font-weight:900;
+  line-height:1.1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.pred-delta{font-size:11px;color:#ff6f00;}
+.pred-val.orange{color:#ff6f00;}
+.pred-val.red{color:#d71920;}
+.pred-delta{
+  display:block;
+  font-size:10px;font-weight:700;
+  color:#ff6f00;
+}
 
-/* 액션 버튼 */
-.zone-actions{gap:6px;}
+/* 액션 버튼 (2×2 그리드) */
+.zone-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+  margin-top:auto;
+}
 .zone-actions button{
-  height:36px;border-radius:6px;
-  font-size:12px;font-weight:900;
-  line-height:1.05;
+  height:34px;
   padding:0 4px;
+  border-radius:6px;
+  font-size:12px;font-weight:900;
+  display:inline-flex;align-items:center;justify-content:center;
+  gap:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  line-height:1.1;
 }
 .btn-run{
-  background:linear-gradient(180deg,#1976e8,#0054c8);
+  background:linear-gradient(180deg,#1d7df0,#0a52b8);
   color:#fff;border:0;
+  box-shadow:0 1px 3px rgba(11,99,206,.3);
 }
+.btn-run:hover{background:linear-gradient(180deg,#0b63ce,#003a8c);}
 .btn-end{
-  background:#fff8f2;color:#e65100;
-  border:1px solid #ff8a3d;font-size:11px;
+  background:#fff7ed;
+  color:#e65100;
+  border:1px solid #ff9f40;
 }
-.btn-sub{font-size:11px;}
+.btn-end:hover{background:#ffeacc;}
+.btn-sub{
+  background:#fff;
+  color:#143563;
+  border:1px solid #d8e0ea;
+}
+.btn-sub:hover{background:#f0f6ff;border-color:#9ab9e0;}
+
+.zone.sprinkled{
+  border-color:#0b63ce;
+  background:#f4f9ff;
+}
 
 .legend{
   grid-column:1/-1;
-  font-size:12px;color:#243b62;
-  margin-top:-6px;
-  font-weight:600;
+  display:flex;flex-wrap:wrap;
+  gap:14px;
+  font-size:12px;font-weight:600;
+  color:#48607e;
+  margin-top:-4px;
+  padding:0 4px;
 }
-.legend span{margin-right:18px;}
+.legend span:nth-child(3){color:#d71920;}
 
-/* 하단 — 차트 / AI 모델 / 살수 이력 */
+/* ═══════════ 하단 3분할 ═══════════ */
 .bottom{
+  display:grid;
   grid-template-columns:1.5fr .9fr 1.1fr;
-  gap:12px;min-height:0;
+  gap:12px;
+  min-height:0;
 }
 .panel{
-  padding:12px 14px;border-radius:10px;
-  box-shadow:0 1px 4px rgba(0,30,80,.06);
+  padding:12px 14px;
+  display:flex;flex-direction:column;
+  min-height:0;
 }
 .panel-head{
-  font-size:16px;font-weight:900;
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:15px;font-weight:900;
+  color:#00419e;
+  margin-bottom:10px;
+  gap:8px;
+}
+.panel-head span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;}
+.small-btn{
+  height:30px;padding:0 12px;
+  background:#fff;
+  border:1px solid #d8e0ea;
+  border-radius:6px;
+  font-size:12px;font-weight:800;color:#385071;
+  white-space:nowrap;
+  flex:none;
+}
+.small-btn:hover{background:#f0f6ff;border-color:#9ab9e0;}
+
+/* 4분할 요약 KPI */
+.summary4{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
   margin-bottom:10px;
 }
-.small-btn{
-  height:30px;font-size:12px;font-weight:800;
-  padding:0 10px;
+.summary-card{
+  background:#fbfdff;
+  border:1px solid #d8e0ea;
+  border-radius:7px;
+  padding:9px 10px;
+  display:flex;flex-direction:column;
+  min-width:0;
+}
+.summary-lbl{
+  font-size:11px;font-weight:800;
+  color:#48607e;
+  margin-bottom:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.summary-val{
+  font-size:20px;font-weight:900;
+  letter-spacing:-.5px;
+  line-height:1;
+  margin-bottom:3px;
+}
+.summary-sub{
+  font-size:11px;font-weight:700;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 
-/* 4분할 요약 */
-.summary4{gap:8px;margin-bottom:10px;}
-.summary-card{padding:10px 12px;border-radius:7px;}
-.summary-lbl{font-size:12px;font-weight:800;color:#48607e;}
-.summary-val{font-size:22px;font-weight:900;margin-top:4px;letter-spacing:-.5px;}
-.summary-sub{font-size:12px;font-weight:700;margin-top:3px;}
-
-/* 차트 영역 */
-.chart-wrap{min-height:170px;}
+.chart-wrap{
+  position:relative;
+  flex:1;min-height:0;
+}
 
 /* 표 */
 .perf-table,.log-table,.data-table{
-  font-size:13px;
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
 }
 .perf-table th,.perf-table td,
 .log-table th,.log-table td,
 .data-table th,.data-table td{
   padding:7px 6px;
+  border:1px solid #d8e0ea;
+  text-align:center;
 }
+.perf-table th,.log-table th,.data-table th{
+  background:#f0f6ff;
+  color:#16406f;font-weight:900;
+  font-size:11px;
+}
+.perf-table td:first-child{
+  text-align:left;font-weight:800;
+}
+.log-table td:nth-child(1){white-space:nowrap;}
 
 .model-state{
-  margin-top:10px;padding:10px 12px;
+  margin-top:10px;
+  padding:10px 12px;
+  background:#fbfdff;
+  border:1px solid #d8e0ea;
   border-radius:7px;
 }
-.model-state h4{font-size:13px;margin-bottom:6px;}
-.model-current{font-size:18px;}
-
-.footer{
-  height:32px;font-size:12px;padding:0 16px;
-  font-weight:800;
+.model-state h4{
+  font-size:13px;font-weight:900;
+  color:#0b234b;
+  margin-bottom:5px;
+}
+.model-state > div{
+  font-size:12px;font-weight:600;
+  color:#48607e;
+  margin-bottom:2px;
+}
+.model-current{
+  font-size:18px;font-weight:900;
+  color:#078943;
+  margin-bottom:8px;
+}
+.model-state hr{
+  border:0;
+  border-top:1px solid #d8e0ea;
+  margin:8px 0;
+}
+.model-state b{
+  font-size:13px;
 }
 
-/* 1400 이하 (반응) */
+/* ═══════════ 푸터 ═══════════ */
+.footer{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  align-items:center;
+  padding:0 18px;
+  background:#fff;
+  border-top:1px solid #d8e0ea;
+  color:#0047ba;
+  font-size:12px;font-weight:800;
+}
+.footer div:nth-child(2){text-align:center;color:#0b234b;}
+.footer div:nth-child(3){text-align:right;color:#5a6a7e;font-weight:600;}
+
+/* ═══════════ 기타 페인 ═══════════ */
+.data-pane,.coef-pane,.ana-pane,.log-pane,.ai-pane{
+  padding:14px;
+  overflow:auto;
+  background:#f5f8fc;
+}
+.placeholder{
+  padding:18px;
+}
+.placeholder h2{
+  font-size:18px;color:#0b234b;
+  margin-bottom:12px;
+}
+.grid2{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+.tool-row{
+  display:flex;flex-wrap:wrap;
+  gap:8px;align-items:center;
+  margin-bottom:12px;
+}
+.primary{
+  height:38px;padding:0 16px;
+  background:#0b63ce;color:#fff;
+  border:0;border-radius:7px;
+  font-size:13px;font-weight:900;
+}
+.primary:hover{background:#0954b0;}
+.ghost{
+  height:38px;padding:0 16px;
+  background:#fff;color:#123761;
+  border:1px solid #d8e0ea;
+  border-radius:7px;
+  font-size:13px;font-weight:800;
+}
+.ghost:hover{background:#f0f6ff;border-color:#9ab9e0;}
+
+/* ═══════════ 폼 입력 ═══════════ */
+input[type=text],input[type=number],input[type=password],input[type=date],input[type=time],input[type=file],select,textarea{
+  height:38px;padding:0 12px;
+  background:#fff;
+  border:1px solid #d8e0ea;
+  border-radius:6px;
+  font-size:13px;font-family:inherit;
+  color:#0b234b;
+}
+input:focus,select:focus,textarea:focus{
+  outline:none;border-color:#0b63ce;
+  box-shadow:0 0 0 3px rgba(11,99,206,.15);
+}
+label{font-size:13px;color:#48607e;font-weight:700;}
+
+/* ═══════════ 모달 ═══════════ */
+.modal-bg{
+  position:fixed;inset:0;
+  background:rgba(0,20,50,.45);
+  display:none;align-items:center;justify-content:center;
+  z-index:99;
+  backdrop-filter:blur(2px);
+}
+.modal-bg.show{display:flex;}
+.modal{
+  width:430px;
+  background:#fff;
+  border:1px solid #d8e0ea;
+  border-radius:12px;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);
+  padding:24px;
+}
+.modal h2{
+  font-size:18px;color:#0b234b;
+  margin-bottom:16px;
+}
+.form-row{
+  display:grid;
+  grid-template-columns:120px 1fr;
+  gap:10px;align-items:center;
+  margin-bottom:10px;
+}
+.modal-actions{
+  display:flex;gap:8px;
+  justify-content:flex-end;
+  margin-top:16px;
+}
+.modal-actions button{
+  height:40px;padding:0 18px;
+  border-radius:6px;
+  font-size:13px;font-weight:900;
+}
+
+/* ═══════════ 토스트 ═══════════ */
+.toast{
+  position:fixed;
+  bottom:50px;left:50%;
+  transform:translateX(-50%);
+  background:#083b79;color:#fff;
+  border-radius:8px;padding:12px 22px;
+  font-size:13px;font-weight:800;
+  z-index:120;
+  box-shadow:0 8px 24px rgba(0,0,0,.18);
+  animation:toastIn .25s ease-out;
+}
+@keyframes toastIn{
+  from{transform:translate(-50%,20px);opacity:0;}
+  to{transform:translateX(-50%);opacity:1;}
+}
+
+pre{
+  white-space:pre-wrap;
+  background:#fbfdff;
+  border:1px solid #d8e0ea;
+  border-radius:8px;
+  padding:14px;
+  line-height:1.55;
+  font-family:Consolas,'D2Coding','Courier New',monospace;
+  font-size:13px;
+  color:#0b234b;
+}
+.bad{color:#d71920;}
+.ok{color:#078943;}
+
+/* ═══════════ 반응형 ═══════════ */
 @media(max-width:1500px){
   html,body{font-size:13px;}
-  .brand-title{font-size:20px;}
-  .header{grid-template-columns:340px 1fr 340px;}
-  .tab{padding:0 16px;font-size:15px;}
+  .header{grid-template-columns:340px 1fr 320px;}
+  .brand-title{font-size:21px;}
+  .tab{padding:0 16px;font-size:14px;}
   .sensor-value{font-size:21px;}
   .zone h3{font-size:18px;}
-  .zone-temp{font-size:26px;}
-  .panel-head{font-size:14px;}
+  .zone-temp{font-size:27px;}
+  .summary-val{font-size:18px;}
 }
 @media(max-width:1300px){
   .app{min-width:1180px;}
-  .sensors{grid-template-columns:repeat(7,1fr) 180px;}
-  .sensor-icon{font-size:32px;}
-  .sensor-value{font-size:19px;}
+  .sensors{grid-template-columns:repeat(7,1fr) 170px;}
+  .sensor-icon{font-size:30px;}
+  .sensor-value{font-size:18px;}
+  .zone-temp{font-size:24px;}
 }
+
 </style>
 </head>
 <body>
@@ -419,7 +713,7 @@ html,body{font-size:14px;}
 <div class="modal-bg" id="sprinkleModal"><div class="modal"><h2 id="modalTitle">구역 살수 이행</h2><div class="form-row"><label>구역</label><input id="mZone" readonly></div><div class="form-row"><label>살수량</label><input id="mVol" type="number" value="15"></div><div class="form-row"><label>차량</label><select id="mTruck"><option>STRIKER 1</option><option>STRIKER 2</option><option>급수차</option></select></div><div class="form-row"><label>작업자</label><input id="mWorker" value="운영자"></div><div class="form-row"><label>살수후 온도</label><input id="mAfter" type="number" step="0.1"></div><div class="modal-actions"><button class="ghost" onclick="closeModal()">취소</button><button class="primary" onclick="confirmSprinkle()">살수 이행 등록</button></div></div></div>
 <div class="modal-bg" id="apiModal"><div class="modal"><h2>API 설정</h2><div class="form-row"><label>기상청 API 키</label><input id="apiKey" placeholder="data.go.kr 인증키"></div><div class="modal-actions"><button class="ghost" onclick="closeApi()">닫기</button><button class="primary" onclick="saveApi()">저장</button></div></div></div>
 <script>
-const LS='aura_v62_full_state';let chart=null,analysisChart=null,currentZoneForModal=1,selectedZone=1,tfReady=false;let formulaModel=null,tfModel=null,normInfo=null,metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};let wx={pave:24.5,air:20.0,solar:3.48,hum:30,wind:7.10,dir:305,dew:8.0};const zones=[{id:1,name:'구역 1',sub:'활주로 36방향<br>회전패드',base:46.1},{id:2,name:'구역 2',sub:'활주로 36방향<br>목표점표지',base:46.1},{id:3,name:'구역 3',sub:'활주로 진입지점',base:46.1},{id:4,name:'구역 4',sub:'활주로 18방향<br>목표점표지',base:46.1},{id:5,name:'구역 5',sub:'활주로 18방향<br>회전패드',base:46.1},{id:6,name:'구역 6',sub:'계류장',base:46.1}];let state={corr:{1:0,2:0,3:0,4:0,5:0,6:0},sprinkled:{},logs:[{time:'05.08 09:42',zone:'구역 2',vol:'15.0 ㎡',truck:'STRIKER 2',worker:'김철수',note:'정상 종료'},{time:'05.08 08:15',zone:'구역 5',vol:'18.0 ㎡',truck:'STRIKER 1',worker:'이영희',note:'정상 종료'},{time:'05.08 07:20',zone:'구역 1',vol:'12.0 ㎡',truck:'STRIKER 2',worker:'박민수',note:'정상 종료'}],rows:[]};
+const LS='aura_v62_full_state';let chart=null,analysisChart=null,currentZoneForModal=1,selectedZone=1,tfReady=false;let formulaModel=null,tfModel=null,normInfo=null,metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};let wx={pave:24.5,air:20.0,solar:3.48,hum:30,wind:7.10,dir:305,dew:8.0};const zones=[{id:1,name:'구역 1',sub:'활주로 36방향 회전패드',base:46.1},{id:2,name:'구역 2',sub:'활주로 36방향 목표점표지',base:46.1},{id:3,name:'구역 3',sub:'활주로 진입지점',base:46.1},{id:4,name:'구역 4',sub:'활주로 18방향 목표점표지',base:46.1},{id:5,name:'구역 5',sub:'활주로 18방향 회전패드',base:46.1},{id:6,name:'구역 6',sub:'계류장',base:46.1}];let state={corr:{1:0,2:0,3:0,4:0,5:0,6:0},sprinkled:{},logs:[{time:'05.08 09:42',zone:'구역 2',vol:'15.0 ㎡',truck:'STRIKER 2',worker:'김철수',note:'정상 종료'},{time:'05.08 08:15',zone:'구역 5',vol:'18.0 ㎡',truck:'STRIKER 1',worker:'이영희',note:'정상 종료'},{time:'05.08 07:20',zone:'구역 1',vol:'12.0 ㎡',truck:'STRIKER 2',worker:'박민수',note:'정상 종료'}],rows:[]};
 function fmt(v,d=1){return isFinite(v)?Number(v).toFixed(d):'--'}function clamp(v,min,max,fallback){v=Number(v);if(!isFinite(v))return fallback;return Math.max(min,Math.min(max,v))}function sortRowsLatest(rows){return rows.slice().sort((a,b)=>String((b.date||'')+' '+(b.time||'')).localeCompare(String((a.date||'')+' '+(a.time||''))))}function clock(){const n=new Date();const s=n.toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).replace(/\. /g,'.').replace('.','.')+' '+n.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('clock').textContent=s;document.getElementById('dataClock').textContent=s}setInterval(clock,1000);
 function loadState(){try{const raw=localStorage.getItem(LS);if(raw){const obj=JSON.parse(raw);state={...state,...obj};}}catch(e){} if(state.rows&&state.rows.length>=5)trainAllModels(false)}function saveState(){localStorage.setItem(LS,JSON.stringify(state))}
 function generateSampleData(){toast('샘플 데이터 생성은 비활성화되어 있습니다. 엑셀을 업로드하세요.');}
@@ -555,7 +849,7 @@ function zoneCards(){
   if(!area)return;
   // 첫 렌더링
   if(!zonesBuilt||area.children.length<6){
-    let h=zones.map(z=>`<div class="zone" data-zone="${z.id}" onclick="selectZone(${z.id})"><h3>${z.name}</h3><div class="zone-sub">${z.sub}</div><div class="zone-temp"><span class="zt-val">--</span> <span style="font-size:18px;color:#001d4d">℃</span></div><div class="zone-state"><i class="dot"></i><span class="zs-text">--</span></div><div class="pred-grid"><div class="pred-box"><div class="pred-lbl">상관식<br>기준 예측</div><div class="pred-val"><span class="pf-val">--</span> ℃</div></div><div class="pred-box"><div class="pred-lbl">AI 예측<br>(TF.js)</div><div class="pred-val orange"><span class="pa-val">--</span> ℃<span class="pred-delta pa-delta">(--)</span></div></div><div class="pred-box"><div class="pred-lbl">보정 후<br>최종 예측</div><div class="pred-val red"><span class="pn-val">--</span> ℃</div></div></div><div class="zone-actions"><button class="btn-run" onclick="event.stopPropagation();openSprinkle(${z.id})">💧 살수 실행</button><button class="btn-end" onclick="event.stopPropagation();endSprinkle(${z.id})">살수 종료<br>(진행중 아님)</button><button class="btn-sub" onclick="event.stopPropagation();selectZone(${z.id})">▧ 상세 보기</button><button class="btn-sub" onclick="event.stopPropagation();showPane('log')">▣ 이력 보기</button></div></div>`).join('');
+    let h=zones.map(z=>`<div class="zone" data-zone="${z.id}" onclick="selectZone(${z.id})"><h3>${z.name}</h3><div class="zone-sub">${z.sub}</div><div class="zone-temp"><span class="zt-val">--</span><span class="zt-unit">℃</span></div><div class="zone-state"><i class="dot"></i><span class="zs-text">--</span></div><div class="pred-grid"><div class="pred-box"><div class="pred-lbl">상관식<br>기준 예측</div><div class="pred-val"><span class="pf-val">--</span> ℃</div></div><div class="pred-box"><div class="pred-lbl">AI 예측<br>(TF.js)</div><div class="pred-val orange"><span class="pa-val">--</span> ℃<span class="pred-delta pa-delta">(--)</span></div></div><div class="pred-box"><div class="pred-lbl">보정 후<br>최종 예측</div><div class="pred-val red"><span class="pn-val">--</span> ℃</div></div></div><div class="zone-actions"><button class="btn-run" onclick="event.stopPropagation();openSprinkle(${z.id})">💧 살수 실행</button><button class="btn-end" onclick="event.stopPropagation();endSprinkle(${z.id})">살수 종료</button><button class="btn-sub" onclick="event.stopPropagation();selectZone(${z.id})">📊 상세 보기</button><button class="btn-sub" onclick="event.stopPropagation();showPane('log')">📋 이력 보기</button></div></div>`).join('');
     h+=`<div class="legend"><span>• 상관식: 회귀식 기준 예측값</span><span>• AI 예측: TensorFlow.js 모델 예측값</span><span style="color:#d71920">• 보정 후 최종: AI + 구역별 보정계수 최종값</span><span>( )는 AI 보정값</span></div>`;
     area.innerHTML=h;
     zonesBuilt=true;
