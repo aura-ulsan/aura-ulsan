@@ -132,6 +132,256 @@ html,body{height:100%;overflow:hidden;background:#f7fbff;font-size:12px;}
   .panel-head{font-size:12.5px;}
 }
 
+
+
+/* ════════════════════════════════════════════════════════════════
+   v6.2 SIAN4 FINAL OVERRIDE — 시안4 그대로
+   1920x1080 · 6구역 가로 1×6 · 글자 대형 · 컴팩트 여백
+   ════════════════════════════════════════════════════════════════ */
+html,body{font-size:14px;}
+.app{
+  height:100vh;
+  min-width:1280px;
+  grid-template-rows:72px 50px 1fr 32px;
+  background:#f5f8fc;
+}
+
+/* 헤더 */
+.header{
+  height:72px;
+  grid-template-columns:380px 1fr 380px;
+  padding:8px 16px;
+  gap:14px;
+}
+.logo{width:50px;height:50px;font-size:15px;border-radius:8px;}
+.brand{gap:12px;}
+.brand-title{font-size:22px;line-height:1.05;}
+.brand-sub{font-size:13px;margin-top:3px;}
+.version{font-size:12px;padding:2px 7px;}
+.status-main{
+  height:50px;font-size:18px;border-radius:8px;gap:12px;
+  font-weight:900;
+}
+.status-main .check{font-size:24px;}
+.header-actions{gap:10px;}
+.clock{
+  height:50px;min-width:200px;
+  font-size:17px;font-weight:900;
+  border-radius:8px;
+}
+.hbtn{
+  height:50px;padding:0 16px;
+  font-size:14px;font-weight:800;
+  border-radius:8px;
+}
+
+/* 탭 바 */
+.tabs{height:50px;padding:0 16px;}
+.tab{
+  height:50px;padding:0 22px;
+  font-size:16px;font-weight:900;
+  gap:9px;border-bottom-width:4px;
+}
+.tab.new::after{font-size:9px;padding:2px 6px;}
+.mini-stat{gap:18px;font-size:13px;font-weight:600;align-items:center;}
+.dot{width:9px;height:9px;margin-right:5px;}
+
+/* 메인 그리드 — 시안4: 센서(120) + 6구역(290) + 하단(나머지) */
+.main{
+  padding:12px;gap:12px;
+  grid-template-rows:120px 295px 1fr;
+  overflow:hidden;
+}
+
+/* 센서 바 — 7개 센서 + 시스템 카드 */
+.sensors{
+  grid-template-columns:repeat(7,1fr) 220px;
+  gap:10px;
+}
+.sensor{
+  padding:14px 16px;
+  grid-template-columns:50px 1fr;
+  gap:10px;
+  align-items:center;
+  border-radius:10px;
+  box-shadow:0 1px 4px rgba(0,30,80,.06);
+}
+.sensor-icon{
+  font-size:38px;text-align:center;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+}
+.sensor-title{
+  font-size:14px;font-weight:900;
+  text-align:left;margin-bottom:4px;
+  color:#0b234b;
+}
+.sensor-value{
+  font-size:24px;font-weight:900;
+  text-align:left;line-height:1.05;
+  letter-spacing:-.5px;
+}
+.sensor-unit{font-size:12px;margin-left:3px;color:#5a6a7e;font-weight:700;}
+.sensor-src{
+  text-align:left;font-size:12px;
+  color:#5a6a7e;margin-top:5px;font-weight:600;
+}
+.sys-card{padding:12px 14px;border-radius:10px;}
+.sys-title{font-size:14px;font-weight:900;}
+.sys-ok{margin:8px 0;font-size:16px;font-weight:900;gap:8px;}
+.shield{padding:3px 6px;font-size:13px;}
+.sys-row{font-size:12px;line-height:1.7;}
+
+/* ★ 6구역 가로 1×6 (시안4 핵심) */
+.zones{
+  grid-template-columns:repeat(6,1fr);
+  gap:10px;
+  align-items:stretch;
+}
+.zone{
+  padding:14px 12px;
+  border-radius:10px;
+  display:flex;flex-direction:column;
+  min-width:0;
+  box-shadow:0 1px 4px rgba(0,30,80,.06);
+  min-height:0;
+}
+.zone h3{
+  font-size:20px;font-weight:900;line-height:1.05;
+  margin:0;color:#0b234b;
+}
+.zone-sub{
+  font-size:13px;font-weight:700;
+  margin-top:3px;color:#48607e;
+  line-height:1.25;
+  white-space:normal;
+  word-break:keep-all;
+  min-height:32px;  /* 두 줄 고정 (이름 길이 일관) */
+}
+.zone-temp{
+  font-size:30px;font-weight:900;
+  margin-top:8px;letter-spacing:-1px;
+  color:#c71921;line-height:1;
+}
+.zone-temp.orange{color:#d66a00;}
+.zone-temp.green{color:#078943;}
+.zone-state{
+  font-size:14px;font-weight:900;
+  margin:4px 0 10px;
+  display:flex;align-items:center;gap:6px;
+}
+.zone-state .dot{width:11px;height:11px;}
+.zone-state.red .dot{background:#d71920;}
+.zone-state.orange .dot{background:#ff6f00;}
+.zone-state.green .dot{background:#078943;}
+
+/* 예측 그리드 (3열) */
+.pred-grid{
+  border-radius:7px;margin-bottom:8px;
+}
+.pred-box{padding:7px 3px;}
+.pred-lbl{
+  font-size:11px;font-weight:900;line-height:1.2;
+  color:#48607e;
+}
+.pred-val{
+  font-size:14px;font-weight:900;margin-top:5px;
+  line-height:1.05;
+}
+.pred-delta{font-size:11px;color:#ff6f00;}
+
+/* 액션 버튼 */
+.zone-actions{gap:6px;}
+.zone-actions button{
+  height:36px;border-radius:6px;
+  font-size:12px;font-weight:900;
+  line-height:1.05;
+  padding:0 4px;
+}
+.btn-run{
+  background:linear-gradient(180deg,#1976e8,#0054c8);
+  color:#fff;border:0;
+}
+.btn-end{
+  background:#fff8f2;color:#e65100;
+  border:1px solid #ff8a3d;font-size:11px;
+}
+.btn-sub{font-size:11px;}
+
+.legend{
+  grid-column:1/-1;
+  font-size:12px;color:#243b62;
+  margin-top:-6px;
+  font-weight:600;
+}
+.legend span{margin-right:18px;}
+
+/* 하단 — 차트 / AI 모델 / 살수 이력 */
+.bottom{
+  grid-template-columns:1.5fr .9fr 1.1fr;
+  gap:12px;min-height:0;
+}
+.panel{
+  padding:12px 14px;border-radius:10px;
+  box-shadow:0 1px 4px rgba(0,30,80,.06);
+}
+.panel-head{
+  font-size:16px;font-weight:900;
+  margin-bottom:10px;
+}
+.small-btn{
+  height:30px;font-size:12px;font-weight:800;
+  padding:0 10px;
+}
+
+/* 4분할 요약 */
+.summary4{gap:8px;margin-bottom:10px;}
+.summary-card{padding:10px 12px;border-radius:7px;}
+.summary-lbl{font-size:12px;font-weight:800;color:#48607e;}
+.summary-val{font-size:22px;font-weight:900;margin-top:4px;letter-spacing:-.5px;}
+.summary-sub{font-size:12px;font-weight:700;margin-top:3px;}
+
+/* 차트 영역 */
+.chart-wrap{min-height:170px;}
+
+/* 표 */
+.perf-table,.log-table,.data-table{
+  font-size:13px;
+}
+.perf-table th,.perf-table td,
+.log-table th,.log-table td,
+.data-table th,.data-table td{
+  padding:7px 6px;
+}
+
+.model-state{
+  margin-top:10px;padding:10px 12px;
+  border-radius:7px;
+}
+.model-state h4{font-size:13px;margin-bottom:6px;}
+.model-current{font-size:18px;}
+
+.footer{
+  height:32px;font-size:12px;padding:0 16px;
+  font-weight:800;
+}
+
+/* 1400 이하 (반응) */
+@media(max-width:1500px){
+  html,body{font-size:13px;}
+  .brand-title{font-size:20px;}
+  .header{grid-template-columns:340px 1fr 340px;}
+  .tab{padding:0 16px;font-size:15px;}
+  .sensor-value{font-size:21px;}
+  .zone h3{font-size:18px;}
+  .zone-temp{font-size:26px;}
+  .panel-head{font-size:14px;}
+}
+@media(max-width:1300px){
+  .app{min-width:1180px;}
+  .sensors{grid-template-columns:repeat(7,1fr) 180px;}
+  .sensor-icon{font-size:32px;}
+  .sensor-value{font-size:19px;}
+}
 </style>
 </head>
 <body>
@@ -169,7 +419,7 @@ html,body{height:100%;overflow:hidden;background:#f7fbff;font-size:12px;}
 <div class="modal-bg" id="sprinkleModal"><div class="modal"><h2 id="modalTitle">구역 살수 이행</h2><div class="form-row"><label>구역</label><input id="mZone" readonly></div><div class="form-row"><label>살수량</label><input id="mVol" type="number" value="15"></div><div class="form-row"><label>차량</label><select id="mTruck"><option>STRIKER 1</option><option>STRIKER 2</option><option>급수차</option></select></div><div class="form-row"><label>작업자</label><input id="mWorker" value="운영자"></div><div class="form-row"><label>살수후 온도</label><input id="mAfter" type="number" step="0.1"></div><div class="modal-actions"><button class="ghost" onclick="closeModal()">취소</button><button class="primary" onclick="confirmSprinkle()">살수 이행 등록</button></div></div></div>
 <div class="modal-bg" id="apiModal"><div class="modal"><h2>API 설정</h2><div class="form-row"><label>기상청 API 키</label><input id="apiKey" placeholder="data.go.kr 인증키"></div><div class="modal-actions"><button class="ghost" onclick="closeApi()">닫기</button><button class="primary" onclick="saveApi()">저장</button></div></div></div>
 <script>
-const LS='aura_v62_full_state';let chart=null,analysisChart=null,currentZoneForModal=1,selectedZone=1,tfReady=false;let formulaModel=null,tfModel=null,normInfo=null,metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};let wx={pave:24.5,air:20.0,solar:3.48,hum:30,wind:7.10,dir:305,dew:8.0};const zones=[{id:1,name:'구역 1',sub:'활주로 36번단',base:46.1},{id:2,name:'구역 2',sub:'활주로 중앙(북)',base:46.1},{id:3,name:'구역 3',sub:'활주로 중앙',base:46.1},{id:4,name:'구역 4',sub:'활주로 중앙(남)',base:46.1},{id:5,name:'구역 5',sub:'활주로 18번단',base:46.1},{id:6,name:'구역 6',sub:'계류장(STRIKER)',base:46.1}];let state={corr:{1:0,2:0,3:0,4:0,5:0,6:0},sprinkled:{},logs:[{time:'05.08 09:42',zone:'구역 2',vol:'15.0 ㎡',truck:'STRIKER 2',worker:'김철수',note:'정상 종료'},{time:'05.08 08:15',zone:'구역 5',vol:'18.0 ㎡',truck:'STRIKER 1',worker:'이영희',note:'정상 종료'},{time:'05.08 07:20',zone:'구역 1',vol:'12.0 ㎡',truck:'STRIKER 2',worker:'박민수',note:'정상 종료'}],rows:[]};
+const LS='aura_v62_full_state';let chart=null,analysisChart=null,currentZoneForModal=1,selectedZone=1,tfReady=false;let formulaModel=null,tfModel=null,normInfo=null,metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};let wx={pave:24.5,air:20.0,solar:3.48,hum:30,wind:7.10,dir:305,dew:8.0};const zones=[{id:1,name:'구역 1',sub:'활주로 36방향<br>회전패드',base:46.1},{id:2,name:'구역 2',sub:'활주로 36방향<br>목표점표지',base:46.1},{id:3,name:'구역 3',sub:'활주로 진입지점',base:46.1},{id:4,name:'구역 4',sub:'활주로 18방향<br>목표점표지',base:46.1},{id:5,name:'구역 5',sub:'활주로 18방향<br>회전패드',base:46.1},{id:6,name:'구역 6',sub:'계류장',base:46.1}];let state={corr:{1:0,2:0,3:0,4:0,5:0,6:0},sprinkled:{},logs:[{time:'05.08 09:42',zone:'구역 2',vol:'15.0 ㎡',truck:'STRIKER 2',worker:'김철수',note:'정상 종료'},{time:'05.08 08:15',zone:'구역 5',vol:'18.0 ㎡',truck:'STRIKER 1',worker:'이영희',note:'정상 종료'},{time:'05.08 07:20',zone:'구역 1',vol:'12.0 ㎡',truck:'STRIKER 2',worker:'박민수',note:'정상 종료'}],rows:[]};
 function fmt(v,d=1){return isFinite(v)?Number(v).toFixed(d):'--'}function clamp(v,min,max,fallback){v=Number(v);if(!isFinite(v))return fallback;return Math.max(min,Math.min(max,v))}function sortRowsLatest(rows){return rows.slice().sort((a,b)=>String((b.date||'')+' '+(b.time||'')).localeCompare(String((a.date||'')+' '+(a.time||''))))}function clock(){const n=new Date();const s=n.toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).replace(/\. /g,'.').replace('.','.')+' '+n.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('clock').textContent=s;document.getElementById('dataClock').textContent=s}setInterval(clock,1000);
 function loadState(){try{const raw=localStorage.getItem(LS);if(raw){const obj=JSON.parse(raw);state={...state,...obj};}}catch(e){} if(state.rows&&state.rows.length>=5)trainAllModels(false)}function saveState(){localStorage.setItem(LS,JSON.stringify(state))}
 function generateSampleData(){toast('샘플 데이터 생성은 비활성화되어 있습니다. 엑셀을 업로드하세요.');}
