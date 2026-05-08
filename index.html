@@ -4998,6 +4998,338 @@ function downloadModelJson() {
   setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
 }
 
+
+
+/* ════════════════════════════════════════════════════════════════
+   A.U.R.A 정확도 개선 패치 v7.1
+   - 1단계: 시간지연/이동평균/시간대 변수 반영
+   - 2단계: 일반가열/살수냉각/재가열 상태 분리 유지
+   - 3단계: 상관식 기반 + 잔차 보정 하이브리드
+   - 구역별 독립모델 대신 공통모델 + 동적 구역 보정계수 적용
+   ════════════════════════════════════════════════════════════════ */
+var AURA_ZONE_CORR_KEY = 'aura_dynamic_zone_correction_v2';
+var dynamicZoneCorrections = dynamicZoneCorrections || {};
+var residualModelInfo = residualModelInfo || { enabled:true, n:0, rmseBefore:null, rmseAfter:null };
+
+function auraEnsureZoneCorrections() {
+  if (!dynamicZoneCorrections) dynamicZoneCorrections = {};
+  for (var z=1; z<=6; z++) {
+    if (!dynamicZoneCorrections[z]) {
+      dynamicZoneCorrections[z] = { value:0, n:0, recentAvg:0, lastUpdated:null, rmseBefore:null, rmseAfter:null };
+    }
+  }
+}
+function loadZoneCorrections() {
+  auraEnsureZoneCorrections();
+  try {
+    var raw = localStorage.getItem(AURA_ZONE_CORR_KEY);
+    if (raw) {
+      var saved = JSON.parse(raw);
+      for (var z=1; z<=6; z++) if (saved[z]) dynamicZoneCorrections[z] = saved[z];
+    }
+  } catch(e) {}
+}
+function saveZoneCorrections() {
+  try { localStorage.setItem(AURA_ZONE_CORR_KEY, JSON.stringify(dynamicZoneCorrections || {})); } catch(e) {}
+}
+function auraRowTimeValue(r) {
+  var date = String(r.date || '').replace(/\./g,'-');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) date = '2000-01-01';
+  var h = Number(r.hr);
+  if (!isFinite(h)) {
+    var t = String(r.time || '12:00');
+    h = t.indexOf(':') >= 0 ? parseInt(t.split(':')[0]) : parseInt(t) || 12;
+  }
+  return new Date(date + 'T' + String(Math.max(0,Math.min(23,Math.floor(h)))).padStart(2,'0') + ':00:00').getTime();
+}
+function auraPrepareLagRows(rawRows) {
+  var rows = (rawRows || []).slice().sort(function(a,b){ return auraRowTimeValue(a)-auraRowTimeValue(b); });
+  var lastByZone = {}, solarByZone = {};
+  rows.forEach(function(r){
+    var z = r.zone || 0;
+    var t = auraRowTimeValue(r);
+    var prev = lastByZone[z];
+    r.prevPt = prev ? Number(prev.pt) : (isFinite(Number(r.at)) ? Number(r.at) + Math.max(0, Number(r.sol||0))*4 : Number(r.pt||0));
+    if (!isFinite(r.prevPt)) r.prevPt = Number(r.pt||0);
+    var bucket = solarByZone[z] || [];
+    bucket = bucket.filter(function(x){ return (t - x.t) <= 30*60*1000 && (t - x.t) >= 0; });
+    bucket.push({t:t, sol:Number(r.sol||0)});
+    r.solarMA30 = bucket.length ? bucket.reduce(function(a,b){return a+b.sol;},0)/bucket.length : Number(r.sol||0);
+    solarByZone[z] = bucket;
+    if (!isNaN(Number(r.pt)) && isFinite(Number(r.pt))) lastByZone[z] = r;
+  });
+  return rows;
+}
+
+// 1단계: 시간지연/이동평균/시간대/고차 일사량 반영
+function buildFeatures(rawRows, opts, zoneKeys) {
+  var rows = auraPrepareLagRows(rawRows || []);
+  var X = [], Y = [];
+  var names = ['대기온도(℃)', '일사량(MJ/㎡)', '습도(%)', '풍속(m/s)'];
+  if (opts && opts.advanced) {
+    names = names.concat([
+      '일사량²', '일사량³', '풍속×일사량',
+      '시간_sin', '시간_cos',
+      '직전포장온도(℃)', '30분평균일사량(MJ/㎡)'
+    ]);
+  }
+  if (opts && opts.zonedummy && zoneKeys && zoneKeys.length > 1) {
+    for (var zi = 1; zi < zoneKeys.length; zi++) names.push('구역=' + zoneKeys[zi]);
+  }
+  rows.forEach(function(r){
+    var at=Number(r.at), sol=Number(r.sol), hum=Number(r.hum), ws=Number(r.ws), pt=Number(r.pt);
+    if (![at,sol,hum,ws,pt].every(function(v){return !isNaN(v)&&isFinite(v);})) return;
+    var feat = [at, sol, hum, ws];
+    if (opts && opts.advanced) {
+      var hr = Number(r.hr); if (!isFinite(hr)) hr = 12;
+      var rad = 2 * Math.PI * hr / 24;
+      feat.push(sol*sol);
+      feat.push(sol*sol*sol);
+      feat.push(ws*sol);
+      feat.push(Math.sin(rad));
+      feat.push(Math.cos(rad));
+      feat.push(isFinite(Number(r.prevPt)) ? Number(r.prevPt) : pt);
+      feat.push(isFinite(Number(r.solarMA30)) ? Number(r.solarMA30) : sol);
+    }
+    if (opts && opts.zonedummy && zoneKeys && zoneKeys.length > 1) {
+      for (var zi2 = 1; zi2 < zoneKeys.length; zi2++) feat.push(r.zone == zoneKeys[zi2] ? 1 : 0);
+    }
+    X.push(feat); Y.push(pt);
+  });
+  return { X:X, Y:Y, names:names };
+}
+
+function auraCurrentPrevTemp(zoneId) {
+  try {
+    if (zoneId && sprinkleState && sprinkleState[zoneId] && sprinkleState[zoneId].active) {
+      var m = getManagedSprinkleTemp(zoneId);
+      if (m !== null && isFinite(m)) return Number(m);
+    }
+  } catch(e) {}
+  if (tempHistory && tempHistory.length) {
+    var last = tempHistory[tempHistory.length-1];
+    if (last && isFinite(Number(last.paveTemp))) return Number(last.paveTemp);
+  }
+  return Number(wx.paveTemp || wx.airTemp || 0);
+}
+function buildPredictFeatures(opts, zoneKeys, zoneId) {
+  var at = Number(wx.airTemp||0), sol = Number(wx.solar||0), hum = Number(wx.humidity||60), ws = Number(wx.windSpeed||0);
+  var feat = [at, sol, hum, ws];
+  if (opts && opts.advanced) {
+    var hr = new Date().getHours();
+    var rad = 2 * Math.PI * hr / 24;
+    feat.push(sol*sol);
+    feat.push(sol*sol*sol);
+    feat.push(ws*sol);
+    feat.push(Math.sin(rad));
+    feat.push(Math.cos(rad));
+    feat.push(auraCurrentPrevTemp(zoneId));
+    feat.push(sol); // 실시간에서는 최근 30분 일사량이 없으면 현재값으로 대체
+  }
+  if (opts && opts.zonedummy && zoneKeys && zoneKeys.length > 1) {
+    for (var zi = 1; zi < zoneKeys.length; zi++) feat.push(zoneId == zoneKeys[zi] ? 1 : 0);
+  }
+  return feat;
+}
+function auraPredictRowWithModel(model, row) {
+  if (!model) return NaN;
+  var opts = model.opts || {advanced:false, zonedummy:false};
+  var zKeys = model.zoneKeys || [];
+  var rows = auraPrepareLagRows([row]);
+  var r = rows[0] || row;
+  var at=Number(r.at), sol=Number(r.sol), hum=Number(r.hum), ws=Number(r.ws);
+  var feat=[at,sol,hum,ws];
+  if (opts && opts.advanced) {
+    var hr=Number(r.hr); if(!isFinite(hr)) hr=12;
+    var rad=2*Math.PI*hr/24;
+    feat.push(sol*sol, sol*sol*sol, ws*sol, Math.sin(rad), Math.cos(rad), Number(r.prevPt||r.pt||at), Number(r.solarMA30||sol));
+  }
+  if (opts && opts.zonedummy && zKeys && zKeys.length>1) {
+    for (var zi=1; zi<zKeys.length; zi++) feat.push(r.zone == zKeys[zi] ? 1 : 0);
+  }
+  return predict(model, feat);
+}
+
+// 동적 구역 보정계수: 최근 잔차에 가중치를 주어 자동 갱신
+function updateDynamicZoneCorrections(rows, model) {
+  auraEnsureZoneCorrections();
+  if (!rows || !rows.length || !model) return dynamicZoneCorrections;
+  var prepared = auraPrepareLagRows(rows).filter(function(r){
+    return r.spk === 0 && !isNaN(Number(r.pt)) && isFinite(Number(r.pt));
+  });
+  var allResidualsBefore = [], allResidualsAfter = [];
+  for (var z=1; z<=6; z++) {
+    var zr = prepared.filter(function(r){ return Number(r.zone) === z; });
+    if (!zr.length) continue;
+    var residuals = zr.map(function(r){ return Number(r.pt) - auraPredictRowWithModel(model, r); }).filter(function(v){return isFinite(v);});
+    if (!residuals.length) continue;
+    var recent = residuals.slice(-10);
+    var simpleAvg = recent.reduce(function(a,b){return a+b;},0) / recent.length;
+    var ewma = dynamicZoneCorrections[z] && isFinite(Number(dynamicZoneCorrections[z].value)) ? Number(dynamicZoneCorrections[z].value) : 0;
+    residuals.forEach(function(e){ ewma = ewma * 0.80 + e * 0.20; });
+    var before = Math.sqrt(residuals.reduce(function(a,e){return a+e*e;},0)/residuals.length);
+    var afterRes = residuals.map(function(e){ return e - ewma; });
+    var after = Math.sqrt(afterRes.reduce(function(a,e){return a+e*e;},0)/afterRes.length);
+    dynamicZoneCorrections[z] = {
+      value: parseFloat(ewma.toFixed(2)),
+      n: residuals.length,
+      recentAvg: parseFloat(simpleAvg.toFixed(2)),
+      rmseBefore: parseFloat(before.toFixed(2)),
+      rmseAfter: parseFloat(after.toFixed(2)),
+      lastUpdated: new Date().toLocaleString('ko-KR')
+    };
+    residuals.forEach(function(e){ allResidualsBefore.push(e); allResidualsAfter.push(e-ewma); });
+  }
+  residualModelInfo = residualModelInfo || {enabled:true};
+  residualModelInfo.n = allResidualsBefore.length;
+  residualModelInfo.rmseBefore = allResidualsBefore.length ? Math.sqrt(allResidualsBefore.reduce(function(a,e){return a+e*e;},0)/allResidualsBefore.length) : null;
+  residualModelInfo.rmseAfter = allResidualsAfter.length ? Math.sqrt(allResidualsAfter.reduce(function(a,e){return a+e*e;},0)/allResidualsAfter.length) : null;
+  saveZoneCorrections();
+  return dynamicZoneCorrections;
+}
+function getDynamicZoneCorrection(zoneId) {
+  auraEnsureZoneCorrections();
+  if (anaData && anaData.trainRows && mlModel) updateDynamicZoneCorrections(anaData.trainRows, mlModel);
+  var z = dynamicZoneCorrections[zoneId];
+  return z && isFinite(Number(z.value)) ? Number(z.value) : 0;
+}
+function resetZoneCorrections() {
+  if (!confirm('구역별 동적 보정계수를 초기화하시겠습니까?')) return;
+  dynamicZoneCorrections = {};
+  auraEnsureZoneCorrections();
+  saveZoneCorrections();
+  renderAll();
+  try { renderCoefPane(); } catch(e) {}
+  showToast('구역별 보정계수가 초기화되었습니다.', '#b71c1c');
+}
+
+function predictPave() {
+  if (!mlModel) return wx.paveTemp;
+  var x = buildPredictFeatures(mlModel.opts || {advanced:false,zonedummy:false}, mlModel.zoneKeys || [], null);
+  return parseFloat(predict(mlModel, x).toFixed(1));
+}
+function predictPaveZone(zoneId) {
+  var base;
+  if (mlModel) {
+    var x = buildPredictFeatures(mlModel.opts || {advanced:false,zonedummy:false}, mlModel.zoneKeys || [], zoneId);
+    base = predict(mlModel, x);
+  } else if (zoneModels && zoneModels[zoneId]) {
+    var zm = zoneModels[zoneId];
+    base = predict(zm, buildPredictFeatures(zm.opts || {advanced:false,zonedummy:false}, [], null));
+  } else {
+    base = Number(wx.paveTemp || 0) + (zones[zoneId-1] ? zones[zoneId-1].off : 0);
+  }
+  var corr = getDynamicZoneCorrection(zoneId);
+  return parseFloat((base + corr).toFixed(1));
+}
+function getRawZoneTempById(zoneId) {
+  return predictPaveZone(zoneId);
+}
+
+// 2단계 상태 분리: 살수 후 재상승률은 기상조건에 따라 동적 산정
+function getReheatRate() {
+  var solar = Number(wx.solar || 0), wind = Number(wx.windSpeed || 0), hum = Number(wx.humidity || 60), at = Number(wx.airTemp || 25);
+  var rate = 0.035 + solar*0.055 + Math.max(0, at-25)*0.004 - wind*0.010 - Math.max(0, hum-60)*0.001;
+  return Math.max(0.02, Math.min(0.32, rate)); // ℃/min
+}
+
+// 3단계 하이브리드: 상관식 결과 + 구역 잔차보정 성능 표시
+function renderZoneCorrectionBox() {
+  auraEnsureZoneCorrections();
+  var rows = '';
+  for (var z=1; z<=6; z++) {
+    var c = dynamicZoneCorrections[z] || {value:0,n:0,recentAvg:0,rmseBefore:null,rmseAfter:null};
+    var valColor = Number(c.value) >= 0 ? 'var(--red)' : 'var(--primary)';
+    rows += '<tr>'+
+      '<td style="padding:6px 8px;font-weight:700;">구역 '+z+'</td>'+
+      '<td style="padding:6px 8px;text-align:right;color:'+valColor+';font-weight:900;">'+(Number(c.value)>=0?'+':'')+Number(c.value||0).toFixed(2)+'℃</td>'+
+      '<td style="padding:6px 8px;text-align:right;">'+(c.n||0)+'건</td>'+
+      '<td style="padding:6px 8px;text-align:right;">'+(isFinite(c.rmseBefore)?Number(c.rmseBefore).toFixed(2):'—')+'</td>'+
+      '<td style="padding:6px 8px;text-align:right;color:var(--green);font-weight:800;">'+(isFinite(c.rmseAfter)?Number(c.rmseAfter).toFixed(2):'—')+'</td>'+
+    '</tr>';
+  }
+  var info = residualModelInfo && residualModelInfo.rmseBefore !== null ?
+    '전체 RMSE: 보정 전 '+Number(residualModelInfo.rmseBefore).toFixed(2)+'℃ → 보정 후 '+Number(residualModelInfo.rmseAfter).toFixed(2)+'℃' :
+    '살수 미실시 실측 데이터가 쌓이면 자동으로 보정계수가 갱신됩니다.';
+  return '<div class="coef-card" style="margin-bottom:12px;border-left:4px solid var(--green);">'+
+    '<div class="coef-card-title">🧭 동적 구역 보정계수 — 공통모델 + 위치별 잔차보정</div>'+
+    '<div style="font-size:.7rem;color:var(--txt-3);margin-bottom:8px;">보정계수 = 구역별 최근 실측온도 - 공통모델 예측온도. 최근 데이터는 EWMA 0.2 가중으로 반영합니다.</div>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:.74rem;background:#fff;border:1px solid var(--bdr-1);border-radius:6px;overflow:hidden;">'+
+    '<thead><tr style="background:var(--primary-bg);color:var(--primary-d);"><th style="padding:6px 8px;text-align:left;">구역</th><th style="padding:6px 8px;text-align:right;">보정계수</th><th style="padding:6px 8px;text-align:right;">학습잔차</th><th style="padding:6px 8px;text-align:right;">RMSE 전</th><th style="padding:6px 8px;text-align:right;">RMSE 후</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:.7rem;color:var(--txt-2);"><span>'+info+'</span><button class="btn" onclick="resetZoneCorrections()" style="padding:4px 10px;font-size:.68rem;">보정계수 초기화</button></div>'+
+    '</div>';
+}
+
+function renderCoefPane() {
+  var el = document.getElementById('coefContent');
+  if (!el) return;
+  if (!mlModel || !mlModel.coefs || !mlModel.featureNames) {
+    el.innerHTML = '<div style="text-align:center;padding:50px;color:var(--txt-3);font-size:.85rem;">📐 학습된 모델이 없습니다.<br><br>AI 학습 탭에서 모델을 먼저 학습시키세요.</div>';
+    return;
+  }
+  if (anaData && anaData.trainRows) updateDynamicZoneCorrections(anaData.trainRows, mlModel);
+  var html = '';
+  html += '<div class="banner banner-info" style="margin-bottom:12px;">'+
+    '<span style="font-size:.78rem;">📊 R²=<strong style="color:var(--purple);">'+Number(mlModel.r2||0).toFixed(3)+'</strong> · RMSE=<strong style="color:var(--accent-d);">'+Number(mlModel.rmse||0).toFixed(2)+'℃</strong> · MAE=<strong style="color:var(--primary);">'+(mlModel.mae!==undefined?Number(mlModel.mae).toFixed(2):'—')+'℃</strong> · 학습 '+(mlModel.n||0)+'건</span></div>';
+  html += renderEquationBox('① 포장온도 예측 상관식 — 시간지연/이동평균/시간대 변수 반영', makeEquation(mlModel, 'T_p'), '기본 기상변수 + 일사량 고차항 + 풍속×일사량 + 시간대 + 직전 포장온도 + 30분 평균 일사량을 사용합니다.');
+  html += renderEquationBox('② 살수 후 냉각효과 상관식', coolingModel ? makeEquation(coolingModel, 'ΔT') : 'ΔT = 평균 살수저감량(' + (sprinkleEffect['all'] || '—') + '℃)', coolingModel ? ('살수 실시 데이터 '+coolingModel.n+'건 학습 · R²='+Number(coolingModel.r2||0).toFixed(3)+' · RMSE='+Number(coolingModel.rmse||0).toFixed(2)+'℃') : '살수 전후 데이터가 5건 미만이면 평균 저감량을 임시 적용합니다.');
+  html += renderZoneCorrectionBox();
+  html += '<div class="coef-card" style="margin-bottom:12px;">'+
+    '<div class="coef-card-title">🔧 적용 중인 정확도 개선 1·2·3단계</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:.72rem;">'+
+      '<div style="background:#fff;border:1px solid var(--bdr-1);border-radius:6px;padding:9px;"><strong style="color:var(--primary);">1단계 Feature</strong><br>직전 포장온도, 30분 평균 일사량, 시간_sin/cos, 일사량²·³</div>'+
+      '<div style="background:#fff;border:1px solid var(--bdr-1);border-radius:6px;padding:9px;"><strong style="color:var(--accent-d);">2단계 상태분리</strong><br>일반 가열 / 살수 냉각 / 재가열 모니터링 분리</div>'+
+      '<div style="background:#fff;border:1px solid var(--bdr-1);border-radius:6px;padding:9px;"><strong style="color:var(--green);">3단계 Hybrid</strong><br>공통 상관식 + 구역별 동적 잔차 보정</div>'+
+    '</div></div>';
+  var mx = Math.max.apply(null, mlModel.coefs.map(function(v){return Math.abs(Number(v)||0);})) || 1;
+  html += '<div class="coef-grid"><div class="coef-card"><div class="coef-card-title">포장온도 모델 변수 계수</div><div class="coef-list">';
+  mlModel.coefs.forEach(function(c,i){
+    var nm = mlModel.featureNames[i] || ('x'+(i+1));
+    var pos = Number(c) >= 0;
+    html += '<div class="coef-item"><div class="coef-name">'+nm+'<div class="coef-desc">'+(pos?'상승 영향':'하강 영향')+'</div></div><div class="coef-bar"><div class="coef-bar-f" style="width:'+(Math.abs(Number(c))/mx*100).toFixed(0)+'%;background:'+(pos?'var(--primary)':'var(--red)')+';"></div></div><div class="coef-val '+(pos?'coef-pos':'coef-neg')+'">'+(pos?'+':'')+Number(c).toFixed(3)+'</div></div>';
+  });
+  html += '</div></div><div class="coef-card"><div class="coef-card-title">살수효과 모델 변수 계수</div><div class="coef-list">';
+  if (coolingModel && coolingModel.coefs) {
+    var cmx = Math.max.apply(null, coolingModel.coefs.map(function(v){return Math.abs(Number(v)||0);})) || 1;
+    coolingModel.coefs.forEach(function(c,i){
+      var nm = coolingModel.featureNames[i] || ('x'+(i+1)); var pos=Number(c)>=0;
+      html += '<div class="coef-item"><div class="coef-name">'+nm+'<div class="coef-desc">냉각효과 '+(pos?'증가':'감소')+'</div></div><div class="coef-bar"><div class="coef-bar-f" style="width:'+(Math.abs(Number(c))/cmx*100).toFixed(0)+'%;background:'+(pos?'var(--primary)':'var(--red)')+';"></div></div><div class="coef-val '+(pos?'coef-pos':'coef-neg')+'">'+(pos?'+':'')+Number(c).toFixed(3)+'</div></div>';
+    });
+  } else {
+    html += '<div style="padding:20px;text-align:center;color:var(--txt-3);">살수 전후 데이터 5건 이상부터 표시됩니다.</div>';
+  }
+  html += '</div></div></div>';
+  el.innerHTML = html;
+}
+
+function downloadModelJson() {
+  if (!mlModel && !coolingModel) { showToast('다운로드할 모델이 없습니다.', '#b71c1c'); return; }
+  if (anaData && anaData.trainRows && mlModel) updateDynamicZoneCorrections(anaData.trainRows, mlModel);
+  var payload = {
+    savedAt: new Date().toISOString(),
+    pavementTemperatureModel: mlModel,
+    coolingEffectModel: coolingModel,
+    zoneModels: zoneModels,
+    dynamicZoneCorrections: dynamicZoneCorrections,
+    residualCorrectionInfo: residualModelInfo,
+    averageSprinkleEffect: sprinkleEffect,
+    activeSprinkleState: sprinkleState,
+    equations: {
+      pavementTemperature: mlModel ? makeEquation(mlModel, 'T_p') : null,
+      coolingEffect: coolingModel ? makeEquation(coolingModel, 'ΔT') : null,
+      finalTemperature: 'T_zone = T_p(common model) + C_zone(dynamic residual correction)'
+    }
+  };
+  var blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'AURA_correlation_models_with_zone_correction.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+}
+
+loadZoneCorrections();
+
 // 초기화
 setTimeout(function(){
   setMainTab('mon');
