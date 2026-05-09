@@ -346,10 +346,10 @@ button{font-family:inherit;cursor:pointer;}
   color:#ff6f00;
 }
 
-/* 액션 버튼 (1열 단일) */
+/* 액션 버튼 (2+1 레이아웃: 살수실행/측정입력 / 이력보기) */
 .zone-actions{
   display:grid;
-  grid-template-columns:1fr;
+  grid-template-columns:1fr 1fr;
   gap:6px;
   margin-top:auto;
 }
@@ -363,6 +363,62 @@ button{font-family:inherit;cursor:pointer;}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   line-height:1.1;
 }
+.zone-actions button.full-width{grid-column:1/-1;}
+
+/* 측정 입력 버튼 (녹색 톤) */
+.btn-measure{
+  background:linear-gradient(180deg,#22c060,#078943);
+  color:#fff;border:0;
+  box-shadow:0 1px 3px rgba(7,137,67,.3);
+}
+.btn-measure:hover{background:linear-gradient(180deg,#078943,#005d2e);}
+
+/* ★ 알람 깜빡임 (구역 카드) */
+.zone.alarm{
+  border:2px solid #d71920 !important;
+  animation: alarmBlink 1s infinite;
+}
+@keyframes alarmBlink{
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(215,25,32,0.6), 0 1px 4px rgba(0,30,80,.05);
+    background:linear-gradient(135deg,#fff5f5 0%, #ffe9e9 100%);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(215,25,32,0.15), 0 4px 12px rgba(215,25,32,.3);
+    background:linear-gradient(135deg,#ffe5e5 0%, #ffd5d5 100%);
+  }
+}
+
+/* ★ 헤더 알람 배너 (status-main이 alarm 클래스 가질 때) */
+.status-main.alarm{
+  background:#fff0f0;
+  border-color:#ef9a9a;
+  color:#c62828;
+  animation: bannerBlink 1.2s infinite;
+}
+.status-main.alarm .check{color:#d71920;}
+@keyframes bannerBlink{
+  0%, 100% {
+    background:#fff0f0;
+    box-shadow: 0 0 0 0 rgba(215,25,32,0.4);
+  }
+  50% {
+    background:#ffe0e0;
+    box-shadow: 0 0 0 4px rgba(215,25,32,0.15);
+  }
+}
+.status-main.alarm-action{
+  margin-left:8px;display:inline-flex;gap:4px;
+}
+.status-main .alarm-btn{
+  height:36px;padding:0 12px;
+  background:#fff;color:#c62828;
+  border:1px solid #ef9a9a;
+  border-radius:6px;
+  font-size:13px;font-weight:900;
+  cursor:pointer;
+}
+.status-main .alarm-btn:hover{background:#ffe0e0;}
 .btn-run{
   background:linear-gradient(180deg,#1d7df0,#0a52b8);
   color:#fff;border:0;
@@ -727,6 +783,20 @@ pre{
 </div>
 <div class="modal-actions"><button class="ghost" onclick="closeModal()">취소</button><button class="primary" onclick="confirmSprinkle()">살수 이행 등록</button></div></div></div>
 
+<!-- 측정 입력 모달 (살수 안 한 측정만) -->
+<div class="modal-bg" id="measureModal"><div class="modal" style="width:480px;"><h2>구역 측정 입력 <span style="font-size:13px;font-weight:600;color:#5a6a7e;">(살수 안 함)</span></h2>
+<div class="form-row"><label>일자</label><input id="meDate" type="date" onchange="updateMeasureWeather()"></div>
+<div class="form-row"><label>시간</label><input id="meTime" type="time" onchange="updateMeasureWeather()"></div>
+<div class="form-row"><label>구역</label><input id="meZone" readonly></div>
+<div class="form-row"><label>실측 포장온도(℃)</label><input id="mePt" type="number" step="0.1" placeholder="휴대 적외선 측정값"></div>
+<div class="form-row"><label>작업자</label><input id="meWorker" value="운영자"></div>
+<div class="form-row"><label>비고</label><input id="meNote" placeholder="(선택) 측정 사유"></div>
+<div id="measureWxBox" style="background:#f0f6ff;border:1px solid #c8d8f0;border-radius:6px;padding:8px 10px;margin-top:10px;font-size:12px;color:#3a4a66;line-height:1.5;">
+<div id="measureWxLabel" style="font-weight:800;color:#0054c8;margin-bottom:3px;">ℹ️ 자동 첨부 (현재 기상)</div>
+<div>기온 <span id="meAutoAir">--</span>℃ · 일사량 <span id="meAutoSol">--</span> MJ/㎡ · 습도 <span id="meAutoHum">--</span>% · 풍속 <span id="meAutoWind">--</span> m/s</div>
+</div>
+<div class="modal-actions"><button class="ghost" onclick="closeMeasureModal()">취소</button><button class="primary" onclick="confirmMeasure()" style="background:#078943;">📏 측정 등록</button></div></div></div>
+
 <!-- 데이터 현장 입력/수정 모달 -->
 <div class="modal-bg" id="dataModal"><div class="modal" style="width:480px;"><h2 id="dataModalTitle">현장 데이터 입력</h2>
 <div class="form-row"><label>일자</label><input id="dDate" type="date"></div>
@@ -891,7 +961,7 @@ function zoneCards(){
   if(!area)return;
   // 첫 렌더링
   if(!zonesBuilt||area.children.length<6){
-    let h=zones.map(z=>`<div class="zone" data-zone="${z.id}" onclick="selectZone(${z.id})"><h3>${z.name}</h3><div class="zone-sub">${z.sub}</div><div class="zone-temp"><span class="zt-val">--</span><span class="zt-unit">℃</span></div><div class="zone-state"><i class="dot"></i><span class="zs-text">--</span></div><div class="pred-grid"><div class="pred-box"><div class="pred-lbl">상관식<br>기준 예측</div><div class="pred-val"><span class="pf-val">--</span> ℃</div></div><div class="pred-box"><div class="pred-lbl">AI 예측<br>(TF.js)</div><div class="pred-val orange"><span class="pa-val">--</span> ℃<span class="pred-delta pa-delta">(--)</span></div></div><div class="pred-box"><div class="pred-lbl">보정 후<br>최종 예측</div><div class="pred-val red"><span class="pn-val">--</span> ℃</div></div></div><div class="zone-actions"><button class="btn-run" onclick="event.stopPropagation();openSprinkle(${z.id})">💧 살수 실행</button><button class="btn-sub" onclick="event.stopPropagation();showPane('log')">📋 이력 보기</button></div></div>`).join('');
+    let h=zones.map(z=>`<div class="zone" data-zone="${z.id}" onclick="selectZone(${z.id})"><h3>${z.name}</h3><div class="zone-sub">${z.sub}</div><div class="zone-temp"><span class="zt-val">--</span><span class="zt-unit">℃</span></div><div class="zone-state"><i class="dot"></i><span class="zs-text">--</span></div><div class="pred-grid"><div class="pred-box"><div class="pred-lbl">상관식<br>기준 예측</div><div class="pred-val"><span class="pf-val">--</span> ℃</div></div><div class="pred-box"><div class="pred-lbl">AI 예측<br>(TF.js)</div><div class="pred-val orange"><span class="pa-val">--</span> ℃<span class="pred-delta pa-delta">(--)</span></div></div><div class="pred-box"><div class="pred-lbl">보정 후<br>최종 예측</div><div class="pred-val red"><span class="pn-val">--</span> ℃</div></div></div><div class="zone-actions"><button class="btn-run" onclick="event.stopPropagation();openSprinkle(${z.id})">💧 살수 실행</button><button class="btn-measure" onclick="event.stopPropagation();openMeasure(${z.id})">📏 측정 입력</button><button class="btn-sub full-width" onclick="event.stopPropagation();showPane('log')">📋 이력 보기</button></div></div>`).join('');
     h+=`<div class="legend"><span>• 상관식: 회귀식 기준 예측값</span><span>• AI 예측: TensorFlow.js 모델 예측값</span><span style="color:#d71920">• 보정 후 최종: AI + 구역별 보정계수 최종값</span><span>( )는 AI 보정값</span></div>`;
     area.innerHTML=h;
     zonesBuilt=true;
@@ -1244,11 +1314,319 @@ function confirmSprinkle(){
   } else {
     toast('구역 '+id+' 등록 완료. 학습 데이터 '+state.rows.length+'건 (5건 이상 시 학습 시작)');
   }
+  // 알람 자동 억제 (1시간)
+  suppressAlarmAfterAction();
   closeModal();
   render();
 }
 
 function endSprinkle(id){toast('살수 종료 버튼은 v6.2에서 삭제되었습니다');}
+
+/* ════════════════════════════════════════════════════════════════
+   측정 입력 (살수 안 한 측정 데이터)
+   ════════════════════════════════════════════════════════════════ */
+let currentMeasureZone=1;
+let measureWx={air:0,solar:0,hum:0,wind:0,source:'current'};
+
+function openMeasure(id){
+  currentMeasureZone=id;
+  const z=zones.find(zo=>zo.id==id);
+  const now=new Date();
+  document.querySelector('#measureModal h2').innerHTML=`구역 ${id} 측정 입력 <span style="font-size:13px;font-weight:600;color:#5a6a7e;">(${z?z.sub:''})</span>`;
+  document.getElementById('meDate').value=now.toISOString().slice(0,10);
+  document.getElementById('meTime').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('meZone').value=`구역 ${id}`;
+  document.getElementById('mePt').value='';
+  document.getElementById('meWorker').value='운영자';
+  document.getElementById('meNote').value='';
+  measureWx={air:wx.air,solar:wx.solar,hum:wx.hum,wind:wx.wind,source:'current'};
+  renderMeasureWx();
+  document.getElementById('measureModal').classList.add('show');
+  setTimeout(()=>document.getElementById('mePt').focus(),100);
+}
+
+function renderMeasureWx(){
+  const lbl=document.getElementById('measureWxLabel');
+  document.getElementById('meAutoAir').textContent=fmt(measureWx.air);
+  document.getElementById('meAutoSol').textContent=fmt(measureWx.solar,2);
+  document.getElementById('meAutoHum').textContent=fmt(measureWx.hum,0);
+  document.getElementById('meAutoWind').textContent=fmt(measureWx.wind,2);
+  if(!lbl)return;
+  if(measureWx.source==='loading')lbl.innerHTML='⏳ <span style="color:#ff6f00">Open-Meteo 조회 중...</span>';
+  else if(measureWx.source==='current')lbl.innerHTML='ℹ️ <span style="color:#0054c8">자동 첨부 (현재 기상)</span>';
+  else if(measureWx.source==='api')lbl.innerHTML='✅ <span style="color:#078943">Open-Meteo 과거 기상 조회 완료</span>';
+  else if(measureWx.source==='future')lbl.innerHTML='⚠️ <span style="color:#ff6f00">미래 시점 — 현재 기상 적용</span>';
+  else if(measureWx.source==='fail')lbl.innerHTML='⚠️ <span style="color:#d71920">Open-Meteo 실패 — 현재 기상 적용</span>';
+  else if(measureWx.source==='close')lbl.innerHTML='ℹ️ <span style="color:#0054c8">최근 30분 이내 — 현재 기상 적용</span>';
+}
+
+async function updateMeasureWeather(){
+  const date=document.getElementById('meDate').value;
+  const time=document.getElementById('meTime').value;
+  if(!date||!time)return;
+  const targetDate=new Date(date+'T'+time+':00');
+  if(isNaN(targetDate.getTime()))return;
+  const now=new Date();
+  const diffMin=(now-targetDate)/60000;
+  if(diffMin<-5){measureWx={air:wx.air,solar:wx.solar,hum:wx.hum,wind:wx.wind,source:'future'};renderMeasureWx();return;}
+  if(diffMin<30){measureWx={air:wx.air,solar:wx.solar,hum:wx.hum,wind:wx.wind,source:'close'};renderMeasureWx();return;}
+  measureWx.source='loading';
+  renderMeasureWx();
+  try{
+    await fetchHistoryWeather(date,date);
+    const hr=parseInt(time.split(':')[0]);
+    const hist=getHistoryWeather(date,hr);
+    if(hist&&hist.air!=null&&hist.solar!=null&&hist.hum!=null&&hist.wind!=null){
+      measureWx={air:+hist.air.toFixed(1),solar:+hist.solar.toFixed(2),hum:+hist.hum.toFixed(1),wind:+hist.wind.toFixed(2),source:'api'};
+    } else {
+      measureWx={air:wx.air,solar:wx.solar,hum:wx.hum,wind:wx.wind,source:'fail'};
+    }
+  } catch(err){
+    console.warn('Open-Meteo 실패:',err.message);
+    measureWx={air:wx.air,solar:wx.solar,hum:wx.hum,wind:wx.wind,source:'fail'};
+  }
+  renderMeasureWx();
+}
+
+function closeMeasureModal(){document.getElementById('measureModal').classList.remove('show');}
+
+function confirmMeasure(){
+  const id=currentMeasureZone;
+  const date=document.getElementById('meDate').value;
+  const time=document.getElementById('meTime').value;
+  const pt=parseFloat(document.getElementById('mePt').value);
+  const worker=document.getElementById('meWorker').value;
+  const note=document.getElementById('meNote').value;
+
+  if(!date||!time){toast('일자/시간을 입력하세요');return;}
+  if(isNaN(pt)){toast('실측 포장온도를 입력하세요');return;}
+  if(pt<-20||pt>100){toast('포장온도가 범위를 벗어났습니다 (-20~100℃)');return;}
+  if(measureWx.source==='loading'){toast('기상 정보 조회 중입니다');return;}
+
+  const dateObj=new Date(date+'T'+time);
+  const dayKor=['일','월','화','수','목','금','토'][dateObj.getDay()];
+
+  // 학습 데이터 추가 (살수 안 함 = 깨끗한 학습 데이터)
+  state.rows.push({
+    date:date,day:dayKor,time:time,zone:id,warn:0,
+    air:measureWx.air,solar:measureWx.solar,hum:measureWx.hum,wind:measureWx.wind,
+    pt:pt,
+    spk:0,vol:null,after:'',
+    imputed:measureWx.source==='api'||measureWx.source==='fail',
+    imputedSrc:measureWx.source==='api'?'api':'manual'
+  });
+
+  // 운영 로그 (참고용)
+  const logTime=String(dateObj.getMonth()+1).padStart(2,'0')+'.'+
+                String(dateObj.getDate()).padStart(2,'0')+' '+time;
+  state.logs.unshift({
+    time:logTime,zone:'구역 '+id,vol:'-',truck:'측정',worker:worker,
+    note:note?'측정 ('+pt.toFixed(1)+'℃) — '+note:'측정 입력 ('+pt.toFixed(1)+'℃)'
+  });
+
+  saveState();
+  if(state.rows.length>=5){
+    trainAllModels();
+    toast('구역 '+id+' 측정 등록 완료. 모델 재학습됨 (R²='+metrics.formula.r2.toFixed(3)+')');
+  } else {
+    toast('구역 '+id+' 측정 등록 완료. 학습 데이터 '+state.rows.length+'건');
+  }
+  closeMeasureModal();
+  render();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   알람 시스템 — 30분 후 60℃ 도달 예측 시 출동 알람
+   ════════════════════════════════════════════════════════════════ */
+const ALARM_KEY='aura_v62_alarm';
+let alarmState={
+  active:false,           // 알람 활성 상태
+  zones:[],               // 알람 발생 구역 [1,3,...]
+  startTime:null,         // 알람 발생 시각
+  suppressUntil:null,     // 재발생 억제 종료 시각
+  ackUntil:null           // 운영자 확인 후 억제 시각
+};
+const ALARM_THRESHOLD=60;       // 임계 온도 ℃
+const ALARM_LEAD_MIN=30;        // 도달 시점 (분 후)
+const ALARM_SUPPRESS_MIN=60;    // 살수/측정 등록 후 억제 시간 (분)
+
+function loadAlarmState(){
+  try{
+    const raw=localStorage.getItem(ALARM_KEY);
+    if(raw)alarmState={...alarmState,...JSON.parse(raw)};
+  }catch(e){}
+}
+function saveAlarmState(){
+  try{localStorage.setItem(ALARM_KEY,JSON.stringify(alarmState));}catch(e){}
+}
+
+// 30분 후 포장온도 예측 (특정 구역, 자연 상승 가정)
+function predictTempIn30min(zoneId){
+  if(!formulaModel)return null;
+  // 30분 후 기상은 현재 기상으로 가정 (단순화)
+  // 일사량은 시간에 따라 변하지만 30분 차이는 미미
+  const z=zones.find(zo=>zo.id==zoneId);
+  if(!z)return null;
+  const p=calcPred(z);
+  // 보수적 추정: 현재 추세에 30분 자연 상승 가산
+  // 평균적으로 정오 전후 30분에 약 1~2℃ 상승
+  const now=new Date();
+  const hr=now.getHours()+now.getMinutes()/60;
+  // 11~14시 사이는 +1.5℃, 그 외는 +0.5℃ 정도 가산
+  const trend=(hr>=10&&hr<=15)?1.5:0.5;
+  return p.final+trend;
+}
+
+// 알람 감지 (5초마다 호출)
+function checkAlarm(){
+  const now=Date.now();
+  // 억제 중인지 확인
+  if(alarmState.suppressUntil&&now<alarmState.suppressUntil)return;
+  if(alarmState.ackUntil&&now<alarmState.ackUntil)return;
+
+  // 모델 없으면 알람 X
+  if(!formulaModel){
+    if(alarmState.active)clearAlarm(false);
+    return;
+  }
+
+  // 30분 후 예측 ≥ 60℃ 인 구역 찾기
+  const trigger=[];
+  zones.forEach(z=>{
+    const pred=predictTempIn30min(z.id);
+    if(pred!==null&&pred>=ALARM_THRESHOLD){
+      trigger.push({zone:z.id,name:z.name,sub:z.sub,pred:pred});
+    }
+  });
+
+  if(trigger.length>0){
+    if(!alarmState.active){
+      // 알람 발생
+      alarmState.active=true;
+      alarmState.zones=trigger.map(t=>t.zone);
+      alarmState.startTime=now;
+      saveAlarmState();
+      // 운영 로그 기록
+      const zoneNames=trigger.map(t=>'구역 '+t.zone+' ('+t.pred.toFixed(1)+'℃ 예상)').join(', ');
+      const nowDate=new Date();
+      const logTime=String(nowDate.getMonth()+1).padStart(2,'0')+'.'+
+                    String(nowDate.getDate()).padStart(2,'0')+' '+
+                    String(nowDate.getHours()).padStart(2,'0')+':'+
+                    String(nowDate.getMinutes()).padStart(2,'0');
+      state.logs.unshift({
+        time:logTime,zone:trigger.map(t=>'구역 '+t.zone).join(','),
+        vol:'-',truck:'-',worker:'시스템',
+        note:'🚨 알람 발생 — 30분 후 60℃ 도달 예상: '+zoneNames
+      });
+      saveState();
+      // 알림음 (가능한 경우)
+      playAlarmSound();
+      toast('🚨 출동 알람 — '+trigger.length+'개 구역');
+    } else {
+      // 이미 활성 알람 → 구역 목록 갱신
+      alarmState.zones=trigger.map(t=>t.zone);
+      saveAlarmState();
+    }
+  } else {
+    // 모든 구역 안전 복귀 → 자동 해제 (옵션 C)
+    if(alarmState.active)clearAlarm(true);
+  }
+  renderAlarmUI(trigger);
+}
+
+function clearAlarm(autoResolve){
+  if(!alarmState.active)return;
+  const nowDate=new Date();
+  const logTime=String(nowDate.getMonth()+1).padStart(2,'0')+'.'+
+                String(nowDate.getDate()).padStart(2,'0')+' '+
+                String(nowDate.getHours()).padStart(2,'0')+':'+
+                String(nowDate.getMinutes()).padStart(2,'0');
+  state.logs.unshift({
+    time:logTime,zone:alarmState.zones.map(z=>'구역 '+z).join(','),
+    vol:'-',truck:'-',worker:'시스템',
+    note:autoResolve?'✅ 알람 해제 — 모든 구역 안전 복귀':'✅ 알람 해제 — 운영자 확인'
+  });
+  alarmState.active=false;
+  alarmState.zones=[];
+  alarmState.startTime=null;
+  saveAlarmState();
+  saveState();
+  renderAlarmUI([]);
+}
+
+// 운영자가 [확인] 클릭 시 — 1시간 억제
+function ackAlarm(){
+  if(!alarmState.active)return;
+  alarmState.ackUntil=Date.now()+60*60*1000;
+  const nowDate=new Date();
+  const logTime=String(nowDate.getMonth()+1).padStart(2,'0')+'.'+
+                String(nowDate.getDate()).padStart(2,'0')+' '+
+                String(nowDate.getHours()).padStart(2,'0')+':'+
+                String(nowDate.getMinutes()).padStart(2,'0');
+  state.logs.unshift({
+    time:logTime,zone:alarmState.zones.map(z=>'구역 '+z).join(','),
+    vol:'-',truck:'-',worker:'운영자',
+    note:'✅ 알람 확인 (1시간 재발생 억제)'
+  });
+  alarmState.active=false;
+  alarmState.zones=[];
+  saveAlarmState();
+  saveState();
+  renderAlarmUI([]);
+  toast('알람 확인 — 1시간 재발생 억제');
+}
+
+// 살수/측정 등록 시 호출 — 1시간 억제
+function suppressAlarmAfterAction(){
+  alarmState.suppressUntil=Date.now()+ALARM_SUPPRESS_MIN*60*1000;
+  if(alarmState.active)clearAlarm(true);
+  else saveAlarmState();
+}
+
+function renderAlarmUI(trigger){
+  // 헤더 배너
+  const status=document.querySelector('.status-main');
+  if(status){
+    if(alarmState.active&&alarmState.zones.length){
+      const zoneStr=alarmState.zones.map(z=>'구역 '+z).join(', ');
+      const predStr=trigger.length?(' — '+trigger.map(t=>t.pred.toFixed(1)+'℃ 예상').join(', ')):'';
+      status.classList.add('alarm');
+      status.innerHTML=`<span class="check">🚨</span><span>출동 알람: ${zoneStr}${predStr}</span><span class="alarm-action"><button class="alarm-btn" onclick="ackAlarm()">확인</button></span>`;
+    } else {
+      status.classList.remove('alarm');
+      status.innerHTML='<span class="check">✓</span><span>정상 — 모든 구역이 임계값 이하입니다.</span>';
+    }
+  }
+  // 구역 카드 깜빡임
+  zones.forEach(z=>{
+    const card=document.querySelector(`.zone[data-zone="${z.id}"]`);
+    if(!card)return;
+    if(alarmState.active&&alarmState.zones.includes(z.id)){
+      card.classList.add('alarm');
+    } else {
+      card.classList.remove('alarm');
+    }
+  });
+}
+
+function playAlarmSound(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator();
+    const g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.frequency.value=880;o.type='sine';
+    g.gain.value=0.15;
+    o.start();
+    setTimeout(()=>{o.frequency.value=660;},150);
+    setTimeout(()=>{o.frequency.value=880;},300);
+    setTimeout(()=>{o.stop();ctx.close();},500);
+  }catch(e){}
+}
+
+// 5초마다 알람 체크
+setInterval(checkAlarm,5000);
+loadAlarmState();
 function showPane(name){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));document.getElementById('pane-'+name).classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==name));if(name==='coef')renderCoef();if(name==='log')logsRender();if(name==='ana')renderAnalysis();if(name==='data')renderData()}function renderCoef(){if(!formulaModel)return;document.getElementById('coefBox').textContent=`포장온도 상관식\nTₚ = ${fmt(formulaModel.intercept,3)} ${formulaModel.coefs.map((c,i)=>(c>=0?' + ':' - ')+Math.abs(c).toFixed(3)+'×'+['기온','일사량','습도','풍속','일사량²','풍속×일사량'][i]).join('')}\n\nTensorFlow.js AI 보정\nAI 보정값 = 실측 포장온도 - 상관식 예측값\n\n최종 운영값\n최종값 = 상관식 기준 예측 + AI 보정값 + 구역별 동적 보정계수\n\n구역별 보정계수\n`+zones.map(z=>`${z.name}: ${fmt(state.corr[z.id]||0,2)}℃`).join('\n')}function resetCorrections(){state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('구역 보정계수 초기화 완료')}
 function renderData(){
   document.getElementById('dataSummary').textContent=`총 ${state.rows.length}건 (수동 입력 ${state.rows.filter(r=>r.imputedSrc==='manual').length}건)`;
