@@ -711,8 +711,8 @@ pre{
 <main id="pane-setting" class="pane data-pane"><div class="placeholder"><h2>⚙ 설정</h2><p>API 키와 모델 우선순위를 관리합니다.</p><div class="tool-row"><button class="primary" onclick="openApi()">API 키 설정</button><button class="ghost" onclick="localStorage.clear();location.reload();">전체 로컬 저장 초기화</button></div></div></main>
 <footer class="footer"><div>A.U.R.A SYSTEM v6.2</div><div>데이터 기준 시간: <span id="dataClock">--</span></div><div>Copyright © 2026 AURA. All rights reserved.</div></footer></div>
 <div class="modal-bg" id="sprinkleModal"><div class="modal" style="width:480px;"><h2 id="modalTitle">구역 살수 이행</h2>
-<div class="form-row"><label>일자</label><input id="mDate" type="date"></div>
-<div class="form-row"><label>시간</label><input id="mTime" type="time"></div>
+<div class="form-row"><label>일자</label><input id="mDate" type="date" onchange="updateAutoWeather()"></div>
+<div class="form-row"><label>시간</label><input id="mTime" type="time" onchange="updateAutoWeather()"></div>
 <div class="form-row"><label>구역</label><input id="mZone" readonly></div>
 <div class="form-row"><label>실측 포장온도(℃)</label><input id="mPt" type="number" step="0.1" placeholder="현장 측정값 입력"></div>
 <hr style="margin:10px 0;border:0;border-top:1px solid #d8e0ea">
@@ -721,8 +721,9 @@ pre{
 <div class="form-row"><label>차량</label><select id="mTruck"><option>STRIKER 1</option><option>STRIKER 2</option><option>급수차</option></select></div>
 <div class="form-row"><label>작업자</label><input id="mWorker" value="운영자"></div>
 <div class="form-row"><label>비고</label><input id="mNote" placeholder="(선택) 특이사항"></div>
-<div style="background:#f0f6ff;border:1px solid #c8d8f0;border-radius:6px;padding:8px 10px;margin-top:10px;font-size:12px;color:#3a4a66;">
-ℹ️ 자동 첨부: 기온 <span id="autoAir">--</span>℃ · 일사량 <span id="autoSol">--</span> · 습도 <span id="autoHum">--</span>% · 풍속 <span id="autoWind">--</span> m/s
+<div id="autoWxBox" style="background:#f0f6ff;border:1px solid #c8d8f0;border-radius:6px;padding:8px 10px;margin-top:10px;font-size:12px;color:#3a4a66;line-height:1.5;">
+<div id="autoWxLabel" style="font-weight:800;color:#0054c8;margin-bottom:3px;">ℹ️ 자동 첨부 (현재 기상)</div>
+<div>기온 <span id="autoAir">--</span>℃ · 일사량 <span id="autoSol">--</span> MJ/㎡ · 습도 <span id="autoHum">--</span>% · 풍속 <span id="autoWind">--</span> m/s</div>
 </div>
 <div class="modal-actions"><button class="ghost" onclick="closeModal()">취소</button><button class="primary" onclick="confirmSprinkle()">살수 이행 등록</button></div></div></div>
 
@@ -1084,30 +1085,98 @@ function drawChart(){
 }
 function logsRender(){document.getElementById('recentLogs').innerHTML=state.logs.slice(0,5).map(l=>`<tr><td>${l.time}</td><td>${l.zone}</td><td>${l.vol}</td><td>${l.truck}</td><td>${l.worker}</td><td>${l.note}</td></tr>`).join('');document.getElementById('fullLogs').innerHTML=state.logs.map(l=>`<tr><td>${l.time}</td><td>${l.zone}</td><td>살수</td><td>${l.vol}</td><td>${l.worker}</td><td>${l.note}</td></tr>`).join('')}
 
+// 살수 모달 — 자동 첨부 기상 (시간 변경 시 Open-Meteo 자동 조회)
+let modalWx={air:0,solar:0,hum:0,wind:0,source:'current'};
+
 function openSprinkle(id){
   currentZoneForModal=id;
   const z=zones.find(zo=>zo.id==id);
   const now=new Date();
   document.getElementById('modalTitle').textContent=`구역 ${id} 살수 이행 (${z?z.sub:''})`;
-  // 일자/시간 자동 입력 (수정 가능)
   document.getElementById('mDate').value=now.toISOString().slice(0,10);
   document.getElementById('mTime').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
   document.getElementById('mZone').value=`구역 ${id}`;
-  // 실측 포장온도는 비워둠 (운영자 입력)
   document.getElementById('mPt').value='';
-  // 살수량/살수후/차량/작업자/비고 초기화
   document.getElementById('mVol').value='15';
   document.getElementById('mAfter').value='';
   document.getElementById('mWorker').value='운영자';
   document.getElementById('mNote').value='';
-  // 자동 첨부 정보 표시
-  document.getElementById('autoAir').textContent=fmt(wx.air);
-  document.getElementById('autoSol').textContent=fmt(wx.solar,2);
-  document.getElementById('autoHum').textContent=fmt(wx.hum,0);
-  document.getElementById('autoWind').textContent=fmt(wx.wind,2);
+  // 초기 기상 = 현재 wx
+  modalWx={air:wx.air,solar:wx.solar,hum:wx.hum,wind:wx.wind,source:'current'};
+  renderAutoWx();
   document.getElementById('sprinkleModal').classList.add('show');
-  // 실측 포장온도 입력 필드 포커스
   setTimeout(()=>document.getElementById('mPt').focus(),100);
+}
+
+// 자동 첨부 박스 렌더링
+function renderAutoWx(){
+  const lbl=document.getElementById('autoWxLabel');
+  document.getElementById('autoAir').textContent=fmt(modalWx.air);
+  document.getElementById('autoSol').textContent=fmt(modalWx.solar,2);
+  document.getElementById('autoHum').textContent=fmt(modalWx.hum,0);
+  document.getElementById('autoWind').textContent=fmt(modalWx.wind,2);
+  if(!lbl)return;
+  if(modalWx.source==='loading'){
+    lbl.innerHTML='⏳ <span style="color:#ff6f00">Open-Meteo 조회 중...</span>';
+  } else if(modalWx.source==='current'){
+    lbl.innerHTML='ℹ️ <span style="color:#0054c8">자동 첨부 (현재 기상)</span>';
+  } else if(modalWx.source==='api'){
+    lbl.innerHTML='✅ <span style="color:#078943">Open-Meteo 과거 기상 조회 완료</span>';
+  } else if(modalWx.source==='future'){
+    lbl.innerHTML='⚠️ <span style="color:#ff6f00">미래 시점 — 현재 기상 적용</span>';
+  } else if(modalWx.source==='fail'){
+    lbl.innerHTML='⚠️ <span style="color:#d71920">Open-Meteo 실패 — 현재 기상 적용</span>';
+  } else if(modalWx.source==='close'){
+    lbl.innerHTML='ℹ️ <span style="color:#0054c8">최근 30분 이내 — 현재 기상 적용</span>';
+  }
+}
+
+// 일자/시간 변경 시 자동 호출
+async function updateAutoWeather(){
+  const date=document.getElementById('mDate').value;
+  const time=document.getElementById('mTime').value;
+  if(!date||!time)return;
+  const targetDate=new Date(date+'T'+time+':00');
+  if(isNaN(targetDate.getTime()))return;
+  const now=new Date();
+  const diffMin=(now-targetDate)/60000;
+
+  // 미래
+  if(diffMin<-5){
+    modalWx={air:wx.air,solar:wx.solar,hum:wx.hum,wind:wx.wind,source:'future'};
+    renderAutoWx();
+    return;
+  }
+  // 30분 이내 (현재로 간주)
+  if(diffMin<30){
+    modalWx={air:wx.air,solar:wx.solar,hum:wx.hum,wind:wx.wind,source:'close'};
+    renderAutoWx();
+    return;
+  }
+
+  // 과거 → Open-Meteo 호출
+  modalWx.source='loading';
+  renderAutoWx();
+  try{
+    await fetchHistoryWeather(date,date);
+    const hr=parseInt(time.split(':')[0]);
+    const hist=getHistoryWeather(date,hr);
+    if(hist&&hist.air!=null&&hist.solar!=null&&hist.hum!=null&&hist.wind!=null){
+      modalWx={
+        air:+hist.air.toFixed(1),
+        solar:+hist.solar.toFixed(2),
+        hum:+hist.hum.toFixed(1),
+        wind:+hist.wind.toFixed(2),
+        source:'api'
+      };
+    } else {
+      modalWx={air:wx.air,solar:wx.solar,hum:wx.hum,wind:wx.wind,source:'fail'};
+    }
+  } catch(err){
+    console.warn('Open-Meteo 실패:',err.message);
+    modalWx={air:wx.air,solar:wx.solar,hum:wx.hum,wind:wx.wind,source:'fail'};
+  }
+  renderAutoWx();
 }
 
 function closeModal(){document.getElementById('sprinkleModal').classList.remove('show')}
@@ -1123,39 +1192,38 @@ function confirmSprinkle(){
   const worker=document.getElementById('mWorker').value;
   const note=document.getElementById('mNote').value;
 
-  // 검증
   if(!date||!time){toast('일자/시간을 입력하세요');return;}
   if(isNaN(pt)){toast('실측 포장온도를 입력하세요');return;}
   if(pt<-20||pt>100){toast('실측 포장온도가 범위를 벗어났습니다 (-20~100℃)');return;}
   if(isNaN(vol)||vol<=0){toast('살수량을 정확히 입력하세요');return;}
   if(isNaN(after)){toast('살수후 온도를 입력하세요');return;}
+  if(modalWx.source==='loading'){toast('기상 정보 조회 중입니다. 잠시 후 다시 시도하세요');return;}
 
   const dateObj=new Date(date+'T'+time);
   const dayKor=['일','월','화','수','목','금','토'][dateObj.getDay()];
 
-  // 1. 학습 데이터(state.rows)에 추가
+  // 1. 학습 데이터(state.rows)에 추가 — modalWx 사용
   state.rows.push({
     date:date,
     day:dayKor,
     time:time,
     zone:id,
     warn:0,
-    air:wx.air,
-    solar:wx.solar,
-    hum:wx.hum,
-    wind:wx.wind,
+    air:modalWx.air,
+    solar:modalWx.solar,
+    hum:modalWx.hum,
+    wind:modalWx.wind,
     pt:pt,
     spk:1,
     vol:vol,
     after:after,
-    imputed:false,
-    imputedSrc:'manual'
+    imputed:modalWx.source==='api'||modalWx.source==='fail',
+    imputedSrc:modalWx.source==='api'?'api':'manual'
   });
 
-  // 2. 운영 로그(state.logs)에도 추가 (이력 표시용)
+  // 2. 운영 로그
   const logTime=String(dateObj.getMonth()+1).padStart(2,'0')+'.'+
-                String(dateObj.getDate()).padStart(2,'0')+' '+
-                time;
+                String(dateObj.getDate()).padStart(2,'0')+' '+time;
   state.logs.unshift({
     time:logTime,
     zone:'구역 '+id,
@@ -1165,10 +1233,10 @@ function confirmSprinkle(){
     note:note||'살수 이행 (실측 '+pt.toFixed(1)+'℃ → 후 '+after.toFixed(1)+'℃)'
   });
 
-  // 3. 살수 상태 표시
+  // 3. 살수 상태
   state.sprinkled[id]={t:Date.now(),after:after};
 
-  // 4. 즉시 재학습 (5건 이상일 때)
+  // 4. 즉시 재학습
   saveState();
   if(state.rows.length>=5){
     trainAllModels();
@@ -1180,7 +1248,6 @@ function confirmSprinkle(){
   render();
 }
 
-// endSprinkle은 비활성화 (살수 종료 버튼 삭제됨)
 function endSprinkle(id){toast('살수 종료 버튼은 v6.2에서 삭제되었습니다');}
 function showPane(name){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));document.getElementById('pane-'+name).classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==name));if(name==='coef')renderCoef();if(name==='log')logsRender();if(name==='ana')renderAnalysis();if(name==='data')renderData()}function renderCoef(){if(!formulaModel)return;document.getElementById('coefBox').textContent=`포장온도 상관식\nTₚ = ${fmt(formulaModel.intercept,3)} ${formulaModel.coefs.map((c,i)=>(c>=0?' + ':' - ')+Math.abs(c).toFixed(3)+'×'+['기온','일사량','습도','풍속','일사량²','풍속×일사량'][i]).join('')}\n\nTensorFlow.js AI 보정\nAI 보정값 = 실측 포장온도 - 상관식 예측값\n\n최종 운영값\n최종값 = 상관식 기준 예측 + AI 보정값 + 구역별 동적 보정계수\n\n구역별 보정계수\n`+zones.map(z=>`${z.name}: ${fmt(state.corr[z.id]||0,2)}℃`).join('\n')}function resetCorrections(){state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('구역 보정계수 초기화 완료')}
 function renderData(){
