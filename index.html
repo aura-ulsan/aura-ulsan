@@ -1004,7 +1004,59 @@ function zoneCards(){
   });
   updateMainStatus();
 }
-function updateMainStatus(){const vals=zones.map(z=>calcPred(z).final);const mx=Math.max(...vals);const box=document.querySelector('.status-main'),el=document.getElementById('mainStatusText');if(mx>=60){el.textContent='경고 — 일부 구역이 60℃ 이상입니다.';box.style.background='#fff0f0';box.style.color='#b71920'}else if(mx>=58){el.textContent='주의 — 일부 구역이 주의온도에 접근 중입니다.';box.style.background='#fff8ed';box.style.color='#c45d00'}else{el.textContent='정상 — 모든 구역이 임계값 이하입니다.';box.style.background='#f3fff5';box.style.color='#087c35'}}function selectZone(id){selectedZone=id;const z=zones.find(x=>x.id==id);document.getElementById('selectedZoneTitle').textContent=`(${z.name})`;document.getElementById('perfZone').textContent=`(${z.name})`;updateSummary();drawChart()}function updateSummary(){const z=zones.find(x=>x.id==selectedZone);const p=calcPred(z);const no=clamp(p.final+Math.max(0,wx.solar*.4-wx.wind*.05),0,90,p.final);const drop=coolingEffect(z.id,p.final);const yes=clamp(no-drop*.72,0,90,no);document.getElementById('sumNow').textContent=fmt(p.final)+' ℃';document.getElementById('sumNo').textContent=fmt(no)+' ℃';document.getElementById('sumYes').textContent=fmt(yes)+' ℃';document.getElementById('sumDrop').textContent=fmt(no-yes);document.getElementById('sumReturn').textContent=p.final<60?'안전범위 유지':'약 '+Math.max(5,Math.ceil((yes-59.9)/0.08))+'분';document.getElementById('perfBody').innerHTML=perfRows();document.getElementById('aiPerfBody')&&(document.getElementById('aiPerfBody').innerHTML=perfRows())}function perfRows(){return `<tr><td>상관식 모델</td><td>${fmt(metrics.formula.r2,3)}</td><td>${fmt(metrics.formula.rmse,2)}</td><td>${fmt(metrics.formula.mae,2)}</td></tr><tr><td class="blue">AI 모델 (TF.js)</td><td class="green"><b>${fmt(metrics.ai.r2,3)}</b></td><td class="green"><b>${fmt(metrics.ai.rmse,2)}</b></td><td class="green"><b>${fmt(metrics.ai.mae,2)}</b></td></tr>`}
+function updateMainStatus(){
+  // 알람 활성 시엔 renderAlarmUI가 처리하므로 패스
+  if(typeof alarmState!=='undefined'&&alarmState.active)return;
+  const vals=zones.map(z=>calcPred(z).final);
+  const mx=Math.max(...vals);
+  const box=document.querySelector('.status-main');
+  if(!box)return;
+  // 기존 alarm 클래스는 유지 안 함 (정상 상태)
+  box.classList.remove('alarm');
+  let icon='✓',text='',color='#087c35',bg='#f3fff5',bd='#a8dcb6';
+  if(mx>=60){
+    icon='⚠️';
+    text='경고 — 일부 구역이 60℃ 이상입니다.';
+    color='#b71920';bg='#fff0f0';bd='#ef9a9a';
+  } else if(mx>=58){
+    icon='🟡';
+    text='주의 — 일부 구역이 주의온도에 접근 중입니다.';
+    color='#c45d00';bg='#fff8ed';bd='#ffcc80';
+  } else {
+    text='정상 — 모든 구역이 임계값 이하입니다.';
+  }
+  box.style.background=bg;
+  box.style.color=color;
+  box.style.borderColor=bd;
+  box.innerHTML=`<span class="check" style="color:${color}">${icon}</span><span>${text}</span>`;
+}function selectZone(id){
+  selectedZone=id;
+  const z=zones.find(x=>x.id==id);
+  if(!z)return;
+  const t1=document.getElementById('selectedZoneTitle');
+  if(t1)t1.textContent=`(${z.name})`;
+  const t2=document.getElementById('perfZone');
+  if(t2)t2.textContent=`(${z.name})`;
+  updateSummary();
+  drawChart();
+}function updateSummary(){
+  const z=zones.find(x=>x.id==selectedZone);
+  if(!z)return;
+  const p=calcPred(z);
+  const no=clamp(p.final+Math.max(0,wx.solar*.4-wx.wind*.05),0,90,p.final);
+  const drop=coolingEffect(z.id,p.final);
+  const yes=clamp(no-drop*.72,0,90,no);
+  const setEl=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=val;};
+  setEl('sumNow',fmt(p.final)+' ℃');
+  setEl('sumNo',fmt(no)+' ℃');
+  setEl('sumYes',fmt(yes)+' ℃');
+  setEl('sumDrop',fmt(no-yes));
+  setEl('sumReturn',p.final<60?'안전범위 유지':'약 '+Math.max(5,Math.ceil((yes-59.9)/0.08))+'분');
+  const pb=document.getElementById('perfBody');
+  if(pb)pb.innerHTML=perfRows();
+  const aib=document.getElementById('aiPerfBody');
+  if(aib)aib.innerHTML=perfRows();
+}function perfRows(){return `<tr><td>상관식 모델</td><td>${fmt(metrics.formula.r2,3)}</td><td>${fmt(metrics.formula.rmse,2)}</td><td>${fmt(metrics.formula.mae,2)}</td></tr><tr><td class="blue">AI 모델 (TF.js)</td><td class="green"><b>${fmt(metrics.ai.r2,3)}</b></td><td class="green"><b>${fmt(metrics.ai.rmse,2)}</b></td><td class="green"><b>${fmt(metrics.ai.mae,2)}</b></td></tr>`}
 // ── 일일 추이 차트 (0~24시 자정 자동 리셋) ──────────────────────
 let dailyTempLog=[];  // [{hour:0-24, temp:℃, src:'measured'|'estimated'}]
 let dailyDate='';
@@ -1098,6 +1150,8 @@ function fillDailyFromOpenMeteo(){
 }
 
 function drawChart(){
+  const canvas=document.getElementById('trendChart');
+  if(!canvas)return;
   recordDailyTemp();
   if(!openMeteoTried&&new Date().getHours()>0){
     setTimeout(fillDailyFromOpenMeteo,200);
