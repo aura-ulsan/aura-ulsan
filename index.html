@@ -2314,7 +2314,7 @@ formulaFeaturesCurrent=function(z){
 // ── trainAllModels에 옵션 필터 적용 ──────────────────────
 const originalTrainAllModels=trainAllModels;
 trainAllModels=function(runTf=true){
-  if(!state.rows||state.measurements.length<5){
+  if(!state.measurements||state.measurements.length<5){
     if(formulaModel)formulaModel=null;
     return;
   }
@@ -2355,7 +2355,7 @@ renderCoef=function(){
   const fNames=formulaModel.featureNames||['기온','일사량','습도','풍속','일사량²','풍속×일사량'];
   const coefs=formulaModel.coefs;
   // 평균값 계산 (학습데이터)
-  const trainRows=state.rows||[];
+  const trainRows=state.measurements||[];
   const avgSol=trainRows.length?trainRows.reduce((s,r)=>s+r.solar,0)/trainRows.length:2;
   const avgWind=trainRows.length?trainRows.reduce((s,r)=>s+r.wind,0)/trainRows.length:3;
   // 인덱스
