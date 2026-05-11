@@ -739,7 +739,7 @@ pre{
 <header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.2</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn">🔒 로그아웃</button></div></header>
 <nav class="tabs"><button class="tab active" data-tab="monitor" onclick="showPane('monitor')">🏠 모니터링</button><button class="tab new" data-tab="ai" onclick="showPane('ai')">🤖 AI 모델</button><button class="tab" data-tab="data" onclick="showPane('data')">📋 데이터 현황</button><button class="tab" data-tab="ana" onclick="showPane('ana')">📊 분석</button><button class="tab" data-tab="coef" onclick="showPane('coef')">📐 회귀 계수</button><button class="tab" data-tab="log" onclick="showPane('log')">📝 운영 로그</button><button class="tab" data-tab="setting" onclick="showPane('setting')">⚙ 설정</button><span class="tab-spacer"></span><div class="mini-stat"><span><i class="dot"></i>기상청</span><span><i class="dot"></i>METAR</span><span><i class="dot"></i>AI 모델</span><span><i class="dot"></i>DB 연결</span></div></nav>
 <main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><section class="zones" id="zoneArea"></section><section class="bottom"><div class="panel"><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 최고온도</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div class="model-state"><h4>모델 사용 상태</h4><div>현재 사용 모델</div><div class="model-current" id="currentModelText">AI 모델 (TF.js)</div><hr style="border:0;border-top:1px solid var(--line)"><div>선택 기준</div><b class="green" id="selectCriteria">RMSE 기준 자동 선택</b><div style="font-size:12px;color:#667;margin-top:8px">※ 회귀식보다 AI 모델 성능이 나쁠 경우 자동 fallback</div></div></div><div class="panel"><div class="panel-head"><span>최근 살수 이행 기록</span><button class="small-btn" onclick="showPane('log')">더보기</button></div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>살수량</th><th>작업 차량</th><th>작업자</th><th>비고</th></tr></thead><tbody id="recentLogs"></tbody></table></div></section></main>
-<main id="pane-ai" class="pane ai-pane"><div class="grid2"><div class="placeholder"><h2>🤖 TensorFlow.js AI 보정모델</h2><p>AI는 최종 온도를 직접 대체하지 않고, <b>상관식 예측 오차</b>를 학습합니다.</p><div class="tool-row"><label class="primary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><span>📂 엑셀 업로드</span><input type="file" accept=".xlsx,.xls" onchange="loadExcel(event)" style="display:none"></label><button class="ghost" onclick="trainTfModel()">🔄 AI 재학습</button><button class="ghost" onclick="if(confirm('학습 데이터와 모델을 모두 삭제할까요?')){state.rows=[];state.corr={1:0,2:0,3:0,4:0,5:0,6:0};formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;saveState();render();toast('초기화 완료');}">🗑️ 모델 삭제</button></div>
+<main id="pane-ai" class="pane ai-pane"><div class="grid2"><div class="placeholder"><h2>🤖 TensorFlow.js AI 보정모델</h2><p>AI는 최종 온도를 직접 대체하지 않고, <b>상관식 예측 오차</b>를 학습합니다.</p><div class="tool-row"><label class="primary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><span>📂 엑셀 업로드</span><input type="file" accept=".xlsx,.xls" onchange="loadExcel(event)" style="display:none"></label><button class="ghost" onclick="trainTfModel()">🔄 AI 재학습</button><button class="ghost" onclick="if(confirm('학습 데이터와 모델을 모두 삭제할까요?')){state.measurements=[];state.corr={1:0,2:0,3:0,4:0,5:0,6:0};formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;saveState();render();toast('초기화 완료');}">🗑️ 모델 삭제</button></div>
 <div style="background:#fff8ed;border:1px solid #ffcc80;border-radius:7px;padding:10px 12px;margin:10px 0;">
 <div style="font-size:13px;font-weight:900;color:#c45d00;margin-bottom:6px;">⚙ 고급 학습 옵션</div>
 <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;margin-bottom:5px;cursor:pointer;"><input type="checkbox" id="opt-advanced" checked style="margin-top:3px;"><div><b>비선형/교호항 사용 (권장)</b><div style="color:#666;">일사량² + 풍속×일사량 추가 → 비선형 학습</div></div></label>
@@ -763,7 +763,7 @@ pre{
 💡 <b>구역별 동적 보정계수</b>는 각 구역의 평균 예측 오차를 학습하여 자동 적용됩니다. ±2℃를 넘으면 '주의'로 표시됩니다.
 </div></div></div></main>
 <main id="pane-coef" class="pane coef-pane"><div class="placeholder"><h2>📐 회귀 계수 및 상관식</h2><pre id="coefBox"></pre><button class="ghost" onclick="resetCorrections()">구역 보정계수 초기화</button></div></main>
-<main id="pane-log" class="pane log-pane"><div class="placeholder"><h2>📝 운영 로그</h2><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>구분</th><th>살수량</th><th>작업자</th><th>비고</th></tr></thead><tbody id="fullLogs"></tbody></table></div></main>
+<main id="pane-log" class="pane log-pane"><div class="placeholder"><h2>📝 운영 로그</h2><div style="font-size:12px;color:#48607e;margin-bottom:10px;">💧 살수 이행은 수정/삭제 가능, 🚨/✅ 시스템 이벤트는 자동 기록</div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>구분</th><th>살수량</th><th>작업자</th><th>비고</th><th>조작</th></tr></thead><tbody id="fullLogs"></tbody></table></div></main>
 <main id="pane-setting" class="pane data-pane"><div class="placeholder"><h2>⚙ 설정</h2><p>API 키와 모델 우선순위를 관리합니다.</p><div class="tool-row"><button class="primary" onclick="openApi()">API 키 설정</button><button class="ghost" onclick="localStorage.clear();location.reload();">전체 로컬 저장 초기화</button></div></div></main>
 <footer class="footer"><div>A.U.R.A SYSTEM v6.2</div><div>데이터 기준 시간: <span id="dataClock">--</span></div><div>Copyright © 2026 AURA. All rights reserved.</div></footer></div>
 <div class="modal-bg" id="sprinkleModal"><div class="modal" style="width:480px;"><h2 id="modalTitle">구역 살수 이행</h2>
@@ -772,7 +772,7 @@ pre{
 <div class="form-row"><label>구역</label><input id="mZone" readonly></div>
 <div class="form-row"><label>실측 포장온도(℃)</label><input id="mPt" type="number" step="0.1" placeholder="현장 측정값 입력"></div>
 <hr style="margin:10px 0;border:0;border-top:1px solid #d8e0ea">
-<div class="form-row"><label>살수량(㎡)</label><input id="mVol" type="number" value="15" step="0.1"></div>
+<div class="form-row"><label>살수량(L)</label><input id="mVol" type="number" value="1500" step="50" placeholder="500~2000L 권장"></div>
 <div class="form-row"><label>살수후 온도(℃)</label><input id="mAfter" type="number" step="0.1" placeholder="살수 후 측정값"></div>
 <div class="form-row"><label>차량</label><select id="mTruck"><option>STRIKER 1</option><option>STRIKER 2</option><option>급수차</option></select></div>
 <div class="form-row"><label>작업자</label><input id="mWorker" value="운영자"></div>
@@ -809,15 +809,17 @@ pre{
 <div class="form-row"><label>풍속(m/s)</label><input id="dWind" type="number" step="0.01"></div>
 <div class="form-row"><label>실측 포장온도(℃)</label><input id="dPt" type="number" step="0.1"></div>
 <div class="form-row"><label>살수 여부</label><select id="dSpk"><option value="0">미실시</option><option value="1">실시</option></select></div>
-<div class="form-row"><label>살수량(㎡)</label><input id="dVol" type="number" step="0.1" placeholder="(살수 시)"></div>
+<div class="form-row"><label>살수량(L)</label><input id="dVol" type="number" step="0.1" placeholder="(살수 시)"></div>
 <div class="form-row"><label>살수후 온도(℃)</label><input id="dAfter" type="number" step="0.1" placeholder="(살수 시)"></div>
 <div class="modal-actions"><button class="ghost" onclick="closeDataModal()">취소</button><button class="primary" onclick="confirmDataRow()">저장</button></div></div></div>
 <div class="modal-bg" id="apiModal"><div class="modal"><h2>API 설정</h2><div class="form-row"><label>기상청 API 키</label><input id="apiKey" placeholder="data.go.kr 인증키"></div><div class="modal-actions"><button class="ghost" onclick="closeApi()">닫기</button><button class="primary" onclick="saveApi()">저장</button></div></div></div>
 <script>
-const LS='aura_v62_full_state';let chart=null,analysisChart=null,currentZoneForModal=1,selectedZone=1,tfReady=false;let formulaModel=null,tfModel=null,normInfo=null,metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};let wx={pave:24.5,air:20.0,solar:3.48,hum:30,wind:7.10,dir:305,dew:8.0};const zones=[{id:1,name:'구역 1',sub:'활주로 36방향 회전패드',base:46.1},{id:2,name:'구역 2',sub:'활주로 36방향 목표점표지',base:46.1},{id:3,name:'구역 3',sub:'활주로 진입지점',base:46.1},{id:4,name:'구역 4',sub:'활주로 18방향 목표점표지',base:46.1},{id:5,name:'구역 5',sub:'활주로 18방향 회전패드',base:46.1},{id:6,name:'구역 6',sub:'계류장',base:46.1}];let state={corr:{1:0,2:0,3:0,4:0,5:0,6:0},sprinkled:{},logs:[],rows:[]};
+const LS='aura_v62_full_state';let chart=null,analysisChart=null,currentZoneForModal=1,selectedZone=1,tfReady=false;let formulaModel=null,tfModel=null,normInfo=null,metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};let wx={pave:24.5,air:20.0,solar:3.48,hum:30,wind:7.10,dir:305,dew:8.0};const zones=[{id:1,name:'구역 1',sub:'활주로 36방향 회전패드',base:46.1},{id:2,name:'구역 2',sub:'활주로 36방향 목표점표지',base:46.1},{id:3,name:'구역 3',sub:'활주로 진입지점',base:46.1},{id:4,name:'구역 4',sub:'활주로 18방향 목표점표지',base:46.1},{id:5,name:'구역 5',sub:'활주로 18방향 회전패드',base:46.1},{id:6,name:'구역 6',sub:'계류장',base:46.1}];let state={corr:{1:0,2:0,3:0,4:0,5:0,6:0},sprinkled:{},measurements:null,systemLogs:[]};
 function fmt(v,d=1){return isFinite(v)?Number(v).toFixed(d):'--'}function clamp(v,min,max,fallback){v=Number(v);if(!isFinite(v))return fallback;return Math.max(min,Math.min(max,v))}function sortRowsLatest(rows){return rows.slice().sort((a,b)=>String((b.date||'')+' '+(b.time||'')).localeCompare(String((a.date||'')+' '+(a.time||''))))}function clock(){const n=new Date();const s=n.toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).replace(/\. /g,'.').replace('.','.')+' '+n.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('clock').textContent=s;document.getElementById('dataClock').textContent=s}setInterval(clock,1000);
 function loadState(){try{const raw=localStorage.getItem(LS);if(raw){const obj=JSON.parse(raw);state={...state,...obj};}}catch(e){}
-// 옛 샘플 로그 자동 정리 (마이그레이션)
+// v6.3 마이그레이션 — state.rows → state.measurements
+migrateToV63();
+// 옛 샘플 로그 자동 정리 (이전 마이그레이션 잔재)
 if(state.logs&&state.logs.length){
   const sampleNames=['김철수','이영희','박민수'];
   const before=state.logs.length;
@@ -827,7 +829,53 @@ if(state.logs&&state.logs.length){
     console.log('샘플 로그 '+(before-state.logs.length)+'건 자동 정리됨');
   }
 }
-if(state.rows&&state.rows.length>=5)trainAllModels(false)}function saveState(){localStorage.setItem(LS,JSON.stringify(state))}
+if(state.measurements&&state.measurements.length>=5)trainAllModels(false)
+}
+function saveState(){localStorage.setItem(LS,JSON.stringify(state))}
+
+/* ════════════════════════════════════════════════════════════════
+   v6.3 마이그레이션 — 단일 데이터 소스 (state.measurements)
+   ════════════════════════════════════════════════════════════════ */
+function newId(prefix){
+  return prefix+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).substr(2,5);
+}
+
+function migrateToV63(){
+  // 이미 마이그레이션 완료된 경우 패스
+  if(state.measurements&&Array.isArray(state.measurements))return;
+  console.log('=== v6.3 마이그레이션 시작 ===');
+  state.measurements=[];
+  state.systemLogs=[];
+  // state.rows → state.measurements
+  let r2mCount=0;
+  (state.rows||[]).forEach(r=>{
+    state.measurements.push({
+      id:newId('m'),
+      date:r.date,day:r.day,time:r.time,
+      zone:r.zone,warn:r.warn||0,
+      air:r.air,solar:r.solar,hum:r.hum,wind:r.wind,
+      pt:r.pt,
+      spk:r.spk||0,
+      vol:r.vol,
+      after:r.after,
+      truck:'',
+      worker:r.imputedSrc==='manual'?'운영자':'',
+      note:r.imputed?'엑셀 보완 ('+(r.imputedSrc||'avg')+')':'',
+      source:r.imputedSrc||'excel',
+      imputed:r.imputed||false,
+      createdAt:r.date+'T'+(r.time||'12:00')+':00'
+    });
+    r2mCount++;
+  });
+  // state.logs 통째로 폐기 (테스트 데이터)
+  let logCount=(state.logs||[]).length;
+  state.logs=[];
+  // 옛 데이터 백업 키에 보관 (안전)
+  if(state.rows){state._rows_backup=state.rows;delete state.rows;}
+  console.log(`마이그레이션 완료: rows ${r2mCount}건 → measurements`);
+  console.log(`옛 logs ${logCount}건 폐기 (테스트 데이터)`);
+  saveState();
+}
 function generateSampleData(){toast('샘플 데이터 생성은 비활성화되어 있습니다. 엑셀을 업로드하세요.');}
 function features(r){return [r.air,r.solar,r.hum,r.wind,r.solar*r.solar,r.wind*r.solar]}function formulaFeaturesCurrent(z){return [wx.air,wx.solar,wx.hum,wx.wind,wx.solar*wx.solar,wx.wind*wx.solar]}
 function fitLR(X,Y){
@@ -855,7 +903,7 @@ function predictLR(m,x){
 }
 function transpose(m){return m[0].map((_,i)=>m.map(r=>r[i]))}function mm(A,B){const Bt=transpose(B);return A.map(r=>Bt.map(c=>r.reduce((a,v,i)=>a+v*c[i],0)))}function solve(A,b){const n=b.length,M=A.map((r,i)=>r.slice().concat(b[i]));for(let c=0;c<n;c++){let mx=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[mx][c]))mx=r;[M[c],M[mx]]=[M[mx],M[c]];let pv=M[c][c];if(Math.abs(pv)<1e-9){M[c][c]=1e-9;pv=1e-9}M[c]=M[c].map(v=>v/pv);for(let r=0;r<n;r++){if(r===c)continue;let f=M[r][c];M[r]=M[r].map((v,j)=>v-f*M[c][j])}}return M.map(r=>isFinite(r[n])?r[n]:0)}function calcMetrics(y,p){const mean=y.reduce((a,b)=>a+b,0)/y.length;const ssTot=y.reduce((a,v)=>a+(v-mean)**2,0);const ssRes=y.reduce((a,v,i)=>a+(v-p[i])**2,0);const mae=y.reduce((a,v,i)=>a+Math.abs(v-p[i]),0)/y.length;return{r2:ssTot?Math.max(0,1-ssRes/ssTot):0,rmse:Math.sqrt(ssRes/y.length),mae}}
 function trainAllModels(runTf=true){
-  const train=state.rows.filter(r=>!r.spk&&isFinite(r.pt)&&r.pt>-20&&r.pt<100&&isFinite(r.air)&&isFinite(r.solar)&&isFinite(r.hum)&&isFinite(r.wind));
+  const train=state.measurements.filter(r=>!r.spk&&isFinite(r.pt)&&r.pt>-20&&r.pt<100&&isFinite(r.air)&&isFinite(r.solar)&&isFinite(r.hum)&&isFinite(r.wind));
   if(train.length<5){toast('학습 데이터 부족: 회귀식/AI 학습 보류');return}
   const X=train.map(features),Y=train.map(r=>r.pt);
   formulaModel=fitLR(X,Y);
@@ -873,7 +921,7 @@ function updateCorrections(rows,fp){
 async function trainTfModel(show=true){
   if(typeof tf==='undefined'){tfReady=false;if(show)toast('TensorFlow.js 로드 실패: 회귀식 기준으로 운전');return}
   if(!formulaModel)trainAllModels(false);
-  const train=state.rows.filter(r=>!r.spk&&isFinite(r.pt)&&r.pt>-20&&r.pt<100&&isFinite(r.air)&&isFinite(r.solar)&&isFinite(r.hum)&&isFinite(r.wind));
+  const train=state.measurements.filter(r=>!r.spk&&isFinite(r.pt)&&r.pt>-20&&r.pt<100&&isFinite(r.air)&&isFinite(r.solar)&&isFinite(r.hum)&&isFinite(r.wind));
   if(train.length<20){tfReady=false;metrics.ai={...metrics.formula};if(show)toast('AI 학습 데이터 부족: 20건 이상 권장. 상관식 기준으로 운전');return}
   const X=train.map(r=>features(r));
   const basePred=X.map(x=>clamp(predictLR(formulaModel,x),0,90,wx.pave));
@@ -908,7 +956,7 @@ async function trainTfModel(show=true){
   document.getElementById('currentModelText')&&(document.getElementById('currentModelText').textContent=tfReady?'AI 보정모델 (TF.js)':'상관식 모델(fallback)');
   render();if(show)toast(tfReady?'TensorFlow.js AI 보정모델 학습 완료':'AI 성능 미달: 상관식 fallback 적용')
 }
-function predictAiResidual(x){if(!tfReady||!tfModel||!normInfo)return 0;const xn=x.map((v,i)=>((Number(v)||0)-(normInfo.means[i]||0))/(normInfo.stds[i]||1));const t=tf.tensor2d([xn]);let v=tfModel.predict(t).dataSync()[0];t.dispose();v=v*(normInfo.yStd||1)+(normInfo.yMean||0);return clamp(v,-8,8,0)}function coolingEffect(zid,temp){const rows=state.rows.filter(r=>r.spk&&r.zone==zid&&r.after!=='');if(rows.length){return rows.reduce((a,r)=>a+(r.pt-r.after),0)/rows.length}const all=state.rows.filter(r=>r.spk&&r.after!=='');return all.length?all.reduce((a,r)=>a+(r.pt-r.after),0)/all.length:6.0}
+function predictAiResidual(x){if(!tfReady||!tfModel||!normInfo)return 0;const xn=x.map((v,i)=>((Number(v)||0)-(normInfo.means[i]||0))/(normInfo.stds[i]||1));const t=tf.tensor2d([xn]);let v=tfModel.predict(t).dataSync()[0];t.dispose();v=v*(normInfo.yStd||1)+(normInfo.yMean||0);return clamp(v,-8,8,0)}function coolingEffect(zid,temp){const rows=state.measurements.filter(r=>r.spk&&r.zone==zid&&r.after!=='');if(rows.length){return rows.reduce((a,r)=>a+(r.pt-r.after),0)/rows.length}const all=state.measurements.filter(r=>r.spk&&r.after!=='');return all.length?all.reduce((a,r)=>a+(r.pt-r.after),0)/all.length:6.0}
 function calcPred(z){
   const x=formulaFeaturesCurrent(z);
   let formula=clamp(predictLR(formulaModel,x)+((z.id-3)*0.12),0,90,wx.pave||45);
@@ -1250,7 +1298,65 @@ function estimateSolarAt(hr){
   const factor=Math.exp(-Math.pow(hr-peak,2)/(2*sigma*sigma));
   return Math.min(SOLAR_MAX,SOLAR_MAX*factor);
 }
-function logsRender(){document.getElementById('recentLogs').innerHTML=state.logs.slice(0,5).map(l=>`<tr><td>${l.time}</td><td>${l.zone}</td><td>${l.vol}</td><td>${l.truck}</td><td>${l.worker}</td><td>${l.note}</td></tr>`).join('');document.getElementById('fullLogs').innerHTML=state.logs.map(l=>`<tr><td>${l.time}</td><td>${l.zone}</td><td>살수</td><td>${l.vol}</td><td>${l.worker}</td><td>${l.note}</td></tr>`).join('')}
+function logsRender(){
+  // 1. 모니터링 - 최근 살수 이행 기록 (표시만, 수정/삭제 X)
+  const sprayMeas=(state.measurements||[]).filter(m=>m.spk===1)
+    .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  const recentEl=document.getElementById('recentLogs');
+  if(recentEl){
+    if(sprayMeas.length===0){
+      recentEl.innerHTML='<tr><td colspan="6" style="text-align:center;color:#888;padding:18px;">살수 이행 기록이 없습니다</td></tr>';
+    } else {
+      recentEl.innerHTML=sprayMeas.slice(0,5).map(m=>{
+        const t=(m.date+' '+m.time);
+        const volStr=m.vol?Math.round(m.vol)+'L':'—';
+        return `<tr><td>${t}</td><td>구역 ${m.zone}</td><td>${volStr}</td><td>${m.truck||'—'}</td><td>${m.worker||'—'}</td><td>${m.note||'살수 이행'}</td></tr>`;
+      }).join('');
+    }
+  }
+  // 2. 운영 로그 탭 - 시스템 이벤트 + 살수 이행 통합 표시
+  const fullEl=document.getElementById('fullLogs');
+  if(fullEl){
+    // 살수 이행 항목 (수정/삭제 가능)
+    const sprayItems=sprayMeas.map(m=>({
+      time:m.date+' '+m.time,
+      timestamp:m.createdAt||(m.date+'T'+m.time),
+      type:'살수',
+      zone:'구역 '+m.zone,
+      vol:m.vol?Math.round(m.vol)+'L':'—',
+      worker:m.worker||'—',
+      note:m.note||'살수 이행 (실측 '+(m.pt!=null?m.pt.toFixed(1):'—')+'℃ → 후 '+(m.after!==''&&m.after!=null?Number(m.after).toFixed(1):'—')+'℃)',
+      measId:m.id,
+      isSystem:false
+    }));
+    // 시스템 이벤트
+    const sysItems=(state.systemLogs||[]).map(s=>({
+      time:s.time,
+      timestamp:s.timestamp,
+      type:s.type==='alarm_start'?'알람':s.type==='alarm_end'?'해제':s.type==='alarm_ack'?'확인':'시스템',
+      zone:Array.isArray(s.zones)?s.zones.map(z=>'구역 '+z).join(','):'—',
+      vol:'—',
+      worker:'시스템',
+      note:s.message,
+      sysId:s.id,
+      isSystem:true
+    }));
+    const all=[...sprayItems,...sysItems].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
+    if(all.length===0){
+      fullEl.innerHTML='<tr><td colspan="7" style="text-align:center;color:#888;padding:18px;">기록이 없습니다</td></tr>';
+    } else {
+      fullEl.innerHTML=all.map(l=>{
+        const action=l.isSystem
+          ?''
+          :`<button onclick="editSprayMeas('${l.measId}')" style="padding:3px 8px;background:#1976e8;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:800;cursor:pointer;margin-right:3px;">수정</button><button onclick="deleteSprayMeas('${l.measId}')" style="padding:3px 8px;background:#d71920;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:800;cursor:pointer;">삭제</button>`;
+        const typeBadge=l.isSystem
+          ?(l.type==='알람'?'<span style="color:#d71920;font-weight:800">🚨 '+l.type+'</span>':'<span style="color:#078943;font-weight:800">✅ '+l.type+'</span>')
+          :'<span style="color:#0054c8;font-weight:800">💧 '+l.type+'</span>';
+        return `<tr><td>${l.time}</td><td>${l.zone}</td><td>${typeBadge}</td><td>${l.vol}</td><td>${l.worker}</td><td style="text-align:left;font-size:11px;">${l.note}</td><td>${action}</td></tr>`;
+      }).join('');
+    }
+  }
+}
 
 // 살수 모달 — 자동 첨부 기상 (시간 변경 시 Open-Meteo 자동 조회)
 let modalWx={air:0,solar:0,hum:0,wind:0,source:'current'};
@@ -1363,14 +1469,18 @@ function confirmSprinkle(){
   if(isNaN(pt)){toast('실측 포장온도를 입력하세요');return;}
   if(pt<-20||pt>100){toast('실측 포장온도가 범위를 벗어났습니다 (-20~100℃)');return;}
   if(isNaN(vol)||vol<=0){toast('살수량을 정확히 입력하세요');return;}
+  if(vol>5000){
+    if(!confirm(`살수량 ${vol}L는 큰 값입니다 (일반 500~2000L).\n단위를 확인하세요. 그래도 등록할까요?`))return;
+  }
   if(isNaN(after)){toast('살수후 온도를 입력하세요');return;}
   if(modalWx.source==='loading'){toast('기상 정보 조회 중입니다. 잠시 후 다시 시도하세요');return;}
 
   const dateObj=new Date(date+'T'+time);
   const dayKor=['일','월','화','수','목','금','토'][dateObj.getDay()];
 
-  // 1. 학습 데이터(state.rows)에 추가 — modalWx 사용
-  state.rows.push({
+  // 1. 통합 데이터(state.measurements)에 추가
+  state.measurements.push({
+    id:newId('m'),
     date:date,
     day:dayKor,
     time:time,
@@ -1384,32 +1494,27 @@ function confirmSprinkle(){
     spk:1,
     vol:vol,
     after:after,
-    imputed:modalWx.source==='api'||modalWx.source==='fail',
-    imputedSrc:modalWx.source==='api'?'api':'manual'
-  });
-
-  // 2. 운영 로그
-  const logTime=String(dateObj.getMonth()+1).padStart(2,'0')+'.'+
-                String(dateObj.getDate()).padStart(2,'0')+' '+time;
-  state.logs.unshift({
-    time:logTime,
-    zone:'구역 '+id,
-    vol:vol.toFixed(1)+' ㎡',
     truck:truck,
     worker:worker,
-    note:note||'살수 이행 (실측 '+pt.toFixed(1)+'℃ → 후 '+after.toFixed(1)+'℃)'
+    note:note||'',
+    source:modalWx.source==='api'?'api':'manual',
+    imputed:modalWx.source==='api'||modalWx.source==='fail',
+    imputedSrc:modalWx.source==='api'?'api':'manual',
+    createdAt:date+'T'+time+':00'
   });
+
+  // 2. 시스템 로그에 알람 해제 등 기록은 별도 (살수 이행은 measurements가 단일 소스)
 
   // 3. 살수 상태
   state.sprinkled[id]={t:Date.now(),after:after};
 
   // 4. 즉시 재학습
   saveState();
-  if(state.rows.length>=5){
+  if(state.measurements.length>=5){
     trainAllModels();
     toast('구역 '+id+' 등록 완료. 모델 재학습됨 (R²='+metrics.formula.r2.toFixed(3)+')');
   } else {
-    toast('구역 '+id+' 등록 완료. 학습 데이터 '+state.rows.length+'건 (5건 이상 시 학습 시작)');
+    toast('구역 '+id+' 등록 완료. 학습 데이터 '+state.measurements.length+'건 (5건 이상 시 학습 시작)');
   }
   // 알람 자동 억제 (1시간)
   suppressAlarmAfterAction();
@@ -1504,29 +1609,25 @@ function confirmMeasure(){
   const dayKor=['일','월','화','수','목','금','토'][dateObj.getDay()];
 
   // 학습 데이터 추가 (살수 안 함 = 깨끗한 학습 데이터)
-  state.rows.push({
+  state.measurements.push({
+    id:newId('m'),
     date:date,day:dayKor,time:time,zone:id,warn:0,
     air:measureWx.air,solar:measureWx.solar,hum:measureWx.hum,wind:measureWx.wind,
     pt:pt,
     spk:0,vol:null,after:'',
+    truck:'',worker:worker,note:note||'',
+    source:measureWx.source==='api'?'api':'manual',
     imputed:measureWx.source==='api'||measureWx.source==='fail',
-    imputedSrc:measureWx.source==='api'?'api':'manual'
-  });
-
-  // 운영 로그 (참고용)
-  const logTime=String(dateObj.getMonth()+1).padStart(2,'0')+'.'+
-                String(dateObj.getDate()).padStart(2,'0')+' '+time;
-  state.logs.unshift({
-    time:logTime,zone:'구역 '+id,vol:'-',truck:'측정',worker:worker,
-    note:note?'측정 ('+pt.toFixed(1)+'℃) — '+note:'측정 입력 ('+pt.toFixed(1)+'℃)'
+    imputedSrc:measureWx.source==='api'?'api':'manual',
+    createdAt:date+'T'+time+':00'
   });
 
   saveState();
-  if(state.rows.length>=5){
+  if(state.measurements.length>=5){
     trainAllModels();
     toast('구역 '+id+' 측정 등록 완료. 모델 재학습됨 (R²='+metrics.formula.r2.toFixed(3)+')');
   } else {
-    toast('구역 '+id+' 측정 등록 완료. 학습 데이터 '+state.rows.length+'건');
+    toast('구역 '+id+' 측정 등록 완료. 학습 데이터 '+state.measurements.length+'건');
   }
   closeMeasureModal();
   render();
@@ -1620,10 +1721,13 @@ function checkAlarm(){
                     String(nowDate.getDate()).padStart(2,'0')+' '+
                     String(nowDate.getHours()).padStart(2,'0')+':'+
                     String(nowDate.getMinutes()).padStart(2,'0');
-      state.logs.unshift({
-        time:logTime,zone:trigger.map(t=>'구역 '+t.zone).join(','),
-        vol:'-',truck:'-',worker:'시스템',
-        note:'🚨 알람 발생 — 30분 후 60℃ 도달 예상: '+zoneNames
+      state.systemLogs.unshift({
+        id:newId('sl'),
+        time:logTime,
+        timestamp:nowDate.toISOString(),
+        type:'alarm_start',
+        zones:trigger.map(t=>t.zone),
+        message:'🚨 알람 발생 — 30분 후 60℃ 도달 예상: '+zoneNames
       });
       saveState();
       // 알림음 (가능한 경우)
@@ -1648,10 +1752,13 @@ function clearAlarm(autoResolve){
                 String(nowDate.getDate()).padStart(2,'0')+' '+
                 String(nowDate.getHours()).padStart(2,'0')+':'+
                 String(nowDate.getMinutes()).padStart(2,'0');
-  state.logs.unshift({
-    time:logTime,zone:alarmState.zones.map(z=>'구역 '+z).join(','),
-    vol:'-',truck:'-',worker:'시스템',
-    note:autoResolve?'✅ 알람 해제 — 모든 구역 안전 복귀':'✅ 알람 해제 — 운영자 확인'
+  state.systemLogs.unshift({
+    id:newId('sl'),
+    time:logTime,
+    timestamp:nowDate.toISOString(),
+    type:'alarm_end',
+    zones:alarmState.zones.slice(),
+    message:autoResolve?'✅ 알람 해제 — 모든 구역 안전 복귀':'✅ 알람 해제 — 운영자 확인'
   });
   alarmState.active=false;
   alarmState.zones=[];
@@ -1670,10 +1777,13 @@ function ackAlarm(){
                 String(nowDate.getDate()).padStart(2,'0')+' '+
                 String(nowDate.getHours()).padStart(2,'0')+':'+
                 String(nowDate.getMinutes()).padStart(2,'0');
-  state.logs.unshift({
-    time:logTime,zone:alarmState.zones.map(z=>'구역 '+z).join(','),
-    vol:'-',truck:'-',worker:'운영자',
-    note:'✅ 알람 확인 (1시간 재발생 억제)'
+  state.systemLogs.unshift({
+    id:newId('sl'),
+    time:logTime,
+    timestamp:nowDate.toISOString(),
+    type:'alarm_ack',
+    zones:alarmState.zones.slice(),
+    message:'✅ 알람 확인 (1시간 재발생 억제)'
   });
   alarmState.active=false;
   alarmState.zones=[];
@@ -1736,26 +1846,26 @@ setInterval(checkAlarm,5000);
 loadAlarmState();
 function showPane(name){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));document.getElementById('pane-'+name).classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==name));if(name==='coef')renderCoef();if(name==='log')logsRender();if(name==='ana')renderAnalysis();if(name==='data')renderData()}function renderCoef(){if(!formulaModel)return;document.getElementById('coefBox').textContent=`포장온도 상관식\nTₚ = ${fmt(formulaModel.intercept,3)} ${formulaModel.coefs.map((c,i)=>(c>=0?' + ':' - ')+Math.abs(c).toFixed(3)+'×'+['기온','일사량','습도','풍속','일사량²','풍속×일사량'][i]).join('')}\n\nTensorFlow.js AI 보정\nAI 보정값 = 실측 포장온도 - 상관식 예측값\n\n최종 운영값\n최종값 = 상관식 기준 예측 + AI 보정값 + 구역별 동적 보정계수\n\n구역별 보정계수\n`+zones.map(z=>`${z.name}: ${fmt(state.corr[z.id]||0,2)}℃`).join('\n')}function resetCorrections(){state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('구역 보정계수 초기화 완료')}
 function renderData(){
-  document.getElementById('dataSummary').textContent=`총 ${state.rows.length}건 (수동 입력 ${state.rows.filter(r=>r.imputedSrc==='manual').length}건)`;
-  const rows=sortRowsLatest(state.rows);
+  document.getElementById('dataSummary').textContent=`총 ${state.measurements.length}건 (수동 입력 ${state.measurements.filter(r=>(r.source||r.imputedSrc)==='manual').length}건)`;
+  const rows=sortRowsLatest(state.measurements);
   const head=document.querySelector('#pane-data .data-table thead tr');
-  if(head)head.innerHTML='<th>일자</th><th>시간</th><th>구역</th><th>특보</th><th>기온</th><th>일사량</th><th>습도</th><th>풍속</th><th>실측 포장온도</th><th>살수</th><th>살수량</th><th>살수후온도</th><th>출처</th><th>조작</th>';
+  if(head)head.innerHTML='<th>일자</th><th>시간</th><th>구역</th><th>특보</th><th>기온</th><th>일사량</th><th>습도</th><th>풍속</th><th>실측 포장온도</th><th>살수</th><th>살수량(L)</th><th>살수후온도</th><th>출처</th><th>조작</th>';
   if(!rows.length){
     document.getElementById('dataBody').innerHTML='<tr><td colspan="14" style="text-align:center;padding:30px;color:#888;">데이터가 없습니다. AI 모델 탭에서 엑셀을 업로드하거나, [+ 현장 데이터 입력] 버튼을 눌러 시작하세요.</td></tr>';
     return;
   }
   document.getElementById('dataBody').innerHTML=rows.slice(0,300).map(r=>{
     const dateStr=r.date+(r.day?` (${r.day})`:'');
-    const volStr=(r.vol&&r.vol>0)?`${Number(r.vol).toFixed(1)}㎡`:'—';
+    const volStr=(r.vol&&r.vol>0)?`${Math.round(r.vol)}L`:'—';
     const afterStr=(r.after!==''&&r.after!=null&&!isNaN(r.after))?fmt(r.after):'—';
     let srcStr;
-    if(r.imputedSrc==='manual')srcStr='<span style="color:#078943;font-size:11px;font-weight:800">현장</span>';
-    else if(r.imputedSrc==='api')srcStr='<span style="color:#ff6f00;font-size:11px;font-weight:800">API</span>';
-    else if(r.imputedSrc==='avg')srcStr='<span style="color:#888;font-size:11px;">평균</span>';
-    else srcStr='<span style="color:#0054c8;font-size:11px;">실측</span>';
-    // 원본 인덱스 찾기 (rows는 정렬된 사본이므로)
-    const origIdx=state.rows.indexOf(r);
-    const actions=`<button onclick="editDataRow(${origIdx})" style="padding:3px 8px;background:#1976e8;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:800;cursor:pointer;margin-right:3px;">수정</button><button onclick="deleteDataRow(${origIdx})" style="padding:3px 8px;background:#d71920;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:800;cursor:pointer;">삭제</button>`;
+    const src=r.source||r.imputedSrc;
+    if(src==='manual')srcStr='<span style="color:#078943;font-size:11px;font-weight:800">현장</span>';
+    else if(src==='api')srcStr='<span style="color:#ff6f00;font-size:11px;font-weight:800">API</span>';
+    else if(src==='avg')srcStr='<span style="color:#888;font-size:11px;">평균</span>';
+    else srcStr='<span style="color:#0054c8;font-size:11px;">엑셀</span>';
+    const idKey=r.id||state.measurements.indexOf(r);
+    const actions=`<button onclick="editDataRow('${idKey}')" style="padding:3px 8px;background:#1976e8;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:800;cursor:pointer;margin-right:3px;">수정</button><button onclick="deleteDataRow('${idKey}')" style="padding:3px 8px;background:#d71920;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:800;cursor:pointer;">삭제</button>`;
     return `<tr><td>${dateStr}</td><td>${r.time}</td><td>구역 ${r.zone}</td><td>${r.warn||0}</td><td>${fmt(r.air)}</td><td>${fmt(r.solar,2)}</td><td>${fmt(r.hum,0)}</td><td>${fmt(r.wind,2)}</td><td><b>${fmt(r.pt)}</b></td><td>${r.spk?'<span style="color:#0054c8;font-weight:800">실시</span>':'미실시'}</td><td>${volStr}</td><td>${afterStr}</td><td>${srcStr}</td><td>${actions}</td></tr>`;
   }).join('');
 }
@@ -1783,8 +1893,15 @@ function openDataModal(){
   setTimeout(()=>document.getElementById('dPt').focus(),100);
 }
 
-function editDataRow(idx){
-  const r=state.rows[idx];
+function editDataRow(idOrIdx){
+  // ID 또는 인덱스 모두 지원
+  let r,idx;
+  if(typeof idOrIdx==='string'&&idOrIdx.startsWith('m_')||typeof idOrIdx==='string'&&idOrIdx.startsWith('mig_')){
+    idx=state.measurements.findIndex(x=>x.id===idOrIdx);
+  } else {
+    idx=Number(idOrIdx);
+  }
+  r=state.measurements[idx];
   if(!r){toast('데이터를 찾을 수 없습니다');return;}
   editingRowIdx=idx;
   document.getElementById('dataModalTitle').textContent='데이터 수정';
@@ -1803,16 +1920,26 @@ function editDataRow(idx){
   document.getElementById('dataModal').classList.add('show');
 }
 
-function deleteDataRow(idx){
-  const r=state.rows[idx];
+function deleteDataRow(idOrIdx){
+  let idx;
+  if(typeof idOrIdx==='string'&&(idOrIdx.startsWith('m_')||idOrIdx.startsWith('mig_'))){
+    idx=state.measurements.findIndex(x=>x.id===idOrIdx);
+  } else {
+    idx=Number(idOrIdx);
+  }
+  const r=state.measurements[idx];
   if(!r){toast('데이터를 찾을 수 없습니다');return;}
   if(!confirm(`이 데이터를 삭제할까요?\n\n${r.date} ${r.time} - 구역 ${r.zone} - 포장온도 ${r.pt}℃`))return;
-  state.rows.splice(idx,1);
+  state.measurements.splice(idx,1);
   saveState();
-  if(state.rows.length>=5)trainAllModels();
+  if(state.measurements.length>=5)trainAllModels();
   render();
   toast('삭제 완료');
 }
+
+// 운영 로그에서 호출하는 별칭 (살수 이행만)
+function editSprayMeas(id){editDataRow(id);}
+function deleteSprayMeas(id){deleteDataRow(id);}
 
 function closeDataModal(){document.getElementById('dataModal').classList.remove('show')}
 
@@ -1838,33 +1965,44 @@ function confirmDataRow(){
 
   const dateObj=new Date(date+'T'+time);
   const dayKor=['일','월','화','수','목','금','토'][dateObj.getDay()];
+  let existingId=null,existingTruck='',existingWorker='운영자',existingNote='';
+  if(editingRowIdx>=0&&state.measurements[editingRowIdx]){
+    existingId=state.measurements[editingRowIdx].id;
+    existingTruck=state.measurements[editingRowIdx].truck||'';
+    existingWorker=state.measurements[editingRowIdx].worker||'운영자';
+    existingNote=state.measurements[editingRowIdx].note||'';
+  }
   const newRow={
+    id:existingId||newId('m'),
     date:date,day:dayKor,time:time,zone:zone,warn:warn,
     air:+air.toFixed(1),solar:+solar.toFixed(2),hum:+hum.toFixed(1),wind:+wind.toFixed(2),
     pt:+pt.toFixed(1),spk:spk,
     vol:volStr?+parseFloat(volStr).toFixed(1):null,
     after:afterStr?+parseFloat(afterStr).toFixed(1):'',
-    imputed:false,imputedSrc:'manual'
+    truck:existingTruck,worker:existingWorker,note:existingNote,
+    source:'manual',
+    imputed:false,imputedSrc:'manual',
+    createdAt:date+'T'+time+':00'
   };
 
   if(editingRowIdx>=0){
     // 수정
-    state.rows[editingRowIdx]=newRow;
+    state.measurements[editingRowIdx]=newRow;
     toast('수정 완료');
   } else {
     // 추가
-    state.rows.push(newRow);
-    toast('추가 완료. 학습 데이터 '+state.rows.length+'건');
+    state.measurements.push(newRow);
+    toast('추가 완료. 학습 데이터 '+state.measurements.length+'건');
   }
 
   saveState();
-  if(state.rows.length>=5)trainAllModels();
+  if(state.measurements.length>=5)trainAllModels();
   closeDataModal();
   render();
 }function renderAnalysis(){
   const statBox=document.getElementById('anaStatBox');
-  if(statBox&&state.rows&&state.rows.length){
-    const rows=state.rows;
+  if(statBox&&state.measurements&&state.measurements.length){
+    const rows=state.measurements;
     const ptVals=rows.map(r=>r.pt);
     const ptMean=ptVals.reduce((a,b)=>a+b,0)/ptVals.length;
     const ptMax=Math.max(...ptVals);
@@ -1882,18 +2020,18 @@ function confirmDataRow(){
   }
   document.getElementById('correctionBody').innerHTML=zones.map(z=>{
     const corr=state.corr[z.id]||0;
-    const n=state.rows?state.rows.filter(r=>r.zone==z.id).length:0;
+    const n=state.measurements?state.measurements.filter(r=>r.zone==z.id).length:0;
     const status=Math.abs(corr)>2?'<b style="color:#d71920">주의</b>':n<5?'<span style="color:#888">데이터 부족</span>':'<span style="color:#078943">정상</span>';
     return `<tr><td>${z.name}</td><td class="${corr>=0?'red':'blue'}">${corr>=0?'+':''}${fmt(corr,2)}℃</td><td>${n}</td><td>${status}</td></tr>`;
   }).join('');
   const ctx=document.getElementById('analysisChart');
   if(!ctx)return;
-  if(!state.rows||!state.rows.length){
+  if(!state.measurements||!state.measurements.length){
     if(analysisChart){analysisChart.destroy();analysisChart=null;}
     return;
   }
   const data1=zones.map(z=>{
-    const a=state.rows.filter(r=>r.zone==z.id);
+    const a=state.measurements.filter(r=>r.zone==z.id);
     return a.length?+(a.reduce((s,r)=>s+r.pt,0)/a.length).toFixed(1):0;
   });
   const data2=zones.map(z=>+coolingEffect(z.id,50).toFixed(1));
@@ -1908,7 +2046,7 @@ function confirmDataRow(){
     {label:'평균 살수 저감량(℃)',data:data2,backgroundColor:'rgba(7,137,67,.65)',borderColor:'#078943',borderWidth:1}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'℃'}}}}});
 }
-function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});const nk=s=>String(s).replace(/[\s\(\)℃%㎡\/\.·]/g,'').toLowerCase();function col(obj,names){const ks=Object.keys(obj);for(const nm of names){const n= name=>nk(name);let k=ks.find(k=>n(k)===n(nm));if(k)return k;k=ks.find(k=>n(k).includes(n(nm))||n(nm).includes(n(k)));if(k)return k}return null}if(!rows.length)return;const sample=rows[0],c={date:col(sample,['일자','날짜','date']),time:col(sample,['측정시간','시간']),zone:col(sample,['구역코드','구역']),air:col(sample,['대기온도','기온']),solar:col(sample,['일사량']),hum:col(sample,['습도']),wind:col(sample,['풍속']),pt:col(sample,['포장온도']),spk:col(sample,['살수여부']),after:col(sample,['살수후 표면온도','살수후온도'])};const num=v=>{const x=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(x)?null:x};state.rows=rows.map(r=>({date:String(r[c.date]||'2026-05-08'),time:String(r[c.time]||'12:00'),zone:num(r[c.zone])||1,air:num(r[c.air])||wx.air,solar:num(r[c.solar])||wx.solar,hum:num(r[c.hum])||wx.hum,wind:(num(r[c.wind])||wx.wind)*((c.wind&&String(c.wind).includes('KT'))?.514:1),pt:num(r[c.pt]),spk:(num(r[c.spk])||0)>0?1:0,after:num(r[c.after])??''})).filter(r=>r.pt!==null&&isFinite(r.pt)&&r.pt>-20&&r.pt<100);state.rows=sortRowsLatest(state.rows);saveState();trainAllModels();render();toast(`엑셀 데이터 ${state.rows.length}건 반영 완료`)};reader.readAsArrayBuffer(f)}function clearTrainingData(){if(confirm('학습 데이터를 모두 삭제할까요?\n(엑셀을 다시 업로드해야 합니다)')){state.rows=[];formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('초기화 완료')}}function downloadData(){const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(state.rows),'training_data');XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(state.logs),'operation_logs');XLSX.writeFile(wb,'AURA_data.xlsx')}function openApi(){document.getElementById('apiKey').value=localStorage.getItem('aura_api_key')||'';document.getElementById('apiModal').classList.add('show')}function closeApi(){document.getElementById('apiModal').classList.remove('show')}function saveApi(){localStorage.setItem('aura_api_key',document.getElementById('apiKey').value);closeApi();toast('API 키 저장 완료')}function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}function render(){wx.pave=Math.max(...zones.map(z=>calcPred(z).final));sensorCards();zoneCards();selectZone(selectedZone);logsRender();renderData();renderAnalysis();renderCoef();saveState()}
+function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});const nk=s=>String(s).replace(/[\s\(\)℃%㎡\/\.·]/g,'').toLowerCase();function col(obj,names){const ks=Object.keys(obj);for(const nm of names){const n= name=>nk(name);let k=ks.find(k=>n(k)===n(nm));if(k)return k;k=ks.find(k=>n(k).includes(n(nm))||n(nm).includes(n(k)));if(k)return k}return null}if(!rows.length)return;const sample=rows[0],c={date:col(sample,['일자','날짜','date']),time:col(sample,['측정시간','시간']),zone:col(sample,['구역코드','구역']),air:col(sample,['대기온도','기온']),solar:col(sample,['일사량']),hum:col(sample,['습도']),wind:col(sample,['풍속']),pt:col(sample,['포장온도']),spk:col(sample,['살수여부']),after:col(sample,['살수후 표면온도','살수후온도'])};const num=v=>{const x=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(x)?null:x};state.measurements=rows.map(r=>({date:String(r[c.date]||'2026-05-08'),time:String(r[c.time]||'12:00'),zone:num(r[c.zone])||1,air:num(r[c.air])||wx.air,solar:num(r[c.solar])||wx.solar,hum:num(r[c.hum])||wx.hum,wind:(num(r[c.wind])||wx.wind)*((c.wind&&String(c.wind).includes('KT'))?.514:1),pt:num(r[c.pt]),spk:(num(r[c.spk])||0)>0?1:0,after:num(r[c.after])??''})).filter(r=>r.pt!==null&&isFinite(r.pt)&&r.pt>-20&&r.pt<100);state.measurements=sortRowsLatest(state.measurements);saveState();trainAllModels();render();toast(`엑셀 데이터 ${state.measurements.length}건 반영 완료`)};reader.readAsArrayBuffer(f)}function clearTrainingData(){if(confirm('학습 데이터를 모두 삭제할까요?\n(엑셀을 다시 업로드해야 합니다)')){state.measurements=[];formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('초기화 완료')}}function downloadData(){const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(state.measurements),'training_data');XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(state.systemLogs),'operation_logs');XLSX.writeFile(wb,'AURA_data.xlsx')}function openApi(){document.getElementById('apiKey').value=localStorage.getItem('aura_api_key')||'';document.getElementById('apiModal').classList.add('show')}function closeApi(){document.getElementById('apiModal').classList.remove('show')}function saveApi(){localStorage.setItem('aura_api_key',document.getElementById('apiKey').value);closeApi();toast('API 키 저장 완료')}function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}function render(){wx.pave=Math.max(...zones.map(z=>calcPred(z).final));sensorCards();zoneCards();selectZone(selectedZone);logsRender();renderData();renderAnalysis();renderCoef();saveState()}
 
 /* ════════════════════════════════════════════════════════════════
    v6.2 + v6.0 통합 — Open-Meteo, 학습 옵션, 회귀계수 종합 영향도
@@ -1942,7 +2080,7 @@ function getTrainOpts(){
 document.addEventListener('change',e=>{
   if(e.target.id&&e.target.id.startsWith('opt-')){
     saveTrainOpts();
-    if(state.rows&&state.rows.length>=5){
+    if(state.measurements&&state.measurements.length>=5){
       trainAllModels();render();
       toast('옵션 변경 — 재학습 완료');
     }
@@ -2097,28 +2235,32 @@ function loadExcel(e){
         r.imputedSrc=src;
       });
 
-      // state.rows로 저장 (v6.2 형식)
-      state.rows=rawRows.map(r=>({
+      // state.measurements로 저장 (v6.3 형식)
+      state.measurements=rawRows.map(r=>({
+        id:newId('m'),
         date:r.date,day:r.day,time:r.time,zone:r.zone,warn:r.warn,
         air:r.air,solar:r.solar,hum:r.hum,wind:r.wind,
         pt:r.pt,spk:r.spk,vol:r.vol,after:r.after===null?'':r.after,
-        imputed:r.imputed,imputedSrc:r.imputedSrc
+        truck:'',worker:'',note:r.imputed?'엑셀 보완 ('+(r.imputedSrc||'avg')+')':'',
+        source:r.imputedSrc||'excel',
+        imputed:r.imputed,imputedSrc:r.imputedSrc,
+        createdAt:r.date+'T'+(r.time||'12:00')+':00'
       }));
-      state.rows=sortRowsLatest(state.rows);
+      state.measurements=sortRowsLatest(state.measurements);
       state.fileInfo={
         name:f.name,
         total:rows.length,
-        valid:state.rows.length,
+        valid:state.measurements.length,
         imputedAPI:imputedAPI,
         imputedAvg:imputedAvg,
-        spk:state.rows.filter(r=>r.spk).length,
-        zones:[...new Set(state.rows.map(r=>r.zone))].sort()
+        spk:state.measurements.filter(r=>r.spk).length,
+        zones:[...new Set(state.measurements.map(r=>r.zone))].sort()
       };
       saveState();
       trainAllModels();
       renderFileInfo();
       render();
-      const msg=`${f.name} — ${state.rows.length}건`+
+      const msg=`${f.name} — ${state.measurements.length}건`+
         (imputedAPI>0?` (Open-Meteo 보완 ${imputedAPI}건)`:'')+
         (imputedAvg>0?` (평균 보완 ${imputedAvg}건)`:'');
       toast(msg);
@@ -2172,12 +2314,12 @@ formulaFeaturesCurrent=function(z){
 // ── trainAllModels에 옵션 필터 적용 ──────────────────────
 const originalTrainAllModels=trainAllModels;
 trainAllModels=function(runTf=true){
-  if(!state.rows||state.rows.length<5){
+  if(!state.rows||state.measurements.length<5){
     if(formulaModel)formulaModel=null;
     return;
   }
   const opts=getTrainOpts();
-  let filtered=state.rows.filter(r=>isFinite(r.pt)&&r.pt>-20&&r.pt<100&&isFinite(r.air)&&isFinite(r.solar)&&isFinite(r.hum)&&isFinite(r.wind));
+  let filtered=state.measurements.filter(r=>isFinite(r.pt)&&r.pt>-20&&r.pt<100&&isFinite(r.air)&&isFinite(r.solar)&&isFinite(r.hum)&&isFinite(r.wind));
   if(opts.nospk)filtered=filtered.filter(r=>!r.spk);
   if(opts.noimputed)filtered=filtered.filter(r=>!r.imputed);
   if(filtered.length<5){
