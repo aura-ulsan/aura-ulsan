@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>A.U.R.A SYSTEM v6.2 - 울산공항 활주로 살수 자동화</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -1234,21 +1235,37 @@ function drawChart(){
     .filter(d=>d.src==='measured'&&d.hour>=OP_START&&d.hour<=OP_END)
     .map(d=>({x:d.hour,y:d.temp}));
 
-  // 미래 예측 (현재~20시) — 30분 간격 — 일사량 단순 추정 + 클램핑
+  // 미래 예측 (현재~20시) — Open-Meteo Forecast 사용
   const futureData=[];
   const nowHr=new Date().getHours()+new Date().getMinutes()/60;
+  const today=new Date().toISOString().slice(0,10);
   if(formulaModel&&nowHr<OP_END){
     const z=zones.find(x=>x.id==selectedZone)||zones[0];
     const savedWx={...wx};
     const startFh=Math.max(OP_START,Math.ceil(nowHr*2)/2);
+    const hasForecast=!!forecastCache[today];
     for(let fh=startFh;fh<=OP_END;fh+=0.5){
-      // 단순 일사량 추정 — 정오 13시 기준 종형 곡선, 학습데이터 범위 내
-      wx.solar=estimateSolarAt(fh);
+      if(hasForecast){
+        // ★ Open-Meteo Forecast 데이터 사용 (모든 기상)
+        const fwx=getForecastAt(today,fh);
+        if(fwx){
+          wx.air=fwx.air;
+          wx.solar=fwx.solar;
+          wx.hum=fwx.hum;
+          wx.wind=fwx.wind;
+        }
+      } else {
+        // 폴백: 일사량 종형 곡선만
+        wx.solar=estimateSolarAt(fh);
+      }
       const pt=calcPred(z).final;
       futureData.push({x:fh,y:pt});
     }
     Object.assign(wx,savedWx);
   }
+
+  // 일출/일몰 정보 (Forecast에서)
+  const sun=getSun(today);
 
   const datasets=[
     {label:'추정 (자정~접속전)',data:estimatedData,borderColor:'#9e9e9e',backgroundColor:'rgba(158,158,158,.08)',borderWidth:1.5,borderDash:[4,3],pointRadius:1.5,tension:0.4,fill:true},
@@ -1256,11 +1273,34 @@ function drawChart(){
     {label:'예측 (향후)',data:futureData,borderColor:'#6a1b9a',backgroundColor:'rgba(106,27,154,.05)',borderWidth:2,borderDash:[6,4],pointRadius:2,tension:0.4,fill:false}
   ];
 
-  // 차트 제목에 운영 시간 명시
-  const headTitle=document.querySelector('.bottom .panel:first-child .panel-head span:first-child');
+  // 차트 제목 + 갱신 정보 + 일출/일몰 + 갱신 버튼
+  const headTitle=document.querySelector('.bottom .panel:first-child .panel-head');
   if(headTitle){
     const z=zones.find(x=>x.id==selectedZone);
-    headTitle.innerHTML=`♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(${z?z.name:'구역 1'})</span> <span style="font-size:11px;font-weight:600;color:#5a6a7e;">· 운영 ${String(OP_START).padStart(2,'0')}~${String(OP_END).padStart(2,'0')}시</span>`;
+    const updTime=lastForecastUpdate?new Date(lastForecastUpdate):null;
+    const nextTime=updTime?new Date(lastForecastUpdate+FORECAST_REFRESH_MIN*60*1000):null;
+    const fmt2=d=>d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'--';
+    const updStr=updTime?`마지막 갱신: ${fmt2(updTime)} (다음: ${fmt2(nextTime)})`:'갱신 대기 중';
+    headTitle.innerHTML=`<div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:900;color:#00419e;">♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(${z?z.name:'구역 1'})</span> <span style="font-size:11px;font-weight:600;color:#5a6a7e;">· 운영 ${String(OP_START).padStart(2,'0')}~${String(OP_END).padStart(2,'0')}시</span></div><div style="font-size:11px;font-weight:600;color:#5a6a7e;margin-top:2px;">└ ${updStr}</div></div><button class="small-btn" onclick="manualRefreshForecast()" style="flex:none;">🔄 지금 갱신</button>`;
+  }
+
+  // 갱신 실패 시 빨간 배너
+  const chartPanel=document.querySelector('.bottom .panel:first-child');
+  let banner=document.getElementById('forecastBanner');
+  if(forecastFailed){
+    if(!banner&&chartPanel){
+      banner=document.createElement('div');
+      banner.id='forecastBanner';
+      banner.style.cssText='background:#fff0f0;border:1px solid #ef9a9a;color:#c62828;padding:6px 10px;border-radius:5px;font-size:12px;font-weight:800;margin-bottom:8px;';
+      chartPanel.insertBefore(banner,chartPanel.querySelector('.summary4'));
+    }
+    if(banner){
+      const updTime=lastForecastUpdate?new Date(lastForecastUpdate):null;
+      const fmt2=d=>d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'--';
+      banner.innerHTML='⚠️ Open-Meteo 갱신 실패 — '+(updTime?fmt2(updTime)+' 데이터 사용 중':'예보 데이터 없음')+' (현재 기상 기반 단순 추정)';
+    }
+  } else {
+    if(banner)banner.remove();
   }
 
   // ★ 깜박임 방지 — 차트가 이미 있으면 update만
@@ -1268,9 +1308,47 @@ function drawChart(){
     chart.data.datasets[0].data=estimatedData;
     chart.data.datasets[1].data=measuredData;
     chart.data.datasets[2].data=futureData;
+    if(sun)updateSunAnnotation(chart,sun);
     chart.update('none');
     return;
   }
+
+  // 일출/일몰 음영 + 수직 점선 (annotation)
+  const annotations={};
+  if(sun){
+    // 일출 이전 음영
+    if(sun.sunrise>OP_START){
+      annotations.beforeSunrise={
+        type:'box',xMin:OP_START,xMax:sun.sunrise,
+        backgroundColor:'rgba(158,158,158,0.1)',borderWidth:0
+      };
+    }
+    // 일몰 이후 음영
+    if(sun.sunset<OP_END){
+      annotations.afterSunset={
+        type:'box',xMin:sun.sunset,xMax:OP_END,
+        backgroundColor:'rgba(158,158,158,0.1)',borderWidth:0
+      };
+    }
+    // 일출 수직선
+    annotations.sunriseLine={
+      type:'line',xMin:sun.sunrise,xMax:sun.sunrise,
+      borderColor:'#ff9800',borderWidth:1.5,borderDash:[3,3],
+      label:{display:true,content:'일출 '+fmtTime(sun.sunrise),position:'start',backgroundColor:'#ff9800',color:'#fff',font:{size:10,weight:'bold'},padding:3}
+    };
+    // 일몰 수직선
+    annotations.sunsetLine={
+      type:'line',xMin:sun.sunset,xMax:sun.sunset,
+      borderColor:'#5e35b1',borderWidth:1.5,borderDash:[3,3],
+      label:{display:true,content:'일몰 '+fmtTime(sun.sunset),position:'start',backgroundColor:'#5e35b1',color:'#fff',font:{size:10,weight:'bold'},padding:3}
+    };
+  }
+  // 60℃ 임계선
+  annotations.threshold={
+    type:'line',yMin:60,yMax:60,
+    borderColor:'#d71920',borderWidth:1,borderDash:[6,4],
+    label:{display:true,content:'60℃ 임계',position:'end',backgroundColor:'#d71920',color:'#fff',font:{size:9,weight:'bold'},padding:2}
+  };
 
   chart=new Chart(document.getElementById('trendChart'),{
     type:'line',
@@ -1279,7 +1357,8 @@ function drawChart(){
       responsive:true,maintainAspectRatio:false,
       animation:{duration:600,easing:'easeOutQuart'},
       plugins:{
-        legend:{position:'top',labels:{boxWidth:14,font:{size:11},padding:8}}
+        legend:{position:'top',labels:{boxWidth:14,font:{size:11},padding:8}},
+        annotation:{annotations:annotations}
       },
       scales:{
         y:{min:20,max:75,title:{display:true,text:'포장온도(℃)',font:{size:11,weight:'bold'}},grid:{color:'#e4edf7'},ticks:{font:{size:10}}},
@@ -1289,12 +1368,45 @@ function drawChart(){
   });
 }
 
-// 시간대별 일사량 단순 추정 (학습 데이터 범위 내)
-// 정오 13시 기준 종형 곡선, 최대 SOLAR_MAX (3.5 MJ/㎡)
+function fmtTime(h){
+  const hh=Math.floor(h);
+  const mm=Math.round((h-hh)*60);
+  return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+}
+
+function updateSunAnnotation(c,sun){
+  if(!c.options.plugins||!c.options.plugins.annotation)return;
+  const ann=c.options.plugins.annotation.annotations;
+  if(sun.sunrise>OP_START){
+    ann.beforeSunrise={type:'box',xMin:OP_START,xMax:sun.sunrise,backgroundColor:'rgba(158,158,158,0.1)',borderWidth:0};
+  }
+  if(sun.sunset<OP_END){
+    ann.afterSunset={type:'box',xMin:sun.sunset,xMax:OP_END,backgroundColor:'rgba(158,158,158,0.1)',borderWidth:0};
+  }
+  ann.sunriseLine={type:'line',xMin:sun.sunrise,xMax:sun.sunrise,borderColor:'#ff9800',borderWidth:1.5,borderDash:[3,3],label:{display:true,content:'일출 '+fmtTime(sun.sunrise),position:'start',backgroundColor:'#ff9800',color:'#fff',font:{size:10,weight:'bold'},padding:3}};
+  ann.sunsetLine={type:'line',xMin:sun.sunset,xMax:sun.sunset,borderColor:'#5e35b1',borderWidth:1.5,borderDash:[3,3],label:{display:true,content:'일몰 '+fmtTime(sun.sunset),position:'start',backgroundColor:'#5e35b1',color:'#fff',font:{size:10,weight:'bold'},padding:3}};
+}
+
+// 수동 갱신 버튼
+async function manualRefreshForecast(){
+  toast('Open-Meteo 갱신 중...');
+  try{
+    const today=new Date().toISOString().slice(0,10);
+    await fetchForecastWeather(today);
+    drawChart();
+    toast('갱신 완료');
+  }catch(err){
+    forecastFailed=true;
+    drawChart();
+    toast('갱신 실패: '+err.message);
+  }
+}
+
+// 시간대별 일사량 단순 추정 (Forecast 폴백용)
 function estimateSolarAt(hr){
   if(hr<6||hr>19)return 0;
-  const peak=12.5;        // 일사량 최대 시각
-  const sigma=4.5;        // 곡선 너비 (08시 약 1.0, 13시 3.5, 18시 0.5)
+  const peak=12.5;
+  const sigma=4.5;
   const factor=Math.exp(-Math.pow(hr-peak,2)/(2*sigma*sigma));
   return Math.min(SOLAR_MAX,SOLAR_MAX*factor);
 }
@@ -2125,6 +2237,95 @@ function getHistoryWeather(dateStr,hour){
   return null;
 }
 
+/* ════════════════════════════════════════════════════════════════
+   Open-Meteo Forecast API — 미래 기상 예보
+   ════════════════════════════════════════════════════════════════ */
+let forecastCache={};       // {date: {0:{...},1:{...},...,23:{...}}}
+let sunCache={};            // {date: {sunrise:5.5, sunset:19.3}}
+let lastForecastUpdate=0;   // 마지막 호출 timestamp
+let forecastFailed=false;   // 호출 실패 상태
+const FORECAST_REFRESH_MIN=60;  // 자동 갱신 간격 (분)
+
+function fetchForecastWeather(date){
+  // Open-Meteo Forecast API — hourly + daily(일출/일몰)
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${ULSAN_LAT}&longitude=${ULSAN_LON}`+
+    `&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,shortwave_radiation`+
+    `&daily=sunrise,sunset`+
+    `&timezone=Asia%2FSeoul&wind_speed_unit=ms`+
+    `&start_date=${date}&end_date=${date}`;
+  return fetch(url).then(r=>{
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(data=>{
+    if(!data.hourly||!data.hourly.time)throw new Error('Forecast 데이터 없음');
+    const h=data.hourly;
+    forecastCache[date]={};
+    for(let i=0;i<h.time.length;i++){
+      const ts=h.time[i];
+      const hr=parseInt(ts.split('T')[1].split(':')[0]);
+      // 단위 변환: shortwave_radiation은 W/m² → MJ/m² (1시간 평균)
+      // 1 W/m² = 0.0036 MJ/m² per hour
+      const solarMJ=(h.shortwave_radiation[i]||0)*3.6/1000;
+      forecastCache[date][hr]={
+        air:h.temperature_2m[i],
+        solar:Math.max(0,Math.min(SOLAR_MAX,solarMJ)),  // 클램핑
+        hum:h.relative_humidity_2m[i],
+        wind:h.wind_speed_10m[i]
+      };
+    }
+    // 일출/일몰
+    if(data.daily&&data.daily.sunrise&&data.daily.sunset){
+      const sr=data.daily.sunrise[0];
+      const ss=data.daily.sunset[0];
+      // "2026-05-11T05:30" 형식
+      const srH=parseInt(sr.split('T')[1].split(':')[0])+parseInt(sr.split('T')[1].split(':')[1])/60;
+      const ssH=parseInt(ss.split('T')[1].split(':')[0])+parseInt(ss.split('T')[1].split(':')[1])/60;
+      sunCache[date]={sunrise:srH,sunset:ssH};
+    }
+    lastForecastUpdate=Date.now();
+    forecastFailed=false;
+    return data;
+  }).catch(err=>{
+    console.warn('Forecast 호출 실패:',err.message);
+    forecastFailed=true;
+    throw err;
+  });
+}
+
+function getForecastAt(date,hr){
+  if(!forecastCache[date])return null;
+  // hr이 0.5 같은 경우 보간 (단순히 가까운 시각)
+  const intHr=Math.round(hr);
+  return forecastCache[date][intHr]||null;
+}
+
+function getSun(date){
+  return sunCache[date]||null;
+}
+
+function isForecastFresh(){
+  // 마지막 갱신 후 1시간 이내면 fresh
+  if(!lastForecastUpdate)return false;
+  return (Date.now()-lastForecastUpdate)<FORECAST_REFRESH_MIN*60*1000;
+}
+
+async function ensureForecastFresh(){
+  const today=new Date().toISOString().slice(0,10);
+  if(forecastCache[today]&&isForecastFresh())return;
+  try{
+    await fetchForecastWeather(today);
+    drawChart();
+  }catch(err){
+    // 실패해도 그래프는 그림 (폴백)
+    drawChart();
+  }
+}
+
+// 1시간마다 자동 갱신
+setInterval(()=>{
+  if(!isForecastFresh())ensureForecastFresh();
+},5*60*1000);  // 5분마다 체크, 1시간 지났으면 갱신
+
 // ── 엑셀 업로드 — Open-Meteo 보충 + 옵션 적용 ──────────────────────
 function loadExcel(e){
   const f=e.target.files[0];if(!f)return;
@@ -2426,6 +2627,21 @@ setTimeout(()=>{
 loadState();
 clock();
 render();
+
+// 첫 접속 시 Open-Meteo Forecast 호출 (운영 시간 안일 때만)
+(async()=>{
+  const nowHr=new Date().getHours();
+  if(nowHr>=OP_START&&nowHr<=OP_END){
+    try{
+      const today=new Date().toISOString().slice(0,10);
+      await fetchForecastWeather(today);
+      drawChart();
+    }catch(err){
+      forecastFailed=true;
+      drawChart();
+    }
+  }
+})();
 
 </script>
 </body>
