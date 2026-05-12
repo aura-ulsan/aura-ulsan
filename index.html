@@ -1235,6 +1235,16 @@ function drawChart(){
     .filter(d=>d.src==='measured'&&d.hour>=OP_START&&d.hour<=OP_END)
     .map(d=>({x:d.hour,y:d.temp}));
 
+  // 현재 시점 점 보강 — 실측 데이터 부족 시 현재 wx로 연결점 추가
+  const nowHrCheck=new Date().getHours()+new Date().getMinutes()/60;
+  if(nowHrCheck>=OP_START&&nowHrCheck<=OP_END){
+    const lastMeas=measuredData[measuredData.length-1];
+    if(!lastMeas||Math.abs(lastMeas.x-nowHrCheck)>0.1){
+      // 현재 wx.pave를 현재 시점 측정점으로 추가 (연결성 확보)
+      measuredData.push({x:nowHrCheck,y:wx.pave});
+    }
+  }
+
   // 미래 예측 (현재~20시) — Open-Meteo Forecast 사용
   const futureData=[];
   const nowHr=new Date().getHours()+new Date().getMinutes()/60;
@@ -1244,24 +1254,54 @@ function drawChart(){
     const savedWx={...wx};
     const startFh=Math.max(OP_START,Math.ceil(nowHr*2)/2);
     const hasForecast=!!forecastCache[today];
+
+    // 학습 데이터 기준 안전 범위 (외삽 방지)
+    // 학습 데이터: 여름 정오 (기온 26~33, 일사량 2.5~3.3, 습도 30~70, 풍속 0~10)
+    const SAFE_AIR=[15,38];        // 기온
+    const SAFE_SOLAR=[0.3,3.5];    // 일사량 (학습 최저 0.3 정도)
+    const SAFE_HUM=[20,95];        // 습도
+    const SAFE_WIND=[0.5,15];      // 풍속
+
     for(let fh=startFh;fh<=OP_END;fh+=0.5){
       if(hasForecast){
-        // ★ Open-Meteo Forecast 데이터 사용 (모든 기상)
+        // ★ Open-Meteo Forecast 데이터 사용 + 입력 클램핑
         const fwx=getForecastAt(today,fh);
         if(fwx){
-          wx.air=fwx.air;
-          wx.solar=fwx.solar;
-          wx.hum=fwx.hum;
-          wx.wind=fwx.wind;
+          // Phase 1: 입력 클램핑 (학습 데이터 범위 안으로)
+          wx.air=Math.max(SAFE_AIR[0],Math.min(SAFE_AIR[1],fwx.air));
+          wx.solar=Math.max(SAFE_SOLAR[0],Math.min(SAFE_SOLAR[1],fwx.solar));
+          wx.hum=Math.max(SAFE_HUM[0],Math.min(SAFE_HUM[1],fwx.hum));
+          wx.wind=Math.max(SAFE_WIND[0],Math.min(SAFE_WIND[1],fwx.wind));
         }
       } else {
         // 폴백: 일사량 종형 곡선만
         wx.solar=estimateSolarAt(fh);
       }
-      const pt=calcPred(z).final;
+      // Phase 1: 결과값 안전 범위 강제 (외삽 폭주 차단)
+      let pt=calcPred(z).final;
+      pt=Math.max(15,Math.min(65,pt));
       futureData.push({x:fh,y:pt});
     }
     Object.assign(wx,savedWx);
+
+    // Phase 2: 데이터 연결 — 실측 끝과 예측 시작 연결
+    // 실측 마지막 점을 예측 시작에 추가 (그래프 끊김 방지)
+    if(measuredData.length>0&&futureData.length>0){
+      const lastMeas=measuredData[measuredData.length-1];
+      // 예측 시작 시각이 실측 마지막보다 늦으면 연결점 추가
+      if(futureData[0].x>lastMeas.x){
+        futureData.unshift({x:lastMeas.x,y:lastMeas.y});
+      }
+    }
+    // 추정과 실측도 연결 (추정 마지막 = 실측 첫 점)
+    if(estimatedData.length>0&&measuredData.length>0){
+      const lastEst=estimatedData[estimatedData.length-1];
+      const firstMeas=measuredData[0];
+      if(firstMeas.x>lastEst.x){
+        // 추정 마지막 시점에 실측 첫 값 추가 (자연 연결)
+        measuredData.unshift({x:lastEst.x,y:lastEst.y});
+      }
+    }
   }
 
   // 일출/일몰 정보 (Forecast에서)
@@ -1330,18 +1370,38 @@ function drawChart(){
         backgroundColor:'rgba(158,158,158,0.1)',borderWidth:0
       };
     }
-    // 일출 수직선
-    annotations.sunriseLine={
-      type:'line',xMin:sun.sunrise,xMax:sun.sunrise,
-      borderColor:'#ff9800',borderWidth:1.5,borderDash:[3,3],
-      label:{display:true,content:'일출 '+fmtTime(sun.sunrise),position:'start',backgroundColor:'#ff9800',color:'#fff',font:{size:10,weight:'bold'},padding:3}
-    };
+    // 일출 수직선 (운영 시간 안에 있을 때만)
+    if(sun.sunrise>=OP_START&&sun.sunrise<=OP_END){
+      annotations.sunriseLine={
+        type:'line',xMin:sun.sunrise,xMax:sun.sunrise,
+        borderColor:'#ff9800',borderWidth:1.5,borderDash:[3,3],
+        label:{display:true,content:'일출 '+fmtTime(sun.sunrise),position:'start',backgroundColor:'#ff9800',color:'#fff',font:{size:10,weight:'bold'},padding:3}
+      };
+    } else {
+      // 일출이 운영 시간 밖 — 그래프 좌측 상단에 텍스트만
+      annotations.sunriseLabel={
+        type:'label',xValue:OP_START+0.3,yValue:73,
+        content:'일출 '+fmtTime(sun.sunrise),
+        backgroundColor:'rgba(255,152,0,0.85)',color:'#fff',
+        font:{size:10,weight:'bold'},padding:3,borderRadius:3
+      };
+    }
     // 일몰 수직선
-    annotations.sunsetLine={
-      type:'line',xMin:sun.sunset,xMax:sun.sunset,
-      borderColor:'#5e35b1',borderWidth:1.5,borderDash:[3,3],
-      label:{display:true,content:'일몰 '+fmtTime(sun.sunset),position:'start',backgroundColor:'#5e35b1',color:'#fff',font:{size:10,weight:'bold'},padding:3}
-    };
+    if(sun.sunset>=OP_START&&sun.sunset<=OP_END){
+      annotations.sunsetLine={
+        type:'line',xMin:sun.sunset,xMax:sun.sunset,
+        borderColor:'#5e35b1',borderWidth:1.5,borderDash:[3,3],
+        label:{display:true,content:'일몰 '+fmtTime(sun.sunset),position:'start',backgroundColor:'#5e35b1',color:'#fff',font:{size:10,weight:'bold'},padding:3}
+      };
+    } else {
+      // 일몰이 운영 시간 밖 — 그래프 우측 상단에 텍스트만
+      annotations.sunsetLabel={
+        type:'label',xValue:OP_END-0.5,yValue:73,
+        content:'일몰 '+fmtTime(sun.sunset),
+        backgroundColor:'rgba(94,53,177,0.85)',color:'#fff',
+        font:{size:10,weight:'bold'},padding:3,borderRadius:3
+      };
+    }
   }
   // 60℃ 임계선
   annotations.threshold={
@@ -2294,9 +2354,21 @@ function fetchForecastWeather(date){
 
 function getForecastAt(date,hr){
   if(!forecastCache[date])return null;
-  // hr이 0.5 같은 경우 보간 (단순히 가까운 시각)
-  const intHr=Math.round(hr);
-  return forecastCache[date][intHr]||null;
+  const cache=forecastCache[date];
+  // 시간 사이 선형 보간 (18.5시 = 18시와 19시의 중간값)
+  const lo=Math.floor(hr);
+  const hi=Math.ceil(hr);
+  if(!cache[lo]&&!cache[hi])return null;
+  if(lo===hi||!cache[hi])return cache[lo];
+  if(!cache[lo])return cache[hi];
+  const t=hr-lo;  // 0~1 사이 보간 계수
+  const a=cache[lo],b=cache[hi];
+  return {
+    air:a.air*(1-t)+b.air*t,
+    solar:a.solar*(1-t)+b.solar*t,
+    hum:a.hum*(1-t)+b.hum*t,
+    wind:a.wind*(1-t)+b.wind*t
+  };
 }
 
 function getSun(date){
