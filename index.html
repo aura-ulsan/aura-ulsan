@@ -4,6 +4,44 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>A.U.R.A SYSTEM v6.2 - 울산공항 활주로 살수 자동화</title>
+<script>
+/* ════════════════════════════════════════════════════════════════
+   A.U.R.A 인증 가드 — 다른 어떤 스크립트보다 먼저 실행되어야 함
+   세션 없으면 즉시 login.html로 리다이렉트 (페이지 렌더링 차단)
+   ════════════════════════════════════════════════════════════════ */
+(function() {
+  var SESSION_KEY = 'aura_session';
+  var raw = sessionStorage.getItem(SESSION_KEY);
+  var ok = false;
+  if (raw) {
+    try {
+      var s = JSON.parse(raw);
+      if (s && s.token && s.expires && Date.now() < s.expires) ok = true;
+    } catch(e) {}
+  }
+  if (!ok) {
+    sessionStorage.removeItem(SESSION_KEY);
+    window.location.replace('login.html');
+  }
+  // 전역 로그아웃 함수
+  window.AURA_logout = function() {
+    sessionStorage.removeItem(SESSION_KEY);
+    window.location.replace('login.html');
+  };
+  // 세션 만료 자동 감시 (1분마다)
+  setInterval(function() {
+    var raw2 = sessionStorage.getItem(SESSION_KEY);
+    if (!raw2) { window.AURA_logout(); return; }
+    try {
+      var s2 = JSON.parse(raw2);
+      if (Date.now() >= s2.expires) {
+        alert('세션이 만료되었습니다. 다시 로그인해주세요.');
+        window.AURA_logout();
+      }
+    } catch(e) { window.AURA_logout(); }
+  }, 60 * 1000);
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
@@ -768,7 +806,7 @@ pre{
 </head>
 <body>
 <div class="app">
-<header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.2</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn">🔒 로그아웃</button></div></header>
+<header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.2</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="AURA_logout()">🔒 로그아웃</button></div></header>
 <nav class="tabs"><button class="tab active" data-tab="monitor" onclick="showPane('monitor')">🏠 모니터링</button><button class="tab new" data-tab="ai" onclick="showPane('ai')">🤖 AI 모델</button><button class="tab" data-tab="data" onclick="showPane('data')">📋 데이터 현황</button><button class="tab" data-tab="ana" onclick="showPane('ana')">📊 분석</button><button class="tab" data-tab="coef" onclick="showPane('coef')">📐 회귀 계수</button><button class="tab" data-tab="log" onclick="showPane('log')">📝 운영 로그</button><button class="tab" data-tab="setting" onclick="showPane('setting')">⚙ 설정</button><span class="tab-spacer"></span><div class="mini-stat"><span><i class="dot"></i>Open-Meteo</span><span><i class="dot"></i>AI 모델</span><span><i class="dot"></i>DB 연결</span></div></nav>
 <main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><section class="zones" id="zoneArea"></section><section class="measure-guide" id="measureGuide"></section><section class="bottom"><div class="panel"><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 최고온도</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div class="model-state"><h4>모델 사용 상태</h4><div>현재 사용 모델</div><div class="model-current" id="currentModelText">AI 모델 (TF.js)</div><hr style="border:0;border-top:1px solid var(--line)"><div>선택 기준</div><b class="green" id="selectCriteria">RMSE 기준 자동 선택</b><div style="font-size:12px;color:#667;margin-top:8px">※ 회귀식보다 AI 모델 성능이 나쁠 경우 자동 fallback</div></div></div><div class="panel"><div class="panel-head"><span>최근 살수 이행 기록</span><button class="small-btn" onclick="showPane('log')">더보기</button></div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>살수량</th><th>작업 차량</th><th>작업자</th><th>비고</th></tr></thead><tbody id="recentLogs"></tbody></table></div></section></main>
 <main id="pane-ai" class="pane ai-pane"><div class="grid2"><div class="placeholder"><h2>🤖 TensorFlow.js AI 보정모델</h2><p>AI는 최종 온도를 직접 대체하지 않고, <b>상관식 예측 오차</b>를 학습합니다.</p><div class="tool-row"><label class="primary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><span>📂 엑셀 업로드</span><input type="file" accept=".xlsx,.xls" onchange="loadExcel(event)" style="display:none"></label><button class="ghost" onclick="trainTfModel()">🔄 AI 재학습</button><button class="ghost" onclick="if(confirm('학습 데이터와 모델을 모두 삭제할까요?')){state.measurements=[];state.fileInfo=null;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;saveState();render();toast('초기화 완료');}">🗑️ 모델 삭제</button></div>
