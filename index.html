@@ -921,7 +921,16 @@ if(state.logs&&state.logs.length){
     console.log('샘플 로그 '+(before-state.logs.length)+'건 자동 정리됨');
   }
 }
-if(state.measurements&&state.measurements.length>=5)trainAllModels(false)
+if(state.measurements&&state.measurements.length>=5){
+  // 회귀식 즉시 학습 (빠름)
+  trainAllModels(false);
+  // AI 모델 비동기 학습 (1~3초 소요)
+  setTimeout(()=>{
+    trainTfModel(false).then(()=>{
+      if(typeof render==='function')render();
+    });
+  },500);
+}
 }
 function saveState(){localStorage.setItem(LS,JSON.stringify(state))}
 
