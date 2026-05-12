@@ -2021,7 +2021,7 @@ function renderData(){
   document.getElementById('dataSummary').textContent=`총 ${state.measurements.length}건 (수동 입력 ${state.measurements.filter(r=>(r.source||r.imputedSrc)==='manual').length}건)`;
   const rows=sortRowsLatest(state.measurements);
   const head=document.querySelector('#pane-data .data-table thead tr');
-  if(head)head.innerHTML='<th>일자</th><th>시간</th><th>구역</th><th>특보</th><th>기온</th><th>일사량</th><th>습도</th><th>풍속</th><th>실측 포장온도</th><th>살수</th><th>살수량(L)</th><th>살수후온도</th><th>출처</th><th>조작</th>';
+  if(head)head.innerHTML='<th>일자</th><th>시간</th><th>구역</th><th>특보</th><th>기온(℃)</th><th>일사량(MJ/㎡)</th><th>습도(%)</th><th>풍속(m/s)</th><th>실측 포장온도(℃)</th><th>살수</th><th>살수량(L)</th><th>살수후온도(℃)</th><th>출처</th><th>조작</th>';
   if(!rows.length){
     document.getElementById('dataBody').innerHTML='<tr><td colspan="14" style="text-align:center;padding:30px;color:#888;">데이터가 없습니다. AI 모델 탭에서 엑셀을 업로드하거나, [+ 현장 데이터 입력] 버튼을 눌러 시작하세요.</td></tr>';
     return;
@@ -2439,27 +2439,55 @@ function loadExcel(e){
     // 엑셀 시리얼 넘버(46153) 또는 datetime 객체를 YYYY-MM-DD로 변환
     const toDateStr=v=>{
       if(v==null||v==='')return '';
-      // 이미 YYYY-MM-DD 형식 문자열
-      if(typeof v==='string'){
-        const m=v.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
-        if(m)return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
-        // datetime 문자열 (2026-05-11 00:00:00)
-        if(v.includes('T')||v.includes(' ')){
-          const d=new Date(v);
-          if(!isNaN(d.getTime()))return d.toISOString().slice(0,10);
-        }
-      }
-      // Date 객체
+      // Date 객체 (cellDates:true 옵션 결과)
       if(v instanceof Date){
-        return v.toISOString().slice(0,10);
+        if(isNaN(v.getTime()))return '';
+        const y=v.getFullYear();
+        const mo=String(v.getMonth()+1).padStart(2,'0');
+        const d=String(v.getDate()).padStart(2,'0');
+        return `${y}-${mo}-${d}`;
+      }
+      // 문자열 처리
+      if(typeof v==='string'){
+        const s=v.trim();
+        // YYYY-MM-DD 또는 YYYY/MM/DD
+        let m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+        if(m)return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+        // M/D/YY 또는 M/D/YYYY (미국식)
+        m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+        if(m){
+          let yy=parseInt(m[3]);
+          if(yy<100)yy=yy<50?2000+yy:1900+yy;  // 2자리 연도 → 4자리
+          return `${yy}-${String(m[1]).padStart(2,'0')}-${String(m[2]).padStart(2,'0')}`;
+        }
+        // ISO datetime
+        if(s.includes('T')){
+          const d=new Date(s);
+          if(!isNaN(d.getTime())){
+            const y=d.getFullYear();
+            const mo=String(d.getMonth()+1).padStart(2,'0');
+            const dd=String(d.getDate()).padStart(2,'0');
+            return `${y}-${mo}-${dd}`;
+          }
+        }
+        // 공백 포함 datetime
+        if(s.includes(' ')){
+          const datePart=s.split(' ')[0];
+          return toDateStr(datePart);
+        }
       }
       // 엑셀 시리얼 넘버 (예: 46153 = 2026-05-11)
       const n=Number(v);
       if(isFinite(n)&&n>10000&&n<60000){
-        // 엑셀 1900-01-01 = serial 1 (단, 1900년 윤년 버그로 +25569 또는 +25568)
+        // 엑셀 1900-01-01 = serial 1 (단, 1900년 윤년 버그)
         const ms=(n-25569)*86400*1000;
         const d=new Date(ms);
-        if(!isNaN(d.getTime()))return d.toISOString().slice(0,10);
+        if(!isNaN(d.getTime())){
+          const y=d.getFullYear();
+          const mo=String(d.getMonth()+1).padStart(2,'0');
+          const dd=String(d.getDate()).padStart(2,'0');
+          return `${y}-${mo}-${dd}`;
+        }
       }
       return String(v);
     };
@@ -2596,12 +2624,37 @@ function loadExcel(e){
     };
 
     if(needList.length>0){
-      toast(`Open-Meteo에서 과거 기상 ${needList.length}일치 조회 중...`);
-      fetchHistoryWeather(range.start,range.end).then(proceed).catch(err=>{
-        console.warn('Open-Meteo 실패:',err.message);
-        toast('Open-Meteo 조회 실패 — 평균값으로 대체');
-        proceed();
+      // 연도별로 그룹핑 (3년치 한 번에 호출하면 실패 가능)
+      const byYear={};
+      needList.forEach(d=>{
+        const y=d.substring(0,4);
+        if(!byYear[y])byYear[y]={start:d,end:d};
+        else{
+          if(d<byYear[y].start)byYear[y].start=d;
+          if(d>byYear[y].end)byYear[y].end=d;
+        }
       });
+      const yearList=Object.keys(byYear).sort();
+      toast(`Open-Meteo에서 과거 기상 ${needList.length}일치 조회 시작 (${yearList.length}회 분할)...`);
+      // 연도별 순차 호출
+      (async()=>{
+        let okCount=0,failCount=0;
+        for(const y of yearList){
+          const {start,end}=byYear[y];
+          try{
+            await fetchHistoryWeather(start,end);
+            okCount++;
+            toast(`${y}년 기상 조회 완료 (${okCount}/${yearList.length})`);
+          }catch(err){
+            console.warn(`${y}년 Open-Meteo 실패:`,err.message);
+            failCount++;
+          }
+        }
+        if(failCount>0){
+          toast(`일부 실패 (${failCount}개) — 평균값으로 대체`);
+        }
+        proceed();
+      })();
     } else {
       proceed();
     }
