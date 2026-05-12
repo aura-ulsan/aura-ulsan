@@ -1320,17 +1320,16 @@ function drawChart(){
     }
     Object.assign(wx,savedWx);
 
-    // ★ Phase 1: 첫 예측 부드러움 — 현재값과 모델값 blend로 점프 방지
+    // ★ Phase 1: 첫 예측 부드러움 — 약하게만 적용 (그래프-가이드 일치 유지)
+    // 10℃ 이상 점프만 살짝 완화, 2개 점만 30%~15% 보정
     if(futureData.length>=2){
       const currentVal=wx.pave;
       const firstPred=futureData[0].y;
-      // 점프 감지: 차이가 8℃ 이상이면 blend 적용
-      if(Math.abs(firstPred-currentVal)>8){
-        // 첫 5개 (2.5시간) 점진적 보정
-        for(let i=0;i<Math.min(5,futureData.length);i++){
-          const blendRatio=1-(i/5);  // 1.0 → 0.2 점진 감소
-          const adjusted=currentVal*blendRatio+futureData[i].y*(1-blendRatio);
-          futureData[i].y=adjusted;
+      if(Math.abs(firstPred-currentVal)>10){
+        // 첫 2개 점만 약하게 (1.0→0.5)
+        for(let i=0;i<Math.min(2,futureData.length);i++){
+          const blendRatio=0.3*(1-i*0.5);  // 0.30, 0.15
+          futureData[i].y=currentVal*blendRatio+futureData[i].y*(1-blendRatio);
         }
       }
     }
@@ -1614,10 +1613,10 @@ function renderMeasureGuide(){
     ?'<span class="guide-source-badge manual">✋ 수동</span>'
     :'<span class="guide-source-badge auto">🤖 자동</span>';
 
-  const dailyTempStr=dt?` (${dt.max.toFixed(0)}℃ 예상)`:'';
+  const dailyTempStr=dt?` (대기 최고 ${dt.max.toFixed(0)}℃ 예상)`:'';
   const peakStr=peak?`${fmtHr(peak.hr)}경 ${peak.temp.toFixed(1)}℃`:'데이터 대기 중';
   const timesStr=times.length>0
-    ?times.map(t=>fmtHr(t.hr)).join(', ')+` (${recommendedCount}회)`
+    ?times.map(t=>fmtHr(t.hr)).join(', ')+` (${recommendedCount}회·포장면 최고)`
     :'대기 중';
   const measStatusClass=measCount>=recommendedCount?'ok':(warnMsg.startsWith('⚠️')?'warning':'');
   const measStatusStr=`${measCount}회 / ${recommendedCount}회 권장`;
@@ -1627,11 +1626,11 @@ function renderMeasureGuide(){
       <div class="guide-icon">${heatIcon}</div>
       <div class="guide-content">
         <div class="guide-item">
-          <div class="guide-lbl">폭염 상태</div>
+          <div class="guide-lbl">폭염 상태 (기상청 기준)</div>
           <div class="guide-val ${heatColor}">${heatStatusLabel(heat.status)}${dailyTempStr} ${sourceBadge} <button class="guide-edit-btn" onclick="openHeatModal()">수정</button></div>
         </div>
         <div class="guide-item">
-          <div class="guide-lbl">최고온도 예상</div>
+          <div class="guide-lbl">포장면 최고 예상 (AI 예측)</div>
           <div class="guide-val">${peakStr}</div>
         </div>
         <div class="guide-item">
@@ -1740,12 +1739,12 @@ function checkMeasureAlerts(){
     // 30분 전 알림
     if(nowHr>=tHr-0.5&&nowHr<tHr-0.5+0.1&&!measureAlertSent[key30]){
       measureAlertSent[key30]=true;
-      toast(`💡 30분 후 측정 권장 시간 (예상 ${peak.temp.toFixed(1)}℃)`);
+      toast(`💡 30분 후 측정 권장 시간 (포장면 ${peak.temp.toFixed(1)}℃ 예상)`);
     }
     // 측정 시간
     if(nowHr>=tHr&&nowHr<tHr+0.1&&!measureAlertSent[keyNow]){
       measureAlertSent[keyNow]=true;
-      toast(`💡 측정 시간입니다 (예상 ${peak.temp.toFixed(1)}℃)`);
+      toast(`💡 측정 시간입니다 (포장면 ${peak.temp.toFixed(1)}℃ 예상)`);
     }
   });
 }
