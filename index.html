@@ -2893,12 +2893,14 @@ async function ensureForecastFresh(){
   if(forecastCache[today]&&isForecastFresh()){
     // 캐시 있으면 wx만 현재 시각 기준 갱신
     updateWxFromForecast();
+    sensorBarBuilt=false;  // KPI 박스 강제 갱신
     render();
     return;
   }
   try{
     await fetchForecastWeather(today);
-    render();  // wx 업데이트 후 전체 렌더링
+    sensorBarBuilt=false;  // KPI 박스 강제 갱신
+    render();
   }catch(err){
     drawChart();
   }
@@ -2911,6 +2913,7 @@ setInterval(()=>{
   } else {
     // 캐시는 신선하지만 현재 시각 wx 업데이트
     updateWxFromForecast();
+    sensorBarBuilt=false;  // KPI 박스 강제 갱신
     render();
   }
 },5*60*1000);  // 5분마다 체크
@@ -3332,20 +3335,32 @@ loadState();
 clock();
 render();
 
-// 첫 접속 시 Open-Meteo Forecast 호출 (운영 시간 안일 때만)
+// 첫 접속 시 Open-Meteo Forecast 호출
 (async()=>{
   const nowHr=new Date().getHours();
   if(nowHr>=OP_START&&nowHr<=OP_END){
     try{
       const today=new Date().toISOString().slice(0,10);
       await fetchForecastWeather(today);
-      drawChart();
+      // ★ KPI 박스 강제 갱신 + 전체 재렌더
+      sensorBarBuilt=false;
+      render();
     }catch(err){
       forecastFailed=true;
       drawChart();
     }
   }
 })();
+
+// 안전망: 3초 후 한번 더 강제 갱신 (혹시 race condition)
+setTimeout(()=>{
+  const today=new Date().toISOString().slice(0,10);
+  if(forecastCache[today]){
+    updateWxFromForecast();
+    sensorBarBuilt=false;
+    render();
+  }
+},3000);
 
 </script>
 </body>
