@@ -924,12 +924,19 @@ if(state.logs&&state.logs.length){
 if(state.measurements&&state.measurements.length>=5){
   // 회귀식 즉시 학습 (빠름)
   trainAllModels(false);
-  // AI 모델 비동기 학습 (1~3초 소요)
-  setTimeout(()=>{
-    trainTfModel(false).then(()=>{
+  // AI 모델 비동기 학습 (안전한 처리)
+  setTimeout(async()=>{
+    try{
+      console.log('[AI 자동 학습 시작]');
+      await trainTfModel(false);
+      console.log('[AI 자동 학습 완료] R²:',metrics.ai.r2);
+      // 강제 화면 갱신
+      sensorBarBuilt=false;
       if(typeof render==='function')render();
-    });
-  },500);
+    }catch(err){
+      console.error('[AI 자동 학습 실패]',err);
+    }
+  },1500);
 }
 }
 function saveState(){localStorage.setItem(LS,JSON.stringify(state))}
