@@ -455,6 +455,37 @@ button{font-family:inherit;cursor:pointer;}
 }
 .legend span:nth-child(3){color:#d71920;}
 
+/* ═══════════ 측정 가이드 ═══════════ */
+.measure-guide{margin-bottom:12px;}
+.guide-card{
+  background:#fff;border:1px solid var(--line);border-radius:9px;
+  padding:14px 18px;display:flex;align-items:center;gap:16px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+}
+.guide-card.heat-warning{background:linear-gradient(90deg,#fff7f7,#fff);border-color:#ef9a9a;}
+.guide-card.heat-advisory{background:linear-gradient(90deg,#fff8f0,#fff);border-color:#ffcc80;}
+.guide-icon{font-size:28px;flex:none;}
+.guide-content{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.guide-item{display:flex;flex-direction:column;gap:3px;}
+.guide-lbl{font-size:11px;color:#5a6a7e;font-weight:700;}
+.guide-val{font-size:14px;font-weight:900;color:#00419e;}
+.guide-val.warning{color:#d71920;}
+.guide-val.advisory{color:#ff6f00;}
+.guide-val.ok{color:#078943;}
+.guide-source-badge{
+  display:inline-block;padding:1px 6px;border-radius:9px;
+  font-size:10px;font-weight:700;margin-left:5px;vertical-align:middle;
+}
+.guide-source-badge.auto{background:#e0e7ff;color:#3949ab;}
+.guide-source-badge.manual{background:#fff4d6;color:#b06c00;}
+.guide-edit-btn{
+  background:none;border:1px solid var(--line);border-radius:5px;
+  padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer;
+  color:#5a6a7e;margin-left:4px;
+}
+.guide-edit-btn:hover{background:#f0f6ff;}
+.guide-warn{color:#d71920;font-weight:800;font-size:11px;margin-top:2px;}
+
 /* ═══════════ 하단 3분할 ═══════════ */
 .bottom{
   display:grid;
@@ -739,7 +770,7 @@ pre{
 <div class="app">
 <header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.2</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn">🔒 로그아웃</button></div></header>
 <nav class="tabs"><button class="tab active" data-tab="monitor" onclick="showPane('monitor')">🏠 모니터링</button><button class="tab new" data-tab="ai" onclick="showPane('ai')">🤖 AI 모델</button><button class="tab" data-tab="data" onclick="showPane('data')">📋 데이터 현황</button><button class="tab" data-tab="ana" onclick="showPane('ana')">📊 분석</button><button class="tab" data-tab="coef" onclick="showPane('coef')">📐 회귀 계수</button><button class="tab" data-tab="log" onclick="showPane('log')">📝 운영 로그</button><button class="tab" data-tab="setting" onclick="showPane('setting')">⚙ 설정</button><span class="tab-spacer"></span><div class="mini-stat"><span><i class="dot"></i>기상청</span><span><i class="dot"></i>METAR</span><span><i class="dot"></i>AI 모델</span><span><i class="dot"></i>DB 연결</span></div></nav>
-<main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><section class="zones" id="zoneArea"></section><section class="bottom"><div class="panel"><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 최고온도</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div class="model-state"><h4>모델 사용 상태</h4><div>현재 사용 모델</div><div class="model-current" id="currentModelText">AI 모델 (TF.js)</div><hr style="border:0;border-top:1px solid var(--line)"><div>선택 기준</div><b class="green" id="selectCriteria">RMSE 기준 자동 선택</b><div style="font-size:12px;color:#667;margin-top:8px">※ 회귀식보다 AI 모델 성능이 나쁠 경우 자동 fallback</div></div></div><div class="panel"><div class="panel-head"><span>최근 살수 이행 기록</span><button class="small-btn" onclick="showPane('log')">더보기</button></div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>살수량</th><th>작업 차량</th><th>작업자</th><th>비고</th></tr></thead><tbody id="recentLogs"></tbody></table></div></section></main>
+<main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><section class="zones" id="zoneArea"></section><section class="measure-guide" id="measureGuide"></section><section class="bottom"><div class="panel"><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 최고온도</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div class="model-state"><h4>모델 사용 상태</h4><div>현재 사용 모델</div><div class="model-current" id="currentModelText">AI 모델 (TF.js)</div><hr style="border:0;border-top:1px solid var(--line)"><div>선택 기준</div><b class="green" id="selectCriteria">RMSE 기준 자동 선택</b><div style="font-size:12px;color:#667;margin-top:8px">※ 회귀식보다 AI 모델 성능이 나쁠 경우 자동 fallback</div></div></div><div class="panel"><div class="panel-head"><span>최근 살수 이행 기록</span><button class="small-btn" onclick="showPane('log')">더보기</button></div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>살수량</th><th>작업 차량</th><th>작업자</th><th>비고</th></tr></thead><tbody id="recentLogs"></tbody></table></div></section></main>
 <main id="pane-ai" class="pane ai-pane"><div class="grid2"><div class="placeholder"><h2>🤖 TensorFlow.js AI 보정모델</h2><p>AI는 최종 온도를 직접 대체하지 않고, <b>상관식 예측 오차</b>를 학습합니다.</p><div class="tool-row"><label class="primary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><span>📂 엑셀 업로드</span><input type="file" accept=".xlsx,.xls" onchange="loadExcel(event)" style="display:none"></label><button class="ghost" onclick="trainTfModel()">🔄 AI 재학습</button><button class="ghost" onclick="if(confirm('학습 데이터와 모델을 모두 삭제할까요?')){state.measurements=[];state.fileInfo=null;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;saveState();render();toast('초기화 완료');}">🗑️ 모델 삭제</button></div>
 <div style="background:#fff8ed;border:1px solid #ffcc80;border-radius:7px;padding:10px 12px;margin:10px 0;">
 <div style="font-size:13px;font-weight:900;color:#c45d00;margin-bottom:6px;">⚙ 고급 학습 옵션</div>
@@ -1289,6 +1320,21 @@ function drawChart(){
     }
     Object.assign(wx,savedWx);
 
+    // ★ Phase 1: 첫 예측 부드러움 — 현재값과 모델값 blend로 점프 방지
+    if(futureData.length>=2){
+      const currentVal=wx.pave;
+      const firstPred=futureData[0].y;
+      // 점프 감지: 차이가 8℃ 이상이면 blend 적용
+      if(Math.abs(firstPred-currentVal)>8){
+        // 첫 5개 (2.5시간) 점진적 보정
+        for(let i=0;i<Math.min(5,futureData.length);i++){
+          const blendRatio=1-(i/5);  // 1.0 → 0.2 점진 감소
+          const adjusted=currentVal*blendRatio+futureData[i].y*(1-blendRatio);
+          futureData[i].y=adjusted;
+        }
+      }
+    }
+
     // Phase 2: 데이터 연결
     if(measuredData.length>0&&futureData.length>0){
       const lastMeas=measuredData[measuredData.length-1];
@@ -1296,9 +1342,14 @@ function drawChart(){
         futureData.unshift({x:lastMeas.x,y:lastMeas.y});
       }
     }
-    // 정확~참고 사이 연결점
+    // 정확~참고 사이 연결점 + 참고 영역도 부드럽게
     if(futureData.length>0&&futureRefData.length>0){
       const lastAcc=futureData[futureData.length-1];
+      // 참고 영역 첫 점도 정확 영역과 부드럽게 연결
+      if(futureRefData[0]){
+        const blendRatio=0.5;
+        futureRefData[0].y=lastAcc.y*blendRatio+futureRefData[0].y*(1-blendRatio);
+      }
       futureRefData.unshift({x:lastAcc.x,y:lastAcc.y});
     }
     // 추정과 실측 연결
@@ -1479,6 +1530,243 @@ function estimateSolarAt(hr){
   const factor=Math.exp(-Math.pow(hr-peak,2)/(2*sigma*sigma));
   return Math.min(SOLAR_MAX,SOLAR_MAX*factor);
 }
+/* ════════════════════════════════════════════════════════════════
+   측정 가이드 — 폭염 상태 + 측정 권장 시각 + 미실시 경고
+   ════════════════════════════════════════════════════════════════ */
+function findGraphPeak(){
+  // forecast 데이터로 오늘 운영시간 내 최고온도 시각 찾기
+  const today=new Date().toISOString().slice(0,10);
+  if(!forecastCache[today]||!formulaModel)return null;
+  const z=zones.find(x=>x.id==selectedZone)||zones[0];
+  const savedWx={...wx};
+  const SAFE_AIR=[15,38],SAFE_SOLAR=[0.3,3.5],SAFE_HUM=[20,95],SAFE_WIND=[0.5,15];
+  let peakHr=null,peakTemp=-Infinity;
+  for(let h=OP_START;h<=OP_END;h+=0.5){
+    const fwx=getForecastAt(today,h);
+    if(!fwx)continue;
+    wx.air=Math.max(SAFE_AIR[0],Math.min(SAFE_AIR[1],fwx.air));
+    wx.solar=Math.max(SAFE_SOLAR[0],Math.min(SAFE_SOLAR[1],fwx.solar));
+    wx.hum=Math.max(SAFE_HUM[0],Math.min(SAFE_HUM[1],fwx.hum));
+    wx.wind=Math.max(SAFE_WIND[0],Math.min(SAFE_WIND[1],fwx.wind));
+    let pt=calcPred(z).final;
+    pt=Math.max(15,Math.min(65,pt));
+    if(pt>peakTemp){peakTemp=pt;peakHr=h;}
+  }
+  Object.assign(wx,savedWx);
+  return peakHr!==null?{hr:peakHr,temp:peakTemp}:null;
+}
+
+function fmtHr(h){
+  const hh=Math.floor(h);
+  const mm=Math.round((h-hh)*60);
+  return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+}
+
+function countTodayMeasurements(){
+  const today=new Date().toISOString().slice(0,10);
+  return (state.measurements||[]).filter(m=>m.date===today&&(m.source==='manual'||m.imputedSrc==='manual')).length;
+}
+
+function renderMeasureGuide(){
+  const el=document.getElementById('measureGuide');
+  if(!el)return;
+  const heat=getCurrentHeatStatus();
+  const today=new Date().toISOString().slice(0,10);
+  const dt=dailyTempCache[today];
+  const peak=findGraphPeak();
+  const measCount=countTodayMeasurements();
+  const isHeat=heat.status!=='normal';
+  const recommendedCount=isHeat?2:1;
+
+  // 권장 측정 시각 계산
+  let times=[];
+  if(peak){
+    if(isHeat){
+      // 폭염: 오전(피크-3h) + 오후(피크)
+      const morningHr=Math.max(OP_START,peak.hr-3);
+      times=[
+        {hr:morningHr,note:'오전 측정'},
+        {hr:peak.hr,note:'최고점 측정'}
+      ];
+    } else {
+      // 일반: 피크 시각
+      times=[{hr:peak.hr,note:'최고점 측정'}];
+    }
+  }
+
+  // 미실시 경고: 첫 권장 시각 + 30분이 지났는데 측정 안 됨
+  const nowHr=new Date().getHours()+new Date().getMinutes()/60;
+  let warnMsg='';
+  if(times.length>0&&measCount<recommendedCount){
+    const firstTime=times[0].hr;
+    if(nowHr>firstTime+0.5){
+      warnMsg=`⚠️ 측정 미실시 (권장 ${fmtHr(firstTime)} 경과)`;
+    }
+  } else if(measCount>=recommendedCount){
+    warnMsg=`✅ 측정 완료 (${measCount}/${recommendedCount}회)`;
+  }
+
+  const cardClass=heat.status==='warning'?'guide-card heat-warning':
+                  heat.status==='advisory'?'guide-card heat-advisory':'guide-card';
+  const heatColor=heat.status==='warning'?'warning':heat.status==='advisory'?'advisory':'ok';
+  const heatIcon=heat.status==='warning'?'🔥':heat.status==='advisory'?'☀️':'📋';
+  const sourceBadge=heat.source==='manual'
+    ?'<span class="guide-source-badge manual">✋ 수동</span>'
+    :'<span class="guide-source-badge auto">🤖 자동</span>';
+
+  const dailyTempStr=dt?` (${dt.max.toFixed(0)}℃ 예상)`:'';
+  const peakStr=peak?`${fmtHr(peak.hr)}경 ${peak.temp.toFixed(1)}℃`:'데이터 대기 중';
+  const timesStr=times.length>0
+    ?times.map(t=>fmtHr(t.hr)).join(', ')+` (${recommendedCount}회)`
+    :'대기 중';
+  const measStatusClass=measCount>=recommendedCount?'ok':(warnMsg.startsWith('⚠️')?'warning':'');
+  const measStatusStr=`${measCount}회 / ${recommendedCount}회 권장`;
+
+  el.innerHTML=`
+    <div class="${cardClass}">
+      <div class="guide-icon">${heatIcon}</div>
+      <div class="guide-content">
+        <div class="guide-item">
+          <div class="guide-lbl">폭염 상태</div>
+          <div class="guide-val ${heatColor}">${heatStatusLabel(heat.status)}${dailyTempStr} ${sourceBadge} <button class="guide-edit-btn" onclick="openHeatModal()">수정</button></div>
+        </div>
+        <div class="guide-item">
+          <div class="guide-lbl">최고온도 예상</div>
+          <div class="guide-val">${peakStr}</div>
+        </div>
+        <div class="guide-item">
+          <div class="guide-lbl">측정 권장 시간</div>
+          <div class="guide-val">${timesStr}</div>
+        </div>
+        <div class="guide-item">
+          <div class="guide-lbl">오늘 측정</div>
+          <div class="guide-val ${measStatusClass}">${measStatusStr}</div>
+          ${warnMsg?`<div class="guide-warn">${warnMsg}</div>`:''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* 폭염 수동 설정 모달 */
+function openHeatModal(){
+  const today=new Date().toISOString().slice(0,10);
+  const auto=autoDetectHeatStatus(today)||'normal';
+  const current=getCurrentHeatStatus();
+  const isManual=current.source==='manual';
+  // 모달 동적 생성
+  let modal=document.getElementById('heatModal');
+  if(!modal){
+    modal=document.createElement('div');
+    modal.id='heatModal';
+    modal.className='modal-bg';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML=`
+    <div class="modal" style="width:420px;">
+      <h2>폭염 상태 수동 설정</h2>
+      <p style="font-size:12px;color:#5a6a7e;margin:0 0 12px;">
+        현재 자동 판단: <b style="color:${heatStatusColor(auto)}">${heatStatusLabel(auto)}</b>
+      </p>
+      <label style="display:block;padding:9px 12px;border:1px solid var(--line);border-radius:5px;margin-bottom:6px;cursor:pointer;">
+        <input type="radio" name="heatRadio" value="auto" ${!isManual?'checked':''}>
+        <b>🤖 자동</b> (Open-Meteo 기반 — 권장)
+      </label>
+      <label style="display:block;padding:9px 12px;border:1px solid var(--line);border-radius:5px;margin-bottom:6px;cursor:pointer;">
+        <input type="radio" name="heatRadio" value="normal" ${isManual&&current.status==='normal'?'checked':''}>
+        <b>일반</b>
+      </label>
+      <label style="display:block;padding:9px 12px;border:1px solid var(--line);border-radius:5px;margin-bottom:6px;cursor:pointer;">
+        <input type="radio" name="heatRadio" value="advisory" ${isManual&&current.status==='advisory'?'checked':''}>
+        <b style="color:#ff6f00">☀️ 폭염 주의보</b> (이틀 연속 33℃ 이상)
+      </label>
+      <label style="display:block;padding:9px 12px;border:1px solid var(--line);border-radius:5px;margin-bottom:6px;cursor:pointer;">
+        <input type="radio" name="heatRadio" value="warning" ${isManual&&current.status==='warning'?'checked':''}>
+        <b style="color:#d71920">🔥 폭염 경보</b> (35℃ 이상)
+      </label>
+      <p style="font-size:11px;color:#5a6a7e;margin:8px 0 14px;">※ 자정에 자동 판단으로 복귀됩니다</p>
+      <div class="modal-actions">
+        <button class="ghost" onclick="closeHeatModal()">취소</button>
+        <button class="primary" onclick="applyHeatOverride()">적용</button>
+      </div>
+    </div>
+  `;
+  modal.classList.add('show');
+}
+function closeHeatModal(){
+  const m=document.getElementById('heatModal');
+  if(m)m.classList.remove('show');
+}
+function applyHeatOverride(){
+  const sel=document.querySelector('input[name="heatRadio"]:checked');
+  if(!sel){toast('선택해주세요');return;}
+  const today=new Date().toISOString().slice(0,10);
+  if(sel.value==='auto'){
+    delete state.heatOverride;
+  } else {
+    state.heatOverride={date:today,status:sel.value};
+  }
+  saveState();
+  closeHeatModal();
+  renderMeasureGuide();
+  toast('폭염 상태 변경 완료');
+}
+
+/* 측정 알림 타이머 */
+let measureAlertSent={};  // {hr_minus30: true, hr_now: true}
+function checkMeasureAlerts(){
+  const today=new Date().toISOString().slice(0,10);
+  if(!forecastCache[today]||!formulaModel)return;
+  const peak=findGraphPeak();
+  if(!peak)return;
+  const heat=getCurrentHeatStatus();
+  const isHeat=heat.status!=='normal';
+  const measCount=countTodayMeasurements();
+  const recommendedCount=isHeat?2:1;
+  if(measCount>=recommendedCount)return;  // 이미 충분히 측정함
+
+  let times=[];
+  if(isHeat){
+    times=[Math.max(OP_START,peak.hr-3),peak.hr];
+  } else {
+    times=[peak.hr];
+  }
+
+  const nowHr=new Date().getHours()+new Date().getMinutes()/60;
+  times.forEach((tHr,idx)=>{
+    if(idx<measCount)return;  // 이미 한 측정 건너뛰기
+    const key30=today+'_30_'+tHr.toFixed(2);
+    const keyNow=today+'_now_'+tHr.toFixed(2);
+    // 30분 전 알림
+    if(nowHr>=tHr-0.5&&nowHr<tHr-0.5+0.1&&!measureAlertSent[key30]){
+      measureAlertSent[key30]=true;
+      toast(`💡 30분 후 측정 권장 시간 (예상 ${peak.temp.toFixed(1)}℃)`);
+    }
+    // 측정 시간
+    if(nowHr>=tHr&&nowHr<tHr+0.1&&!measureAlertSent[keyNow]){
+      measureAlertSent[keyNow]=true;
+      toast(`💡 측정 시간입니다 (예상 ${peak.temp.toFixed(1)}℃)`);
+    }
+  });
+}
+// 5분마다 측정 알림 체크
+setInterval(checkMeasureAlerts,5*60*1000);
+// 자정에 알림 상태 + 폭염 오버라이드 리셋
+setInterval(()=>{
+  const now=new Date();
+  if(now.getHours()===0&&now.getMinutes()<5){
+    measureAlertSent={};
+    if(state.heatOverride){
+      const today=now.toISOString().slice(0,10);
+      if(state.heatOverride.date!==today){
+        delete state.heatOverride;
+        saveState();
+        renderMeasureGuide();
+      }
+    }
+  }
+},5*60*1000);
+
 function logsRender(){
   // 1. 모니터링 - 최근 살수 이행 기록 (표시만, 수정/삭제 X)
   const sprayMeas=(state.measurements||[]).filter(m=>m.spk===1)
@@ -2227,7 +2515,7 @@ function confirmDataRow(){
     {label:'평균 살수 저감량(℃)',data:data2,backgroundColor:'rgba(7,137,67,.65)',borderColor:'#078943',borderWidth:1}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'℃'}}}}});
 }
-function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});const nk=s=>String(s).replace(/[\s\(\)℃%㎡\/\.·]/g,'').toLowerCase();function col(obj,names){const ks=Object.keys(obj);for(const nm of names){const n= name=>nk(name);let k=ks.find(k=>n(k)===n(nm));if(k)return k;k=ks.find(k=>n(k).includes(n(nm))||n(nm).includes(n(k)));if(k)return k}return null}if(!rows.length)return;const sample=rows[0],c={date:col(sample,['일자','날짜','date']),time:col(sample,['측정시간','시간']),zone:col(sample,['구역코드','구역']),air:col(sample,['대기온도','기온']),solar:col(sample,['일사량']),hum:col(sample,['습도']),wind:col(sample,['풍속']),pt:col(sample,['포장온도']),spk:col(sample,['살수여부']),after:col(sample,['살수후 표면온도','살수후온도'])};const num=v=>{const x=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(x)?null:x};state.measurements=rows.map(r=>({date:String(r[c.date]||'2026-05-08'),time:String(r[c.time]||'12:00'),zone:num(r[c.zone])||1,air:num(r[c.air])||wx.air,solar:num(r[c.solar])||wx.solar,hum:num(r[c.hum])||wx.hum,wind:(num(r[c.wind])||wx.wind)*((c.wind&&String(c.wind).includes('KT'))?.514:1),pt:num(r[c.pt]),spk:(num(r[c.spk])||0)>0?1:0,after:num(r[c.after])??''})).filter(r=>r.pt!==null&&isFinite(r.pt)&&r.pt>-20&&r.pt<100);state.measurements=sortRowsLatest(state.measurements);saveState();trainAllModels();render();toast(`엑셀 데이터 ${state.measurements.length}건 반영 완료`)};reader.readAsArrayBuffer(f)}function clearTrainingData(){if(confirm('학습 데이터를 모두 삭제할까요?\n(엑셀을 다시 업로드해야 합니다)')){state.measurements=[];state.fileInfo=null;formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('초기화 완료')}}function downloadData(){const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(state.measurements),'training_data');XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(state.systemLogs),'operation_logs');XLSX.writeFile(wb,'AURA_data.xlsx')}function openApi(){document.getElementById('apiKey').value=localStorage.getItem('aura_api_key')||'';document.getElementById('apiModal').classList.add('show')}function closeApi(){document.getElementById('apiModal').classList.remove('show')}function saveApi(){localStorage.setItem('aura_api_key',document.getElementById('apiKey').value);closeApi();toast('API 키 저장 완료')}function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}function render(){wx.pave=Math.max(...zones.map(z=>calcPred(z).final));sensorCards();zoneCards();selectZone(selectedZone);logsRender();renderData();renderAnalysis();renderCoef();renderFileInfo();saveState()}
+function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});const nk=s=>String(s).replace(/[\s\(\)℃%㎡\/\.·]/g,'').toLowerCase();function col(obj,names){const ks=Object.keys(obj);for(const nm of names){const n= name=>nk(name);let k=ks.find(k=>n(k)===n(nm));if(k)return k;k=ks.find(k=>n(k).includes(n(nm))||n(nm).includes(n(k)));if(k)return k}return null}if(!rows.length)return;const sample=rows[0],c={date:col(sample,['일자','날짜','date']),time:col(sample,['측정시간','시간']),zone:col(sample,['구역코드','구역']),air:col(sample,['대기온도','기온']),solar:col(sample,['일사량']),hum:col(sample,['습도']),wind:col(sample,['풍속']),pt:col(sample,['포장온도']),spk:col(sample,['살수여부']),after:col(sample,['살수후 표면온도','살수후온도'])};const num=v=>{const x=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(x)?null:x};state.measurements=rows.map(r=>({date:String(r[c.date]||'2026-05-08'),time:String(r[c.time]||'12:00'),zone:num(r[c.zone])||1,air:num(r[c.air])||wx.air,solar:num(r[c.solar])||wx.solar,hum:num(r[c.hum])||wx.hum,wind:(num(r[c.wind])||wx.wind)*((c.wind&&String(c.wind).includes('KT'))?.514:1),pt:num(r[c.pt]),spk:(num(r[c.spk])||0)>0?1:0,after:num(r[c.after])??''})).filter(r=>r.pt!==null&&isFinite(r.pt)&&r.pt>-20&&r.pt<100);state.measurements=sortRowsLatest(state.measurements);saveState();trainAllModels();render();toast(`엑셀 데이터 ${state.measurements.length}건 반영 완료`)};reader.readAsArrayBuffer(f)}function clearTrainingData(){if(confirm('학습 데이터를 모두 삭제할까요?\n(엑셀을 다시 업로드해야 합니다)')){state.measurements=[];state.fileInfo=null;formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('초기화 완료')}}function downloadData(){const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(state.measurements),'training_data');XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(state.systemLogs),'operation_logs');XLSX.writeFile(wb,'AURA_data.xlsx')}function openApi(){document.getElementById('apiKey').value=localStorage.getItem('aura_api_key')||'';document.getElementById('apiModal').classList.add('show')}function closeApi(){document.getElementById('apiModal').classList.remove('show')}function saveApi(){localStorage.setItem('aura_api_key',document.getElementById('apiKey').value);closeApi();toast('API 키 저장 완료')}function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}function render(){wx.pave=Math.max(...zones.map(z=>calcPred(z).final));sensorCards();zoneCards();selectZone(selectedZone);logsRender();renderData();renderAnalysis();renderCoef();renderFileInfo();renderMeasureGuide();saveState()}
 
 /* ════════════════════════════════════════════════════════════════
    v6.2 + v6.0 통합 — Open-Meteo, 학습 옵션, 회귀계수 종합 영향도
@@ -2311,15 +2599,51 @@ function getHistoryWeather(dateStr,hour){
    ════════════════════════════════════════════════════════════════ */
 let forecastCache={};       // {date: {0:{...},1:{...},...,23:{...}}}
 let sunCache={};            // {date: {sunrise:5.5, sunset:19.3}}
+let dailyTempCache={};      // {date: {max: 35.2, min: 18.5}} — 일 최고/최저기온
 let lastForecastUpdate=0;   // 마지막 호출 timestamp
 let forecastFailed=false;   // 호출 실패 상태
 const FORECAST_REFRESH_MIN=60;  // 자동 갱신 간격 (분)
 
+// 폭염 상태 판단 (기상청 기준)
+// - 폭염 경보: 일 최고기온 ≥35℃
+// - 폭염 주의보: 일 최고기온 ≥33℃
+// - 일반: 그 외
+function autoDetectHeatStatus(date){
+  const dt=dailyTempCache[date];
+  if(!dt)return null;  // 데이터 없음
+  if(dt.max>=35)return 'warning';   // 폭염 경보
+  if(dt.max>=33)return 'advisory';  // 폭염 주의보
+  return 'normal';                   // 일반
+}
+
+// 현재 적용 중인 폭염 상태 (자동 또는 수동)
+function getCurrentHeatStatus(){
+  const today=new Date().toISOString().slice(0,10);
+  // 수동 설정이 있고 오늘 것이면 우선
+  if(state.heatOverride&&state.heatOverride.date===today){
+    return {status:state.heatOverride.status,source:'manual'};
+  }
+  // 자동 판단
+  const auto=autoDetectHeatStatus(today);
+  return {status:auto||'normal',source:'auto'};
+}
+
+function heatStatusLabel(status){
+  if(status==='warning')return '폭염 경보';
+  if(status==='advisory')return '폭염 주의보';
+  return '일반';
+}
+function heatStatusColor(status){
+  if(status==='warning')return '#d71920';
+  if(status==='advisory')return '#ff6f00';
+  return '#078943';
+}
+
 function fetchForecastWeather(date){
-  // Open-Meteo Forecast API — hourly + daily(일출/일몰)
+  // Open-Meteo Forecast API — hourly + daily(일출/일몰/최고기온)
   const url=`https://api.open-meteo.com/v1/forecast?latitude=${ULSAN_LAT}&longitude=${ULSAN_LON}`+
     `&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,shortwave_radiation`+
-    `&daily=sunrise,sunset`+
+    `&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min`+
     `&timezone=Asia%2FSeoul&wind_speed_unit=ms`+
     `&start_date=${date}&end_date=${date}`;
   return fetch(url).then(r=>{
@@ -2342,14 +2666,22 @@ function fetchForecastWeather(date){
         wind:h.wind_speed_10m[i]
       };
     }
-    // 일출/일몰
-    if(data.daily&&data.daily.sunrise&&data.daily.sunset){
-      const sr=data.daily.sunrise[0];
-      const ss=data.daily.sunset[0];
-      // "2026-05-11T05:30" 형식
-      const srH=parseInt(sr.split('T')[1].split(':')[0])+parseInt(sr.split('T')[1].split(':')[1])/60;
-      const ssH=parseInt(ss.split('T')[1].split(':')[0])+parseInt(ss.split('T')[1].split(':')[1])/60;
-      sunCache[date]={sunrise:srH,sunset:ssH};
+    // 일출/일몰 + 최고/최저기온
+    if(data.daily){
+      if(data.daily.sunrise&&data.daily.sunset){
+        const sr=data.daily.sunrise[0];
+        const ss=data.daily.sunset[0];
+        const srH=parseInt(sr.split('T')[1].split(':')[0])+parseInt(sr.split('T')[1].split(':')[1])/60;
+        const ssH=parseInt(ss.split('T')[1].split(':')[0])+parseInt(ss.split('T')[1].split(':')[1])/60;
+        sunCache[date]={sunrise:srH,sunset:ssH};
+      }
+      // 일 최고/최저 기온 저장
+      if(data.daily.temperature_2m_max&&data.daily.temperature_2m_min){
+        dailyTempCache[date]={
+          max:data.daily.temperature_2m_max[0],
+          min:data.daily.temperature_2m_min[0]
+        };
+      }
     }
     lastForecastUpdate=Date.now();
     forecastFailed=false;
