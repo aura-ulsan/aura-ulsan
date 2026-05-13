@@ -809,7 +809,7 @@ pre{
 <header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.2</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="AURA_logout()">🔒 로그아웃</button></div></header>
 <nav class="tabs"><button class="tab active" data-tab="monitor" onclick="showPane('monitor')">🏠 모니터링</button><button class="tab new" data-tab="ai" onclick="showPane('ai')">🤖 AI 모델</button><button class="tab" data-tab="data" onclick="showPane('data')">📋 데이터 현황</button><button class="tab" data-tab="ana" onclick="showPane('ana')">📊 분석</button><button class="tab" data-tab="coef" onclick="showPane('coef')">📐 회귀 계수</button><button class="tab" data-tab="log" onclick="showPane('log')">📝 운영 로그</button><button class="tab" data-tab="setting" onclick="showPane('setting')">⚙ 설정</button><span class="tab-spacer"></span><div class="mini-stat"><span><i class="dot"></i>Open-Meteo</span><span><i class="dot"></i>AI 모델</span><span><i class="dot"></i>DB 연결</span></div></nav>
 <main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><section class="zones" id="zoneArea"></section><section class="measure-guide" id="measureGuide"></section><section class="bottom"><div class="panel"><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 최고온도</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div class="model-state"><h4>모델 사용 상태</h4><div>현재 사용 모델</div><div class="model-current" id="currentModelText">AI 모델 (TF.js)</div><hr style="border:0;border-top:1px solid var(--line)"><div>선택 기준</div><b class="green" id="selectCriteria">RMSE 기준 자동 선택</b><div style="font-size:12px;color:#667;margin-top:8px">※ 회귀식보다 AI 모델 성능이 나쁠 경우 자동 fallback</div></div></div><div class="panel"><div class="panel-head"><span>최근 살수 이행 기록</span><button class="small-btn" onclick="showPane('log')">더보기</button></div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>살수량</th><th>작업 차량</th><th>작업자</th><th>비고</th></tr></thead><tbody id="recentLogs"></tbody></table></div></section></main>
-<main id="pane-ai" class="pane ai-pane"><div class="grid2"><div class="placeholder"><h2>🤖 TensorFlow.js AI 보정모델</h2><p>AI는 최종 온도를 직접 대체하지 않고, <b>상관식 예측 오차</b>를 학습합니다.</p><div class="tool-row"><label class="primary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><span>📂 엑셀 업로드</span><input type="file" accept=".xlsx,.xls" onchange="loadExcel(event)" style="display:none"></label><button class="ghost" onclick="trainTfModel()">🔄 AI 재학습</button><button class="ghost" onclick="if(confirm('학습 데이터와 모델을 모두 삭제할까요?')){state.measurements=[];state.fileInfo=null;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;saveState();render();toast('초기화 완료');}">🗑️ 모델 삭제</button></div>
+<main id="pane-ai" class="pane ai-pane"><div class="grid2"><div class="placeholder"><h2>🤖 TensorFlow.js AI 보정모델</h2><p>AI는 최종 온도를 직접 대체하지 않고, <b>상관식 예측 오차</b>를 학습합니다.</p><div class="tool-row"><label class="primary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><span>📂 엑셀 업로드</span><input type="file" accept=".xlsx,.xls" onchange="loadExcel(event)" style="display:none"></label><button class="ghost" onclick="trainTfModel()">🔄 AI 재학습</button><button class="ghost" onclick="if(confirm('학습 데이터와 모델을 모두 삭제할까요?')){state.measurements=[];state.fileInfo=null;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};localStorage.removeItem(METRICS_KEY);saveState();render();toast('초기화 완료');}">🗑️ 모델 삭제</button></div>
 <div style="background:#fff8ed;border:1px solid #ffcc80;border-radius:7px;padding:10px 12px;margin:10px 0;">
 <div style="font-size:13px;font-weight:900;color:#c45d00;margin-bottom:6px;">⚙ 고급 학습 옵션</div>
 <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;margin-bottom:5px;cursor:pointer;"><input type="checkbox" id="opt-advanced" checked style="margin-top:3px;"><div><b>비선형/교호항 사용 (권장)</b><div style="color:#666;">일사량² + 풍속×일사량 추가 → 비선형 학습</div></div></label>
@@ -945,6 +945,27 @@ pre{
 </div></div>
 <script>
 const LS='aura_v62_full_state';let chart=null,analysisChart=null,currentZoneForModal=1,selectedZone=1,tfReady=false;let formulaModel=null,tfModel=null,normInfo=null,metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};let wx={pave:24.5,air:20.0,solar:3.48,hum:30,wind:7.10,dir:305,dew:8.0};const zones=[{id:1,name:'구역 1',sub:'활주로 36방향 회전패드',base:46.1},{id:2,name:'구역 2',sub:'활주로 36방향 목표점표지',base:46.1},{id:3,name:'구역 3',sub:'활주로 진입지점',base:46.1},{id:4,name:'구역 4',sub:'활주로 18방향 목표점표지',base:46.1},{id:5,name:'구역 5',sub:'활주로 18방향 회전패드',base:46.1},{id:6,name:'구역 6',sub:'계류장',base:46.1}];let state={corr:{1:0,2:0,3:0,4:0,5:0,6:0},sprinkled:{},measurements:null,systemLogs:[]};
+
+// ★ metrics localStorage 저장/복원 — F5 시 즉시 R² 표시
+const METRICS_KEY='aura_v62_metrics';
+function saveMetrics(){
+  try{
+    localStorage.setItem(METRICS_KEY,JSON.stringify({metrics,tfReady,savedAt:Date.now()}));
+  }catch(e){}
+}
+function loadMetrics(){
+  try{
+    const raw=localStorage.getItem(METRICS_KEY);
+    if(raw){
+      const obj=JSON.parse(raw);
+      if(obj.metrics){
+        metrics=obj.metrics;
+        tfReady=obj.tfReady||false;
+      }
+    }
+  }catch(e){}
+}
+loadMetrics();
 function fmt(v,d=1){return isFinite(v)?Number(v).toFixed(d):'--'}function clamp(v,min,max,fallback){v=Number(v);if(!isFinite(v))return fallback;return Math.max(min,Math.min(max,v))}function sortRowsLatest(rows){return rows.slice().sort((a,b)=>String((b.date||'')+' '+(b.time||'')).localeCompare(String((a.date||'')+' '+(a.time||''))))}function clock(){const n=new Date();const s=n.toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).replace(/\. /g,'.').replace('.','.')+' '+n.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('clock').textContent=s;document.getElementById('dataClock').textContent=s}setInterval(clock,1000);
 function loadState(){try{const raw=localStorage.getItem(LS);if(raw){const obj=JSON.parse(raw);state={...state,...obj};}}catch(e){}
 // v6.3 마이그레이션 — state.rows → state.measurements
@@ -1056,6 +1077,7 @@ function trainAllModels(runTf=true){
   const fp=X.map(x=>clamp(predictLR(formulaModel,x),0,90,wx.pave));
   metrics.formula=calcMetrics(Y,fp);
   updateCorrections(train,fp);
+  saveMetrics();  // ★ 회귀식 메트릭도 저장
   if(runTf)trainTfModel(false);
   renderData();renderAnalysis();renderCoef()
 }
@@ -1100,6 +1122,7 @@ async function trainTfModel(show=true){
   if(!tfReady){metrics.ai={...metrics.ai,rmse:metrics.ai.rmse||metrics.formula.rmse,mae:metrics.ai.mae||metrics.formula.mae}}
   document.getElementById('aiTrainMsg')&&(document.getElementById('aiTrainMsg').innerHTML=`학습 완료 · AI RMSE ${fmt(metrics.ai.rmse,2)}℃ / 상관식 RMSE ${fmt(metrics.formula.rmse,2)}℃ · ${tfReady?'AI 사용':'상관식 fallback'}`);
   document.getElementById('currentModelText')&&(document.getElementById('currentModelText').textContent=tfReady?'AI 보정모델 (TF.js)':'상관식 모델(fallback)');
+  saveMetrics();  // ★ F5 후 즉시 표시를 위한 저장
   render();if(show)toast(tfReady?'TensorFlow.js AI 보정모델 학습 완료':'AI 성능 미달: 상관식 fallback 적용')
 }
 function predictAiResidual(x){if(!tfReady||!tfModel||!normInfo)return 0;const xn=x.map((v,i)=>((Number(v)||0)-(normInfo.means[i]||0))/(normInfo.stds[i]||1));const t=tf.tensor2d([xn]);let v=tfModel.predict(t).dataSync()[0];t.dispose();v=v*(normInfo.yStd||1)+(normInfo.yMean||0);return clamp(v,-8,8,0)}function coolingEffect(zid,temp){const rows=state.measurements.filter(r=>r.spk&&r.zone==zid&&r.after!=='');if(rows.length){return rows.reduce((a,r)=>a+(r.pt-r.after),0)/rows.length}const all=state.measurements.filter(r=>r.spk&&r.after!=='');return all.length?all.reduce((a,r)=>a+(r.pt-r.after),0)/all.length:6.0}
@@ -1646,15 +1669,21 @@ function estimateSolarAt(hr){
 /* ════════════════════════════════════════════════════════════════
    측정 가이드 — 폭염 상태 + 측정 권장 시각 + 미실시 경고
    ════════════════════════════════════════════════════════════════ */
-function findGraphPeak(){
-  // forecast 데이터로 오늘 운영시간 내 최고온도 시각 찾기
+function findGraphPeak(options){
+  // forecast 데이터로 운영시간 내 최고온도 시각 찾기
+  // options: {afterTime: 이 시각 이후만 탐색, beforeTime: 이 시각 이전만 탐색, excludeRange: [s,e] 제외}
+  options=options||{};
   const today=new Date().toISOString().slice(0,10);
   if(!forecastCache[today]||!formulaModel)return null;
   const z=zones.find(x=>x.id==selectedZone)||zones[0];
   const savedWx={...wx};
   const SAFE_AIR=[15,38],SAFE_SOLAR=[0.3,3.5],SAFE_HUM=[20,95],SAFE_WIND=[0.5,15];
+  const startHr=options.afterTime!=null?Math.max(OP_START,options.afterTime):OP_START;
+  const endHr=options.beforeTime!=null?Math.min(OP_END,options.beforeTime):OP_END;
   let peakHr=null,peakTemp=-Infinity;
-  for(let h=OP_START;h<=OP_END;h+=0.5){
+  for(let h=startHr;h<=endHr;h+=0.5){
+    // 제외 범위 체크
+    if(options.excludeRange&&h>=options.excludeRange[0]&&h<=options.excludeRange[1])continue;
     const fwx=getForecastAt(today,h);
     if(!fwx)continue;
     wx.air=Math.max(SAFE_AIR[0],Math.min(SAFE_AIR[1],fwx.air));
@@ -1669,6 +1698,107 @@ function findGraphPeak(){
   return peakHr!==null?{hr:peakHr,temp:peakTemp}:null;
 }
 
+/* ════════════════════════════════════════════════════════════════
+   v6.3 권장 측정 시간 — AI 예측 기반 동적 결정
+   - 평상시: 피크 시각 1회
+   - 폭염시: 피크 + (피크+1시간 이후) 2차 피크 2회
+   - 살수 이벤트 발생 시: 미수행 측정 시각을 재가열 피크로 자동 조정
+   ════════════════════════════════════════════════════════════════ */
+function round30(h){return Math.round(h*2)/2;}
+
+function getLastSprinkleHour(){
+  // 오늘 가장 최근 살수 시각(소수시간) 반환, 없으면 null
+  const today=new Date().toISOString().slice(0,10);
+  const todaySpks=(state.measurements||[]).filter(m=>m.date===today&&m.spk==1);
+  if(!todaySpks.length)return null;
+  // 시각 순 정렬, 가장 최근
+  todaySpks.sort((a,b)=>String(b.time||'').localeCompare(String(a.time||'')));
+  const t=todaySpks[0].time||'';
+  const parts=t.split(':');
+  if(parts.length<2)return null;
+  const hr=parseInt(parts[0])+parseInt(parts[1])/60;
+  return isFinite(hr)?hr:null;
+}
+
+function getRecommendedTimes(){
+  const heat=getCurrentHeatStatus();
+  const isHeat=heat.status!=='normal';
+  const today=new Date().toISOString().slice(0,10);
+  
+  // 폴백 1: 예보 또는 모델 없음 → 표준 시각
+  if(!forecastCache[today]||!formulaModel){
+    return isHeat
+      ?[{hr:11.0,label:'오전 (표준)',fallback:true},{hr:14.0,label:'오후 (표준)',fallback:true}]
+      :[{hr:13.0,label:'정오 (표준)',fallback:true}];
+  }
+  
+  // 1차 피크 탐색
+  const peak1=findGraphPeak();
+  if(!peak1){
+    // 폴백 2: 피크 못 찾음 → 표준 시각
+    return isHeat
+      ?[{hr:11.0,label:'오전 (표준)',fallback:true},{hr:14.0,label:'오후 (표준)',fallback:true}]
+      :[{hr:13.0,label:'정오 (표준)',fallback:true}];
+  }
+  
+  // 평상시: 1회만
+  if(!isHeat){
+    return [{
+      hr:round30(peak1.hr),
+      temp:peak1.temp,
+      label:'피크 (AI 예측)',
+      auto:true
+    }];
+  }
+  
+  // 폭염 + 살수 발생 후: 1차 측정은 살수 시점(이미 측정 완료), 2차는 재가열 피크
+  const lastSpkHr=getLastSprinkleHour();
+  if(lastSpkHr!=null){
+    // 1차 측정 = 살수 시각 (실측 데이터 기반)
+    const today2=new Date().toISOString().slice(0,10);
+    const spkRecord=(state.measurements||[]).filter(m=>m.date===today2&&m.spk==1)
+      .sort((a,b)=>String(b.time||'').localeCompare(String(a.time||'')))[0];
+    const spkPt=spkRecord?spkRecord.pt:null;
+    
+    // 재가열 피크 = 살수 +30분 이후 운영시간 끝까지 최고점
+    const reheatPeak=findGraphPeak({afterTime:lastSpkHr+0.5});
+    if(reheatPeak){
+      return [
+        {hr:round30(lastSpkHr),temp:spkPt,label:'1차 (살수 시점)',auto:true,done:true},
+        {hr:round30(reheatPeak.hr),temp:reheatPeak.temp,label:'2차 (재가열 피크)',auto:true,changed:true}
+      ];
+    }
+    // 재가열 피크 못 찾음 → 표준 시각으로 폴백
+    return [
+      {hr:round30(lastSpkHr),temp:spkPt,label:'1차 (살수 시점)',auto:true,done:true},
+      {hr:Math.min(OP_END-0.5,lastSpkHr+2),label:'2차 (살수 +2시간)',fallback:true,changed:true}
+    ];
+  }
+  
+  // 폭염 + 살수 없음: 피크 + (피크+1시간 이후) 2차 피크
+  let peak2=findGraphPeak({afterTime:peak1.hr+1});
+  
+  // 2차 피크 못 찾음 → 피크 이전(-1시간 이전)에서 보조 시각 탐색
+  if(!peak2){
+    peak2=findGraphPeak({beforeTime:peak1.hr-1});
+  }
+  
+  // 그래도 못 찾음 → 표준 시각 폴백
+  if(!peak2){
+    peak2={hr:peak1.hr>=13?11.0:16.0,label:'보조 (표준)',fallback:true};
+  }
+  
+  return [peak1,peak2]
+    .map(p=>({hr:round30(p.hr),temp:p.temp,label:p.label||'',auto:!p.fallback,fallback:!!p.fallback}))
+    .sort((a,b)=>a.hr-b.hr)
+    .map((p,i)=>{
+      if(!p.label||p.label.indexOf('표준')<0){
+        p.label=i===0?'1차 (피크)':'2차 (재가열 피크 가능)';
+      }
+      return p;
+    });
+}
+
 function fmtHr(h){
   const hh=Math.floor(h);
   const mm=Math.round((h-hh)*60);
@@ -1678,6 +1808,45 @@ function fmtHr(h){
 function countTodayMeasurements(){
   const today=new Date().toISOString().slice(0,10);
   return (state.measurements||[]).filter(m=>m.date===today&&(m.source==='manual'||m.imputedSrc==='manual')).length;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   측정 시각 변경 감지 — 살수 이벤트로 시각이 바뀌면 알림
+   ════════════════════════════════════════════════════════════════ */
+let _lastNotifiedTimes=null;  // 마지막 알림된 시각 캐시
+
+function detectAndNotifyTimeChange(newTimes){
+  if(!newTimes||!newTimes.length)return;
+  // changed 플래그가 있는 시각만 추출
+  const changedTimes=newTimes.filter(t=>t.changed);
+  if(!changedTimes.length){
+    _lastNotifiedTimes=newTimes.map(t=>t.hr).join(',');
+    return;
+  }
+  // 현재 시각 시그니처
+  const newSig=newTimes.map(t=>t.hr+':'+(t.changed?'1':'0')).join(',');
+  // 이전과 동일하면 알림 안 함 (중복 방지)
+  if(_lastNotifiedTimes===newSig)return;
+  _lastNotifiedTimes=newSig;
+  // 변경된 시각 알림
+  changedTimes.forEach(t=>{
+    const msg=`💧 살수 시행 반영 — 측정 권장 시각이 ${fmtHr(t.hr)}로 조정되었습니다 (${t.label||'재가열 피크'})`;
+    toast(msg);
+    // 운영 로그 기록
+    const nowDate=new Date();
+    const logTime=String(nowDate.getMonth()+1).padStart(2,'0')+'.'+
+                  String(nowDate.getDate()).padStart(2,'0')+' '+
+                  String(nowDate.getHours()).padStart(2,'0')+':'+
+                  String(nowDate.getMinutes()).padStart(2,'0');
+    (state.systemLogs=state.systemLogs||[]).unshift({
+      id:newId('sl'),
+      time:logTime,
+      timestamp:nowDate.toISOString(),
+      type:'guide_changed',
+      message:`📋 측정 가이드 자동 갱신 — 살수 시행에 따라 다음 측정 시각이 ${fmtHr(t.hr)}로 변경${t.temp?' (예상 '+t.temp.toFixed(1)+'℃)':''}`
+    });
+    saveState();
+  });
 }
 
 function renderMeasureGuide(){
@@ -1702,21 +1871,20 @@ function renderMeasureGuide(){
     else {cloudStr=`흐림 (정오 일사량 ${sol.toFixed(1)} MJ/㎡)`;cloudColor='ok';}
   }
 
-  // 권장 측정 시간 — 단순 고정 (일반 13:00, 폭염 11:00+14:00)
-  let times=[];
-  if(isHeat){
-    times=[{hr:11.0,note:'오전'},{hr:14.0,note:'오후'}];
-  } else {
-    times=[{hr:13.0,note:'정오'}];
-  }
+  // 권장 측정 시간 — AI 예측 기반 동적 결정 (v6.3)
+  const times=getRecommendedTimes();
+  
+  // 측정 시각 변경 감지 (살수 이벤트 등으로 시각이 변경된 경우)
+  detectAndNotifyTimeChange(times);
 
   // 미실시 경고
   const nowHr=new Date().getHours()+new Date().getMinutes()/60;
   let warnMsg='';
   if(times.length>0&&measCount<recommendedCount){
-    const firstTime=times[0].hr;
-    if(nowHr>firstTime+0.5){
-      warnMsg=`⚠️ 측정 미실시 (권장 ${fmtHr(firstTime)} 경과)`;
+    // 첫 미수행 측정 시각 기준
+    const pendingTime=times.find(t=>!t.done);
+    if(pendingTime&&nowHr>pendingTime.hr+0.5){
+      warnMsg=`⚠️ 측정 미실시 (권장 ${fmtHr(pendingTime.hr)} 경과)`;
     }
   } else if(measCount>=recommendedCount){
     warnMsg=`✅ 측정 완료 (${measCount}/${recommendedCount}회)`;
@@ -1731,9 +1899,21 @@ function renderMeasureGuide(){
     :'<span class="guide-source-badge auto">🤖 자동</span>';
 
   const dailyTempStr=dt?` (대기 최고 ${dt.max.toFixed(0)}℃ 예상)`:'';
-  const timesStr=times.length>0
-    ?times.map(t=>fmtHr(t.hr)).join(', ')+` (${recommendedCount}회)`
-    :'대기 중';
+  // 권장 측정 시간 — 각 시각마다 라벨/온도/뱃지 표시
+  let timesStr='대기 중';
+  if(times.length>0){
+    timesStr=times.map(t=>{
+      const timeText=fmtHr(t.hr);
+      const tempText=t.temp?` <span style="color:#5a6a7e;font-size:11px;">(${t.temp.toFixed(1)}℃ 예상)</span>`:'';
+      const labelText=t.label?` <span style="color:#48607e;font-size:11px;">${t.label}</span>`:'';
+      let badge='';
+      if(t.done)badge=' <span style="color:#078943;font-size:10px;font-weight:900;">✓완료</span>';
+      else if(t.changed)badge=' <span style="color:#0054c8;font-size:10px;font-weight:900;">🔄변경됨</span>';
+      else if(t.fallback)badge=' <span style="color:#ff6f00;font-size:10px;font-weight:900;">⚠️표준</span>';
+      else if(t.auto)badge=' <span style="color:#0054c8;font-size:10px;font-weight:900;">🤖AI</span>';
+      return `<b>${timeText}</b>${labelText}${tempText}${badge}`;
+    }).join(' &nbsp;|&nbsp; ')+` <span style="color:#5a6a7e;font-size:11px;">(${recommendedCount}회 권장)</span>`;
+  }
   const measStatusClass=measCount>=recommendedCount?'ok':(warnMsg.startsWith('⚠️')?'warning':'');
   const measStatusStr=`${measCount}회 / ${recommendedCount}회 권장`;
 
@@ -2096,6 +2276,8 @@ function confirmSprinkle(){
   } else {
     toast('구역 '+id+' 등록 완료. 학습 데이터 '+state.measurements.length+'건 (5건 이상 시 학습 시작)');
   }
+  // ★ v6.3 측정 가이드 변경 알림 리셋 (살수 후 재가열 피크 시각으로 갱신될 수 있도록)
+  _lastNotifiedTimes=null;
   // 알람 자동 억제 (1시간)
   suppressAlarmAfterAction();
   closeModal();
