@@ -828,7 +828,7 @@ pre{
 </div>
 </div>
 </div></div></main>
-<main id="pane-data" class="pane data-pane"><div class="placeholder"><h2>📋 데이터 현황</h2><div class="tool-row"><button class="primary" onclick="openDataModal()">+ 현장 데이터 입력</button><button class="ghost" onclick="downloadData()">⬇️ 엑셀 다운로드</button><button class="ghost" onclick="clearTrainingData()">🗑️ 학습데이터 초기화</button><span id="dataSummary" style="margin-left:auto;font-weight:800;color:#0b234b;">--</span></div><div style="max-height:650px;overflow:auto"><table class="data-table"><thead><tr><th>일자</th><th>시간</th><th>구역</th><th>특보</th><th>기온</th><th>일사량</th><th>습도</th><th>풍속</th><th>실측</th><th>🤖 예측</th><th>오차</th><th>살수</th><th>살수량</th><th>살수후온도</th><th>출처</th><th>조작</th></tr></thead><tbody id="dataBody"></tbody></table></div></div></main>
+<main id="pane-data" class="pane data-pane"><div class="placeholder"><h2>📋 데이터 현황</h2><div class="tool-row"><button class="primary" onclick="openDataModal()">+ 현장 데이터 입력</button><button class="ghost" onclick="downloadData()">⬇️ 엑셀 다운로드</button><button class="ghost" onclick="manualBackfill()">🤖 예측치 일괄 재계산</button><button class="ghost" onclick="clearTrainingData()">🗑️ 학습데이터 초기화</button><span id="dataSummary" style="margin-left:auto;font-weight:800;color:#0b234b;">--</span></div><div style="max-height:650px;overflow:auto"><table class="data-table"><thead><tr><th>일자</th><th>시간</th><th>구역</th><th>특보</th><th>기온</th><th>일사량</th><th>습도</th><th>풍속</th><th>실측</th><th>🤖 예측</th><th>오차</th><th>살수</th><th>살수량</th><th>살수후온도</th><th>출처</th><th>조작</th></tr></thead><tbody id="dataBody"></tbody></table></div></div></main>
 <main id="pane-ana" class="pane ana-pane"><div id="anaStatBox" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;"></div><div class="grid2"><div class="placeholder"><h2>📊 구역별 평균 포장온도 / 살수 저감량</h2><div class="chart-wrap" style="height:340px"><canvas id="analysisChart"></canvas></div></div><div class="placeholder"><h2>구역별 동적 보정계수</h2><table class="perf-table"><thead><tr><th>구역</th><th>보정계수</th><th>표본</th><th>상태</th></tr></thead><tbody id="correctionBody"></tbody></table><div style="margin-top:12px;padding:10px;background:#f7fbff;border:1px solid #cfdbea;border-radius:7px;font-size:11px;color:#3a4a66;line-height:1.6;">
 💡 <b>구역별 동적 보정계수</b>는 각 구역의 평균 예측 오차를 학습하여 자동 적용됩니다. 클리핑 범위 ±12℃, ±4℃를 넘으면 '주의'로 표시됩니다.
 </div></div></div></main>
@@ -1107,34 +1107,66 @@ let _backfillDone=false;
 function backfillPredictions(){
   if(_backfillDone)return;
   if(!formulaModel){return;}
+  // null, undefined, NaN 모두 보강 대상
   const targets=(state.measurements||[]).filter(r=>
-    r.predAI==null&&isFinite(r.pt)&&isFinite(r.air)&&isFinite(r.solar)&&isFinite(r.hum)&&isFinite(r.wind)
+    (r.predAI==null||!isFinite(r.predAI))
+    &&isFinite(r.pt)&&isFinite(r.air)&&isFinite(r.solar)&&isFinite(r.hum)&&isFinite(r.wind)
   );
   if(targets.length===0){_backfillDone=true;return;}
   console.log(`[v6.4] 예측치 일괄 보강 시작: ${targets.length}건`);
+  _doBackfill(targets,'보강');
+  _backfillDone=true;
+}
+
+/* ★ v6.4 수동 강제 재계산 — 모든 데이터의 예측치 다시 계산 (현재 모델 기준) */
+function manualBackfill(){
+  if(!formulaModel){
+    toast('AI 모델이 학습되지 않았습니다. 먼저 데이터를 업로드/입력해 주세요.');
+    return;
+  }
+  const all=(state.measurements||[]).filter(r=>
+    isFinite(r.pt)&&isFinite(r.air)&&isFinite(r.solar)&&isFinite(r.hum)&&isFinite(r.wind)
+  );
+  if(all.length===0){
+    toast('재계산 가능한 데이터가 없습니다');
+    return;
+  }
+  if(!confirm(`전체 ${all.length}건의 예측치를 현재 모델로 다시 계산합니다.\n진행하시겠습니까?`))return;
+  _doBackfill(all,'재계산');
+}
+
+/* 공통 보강 실행 함수 */
+function _doBackfill(targets,label){
   const savedWx={...wx};
   let count=0;
   targets.forEach(r=>{
     try{
-      wx.air=r.air;wx.solar=r.solar;wx.hum=r.hum;wx.wind=r.wind;
+      wx.air=Number(r.air);wx.solar=Number(r.solar);wx.hum=Number(r.hum);wx.wind=Number(r.wind);
       const z=zones.find(x=>x.id==r.zone)||zones[0];
       const result=calcPred(z);
-      r.predFormula=+result.formula.toFixed(2);
-      r.predAI=+result.final.toFixed(2);
-      r.predUsed=tfReady?'ai':'formula';
-      r.predError=+(r.pt-result.final).toFixed(2);
-      if(!r.wxSource)r.wxSource=r.source==='api'?'open-meteo-historical':(r.source==='manual'?'manual':'open-meteo-historical');
-      if(!r.wxQuality)r.wxQuality=r.source==='manual'?'measured':'estimated';
-      count++;
-    }catch(err){}
+      if(result&&isFinite(result.formula)&&isFinite(result.final)){
+        r.predFormula=+result.formula.toFixed(2);
+        r.predAI=+result.final.toFixed(2);
+        r.predUsed=tfReady?'ai':'formula';
+        r.predError=+(Number(r.pt)-result.final).toFixed(2);
+        if(!r.wxSource)r.wxSource=r.source==='api'?'open-meteo-historical':(r.source==='manual'?'manual':'open-meteo-historical');
+        if(!r.wxQuality)r.wxQuality=r.source==='manual'?'measured':'estimated';
+        count++;
+      }
+    }catch(err){
+      console.warn(label+' 실패:',r.id,err.message);
+    }
   });
   Object.assign(wx,savedWx);
   if(count>0){
     saveState();
-    toast(`✓ 이전 측정 ${count}건의 예측치 보강 완료`);
-    console.log(`[v6.4] 예측치 보강 완료: ${count}건`);
+    console.log(`[v6.4] 예측치 ${label} 완료: ${count}건`);
+    toast(`✓ ${label} 완료: ${count}건`);
+    renderData();
+    renderAnalysis();
+  }else{
+    toast(`${label} 대상이 없거나 실패했습니다`);
   }
-  _backfillDone=true;
 }
 async function trainTfModel(show=true){
   if(typeof tf==='undefined'){tfReady=false;if(show)toast('TensorFlow.js 로드 실패: 회귀식 기준으로 운전');return}
@@ -1173,6 +1205,9 @@ async function trainTfModel(show=true){
   document.getElementById('aiTrainMsg')&&(document.getElementById('aiTrainMsg').innerHTML=`학습 완료 · AI RMSE ${fmt(metrics.ai.rmse,2)}℃ / 상관식 RMSE ${fmt(metrics.formula.rmse,2)}℃ · ${tfReady?'AI 사용':'상관식 fallback'}`);
   document.getElementById('currentModelText')&&(document.getElementById('currentModelText').textContent=tfReady?'AI 보정모델 (TF.js)':'상관식 모델(fallback)');
   saveMetrics();  // ★ F5 후 즉시 표시를 위한 저장
+  // ★ v6.4 AI 학습 완료 후에도 예측치 보강 재실행 (회귀식만으로 저장된 데이터를 AI 보정값으로 갱신)
+  _backfillDone=false;  // 다시 실행 허용
+  setTimeout(backfillPredictions,50);
   render();if(show)toast(tfReady?'TensorFlow.js AI 보정모델 학습 완료':'AI 성능 미달: 상관식 fallback 적용')
 }
 function predictAiResidual(x){if(!tfReady||!tfModel||!normInfo)return 0;const xn=x.map((v,i)=>((Number(v)||0)-(normInfo.means[i]||0))/(normInfo.stds[i]||1));const t=tf.tensor2d([xn]);let v=tfModel.predict(t).dataSync()[0];t.dispose();v=v*(normInfo.yStd||1)+(normInfo.yMean||0);return clamp(v,-8,8,0)}function coolingEffect(zid,temp){const rows=state.measurements.filter(r=>r.spk&&r.zone==zid&&r.after!=='');if(rows.length){return rows.reduce((a,r)=>a+(r.pt-r.after),0)/rows.length}const all=state.measurements.filter(r=>r.spk&&r.after!=='');return all.length?all.reduce((a,r)=>a+(r.pt-r.after),0)/all.length:6.0}
