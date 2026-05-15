@@ -825,13 +825,98 @@ pre{
   50%{box-shadow:0 0 16px rgba(255,111,0,0.7);}
 }
 
+/* ★ v6.5 구역 카드 선택 강조 시스템 */
+/* 모든 카드는 transition 적용 */
+.zone{
+  transition: opacity 0.25s ease, border-color 0.25s ease, 
+              background 0.25s ease, box-shadow 0.25s ease,
+              transform 0.25s ease;
+}
+/* 선택 안 된 카드들 — 흐림 처리 (selectMode 활성 시) */
+.zones.has-selection .zone:not(.selected){
+  opacity: 0.55;
+  filter: saturate(0.7);
+}
+.zones.has-selection .zone:not(.selected):hover{
+  opacity: 0.85;  /* 호버 시 살짝 살아남 */
+  filter: saturate(0.9);
+}
+/* 선택된 카드 — 또렷, 강조 */
+.zone.selected{
+  border: 3px solid #1976e8 !important;
+  background: #f0f6ff !important;
+  box-shadow: 0 4px 16px rgba(25,118,232,0.25);
+  transform: translateY(-2px);
+}
+/* 선택된 카드의 헤더 강조 */
+.zone.selected h3{
+  color: #0054c8;
+}
+/* 선택된 카드 우상단 뱃지 */
+.zone.selected::before{
+  content: '✓ 선택됨';
+  position: absolute;
+  top: -10px; right: 12px;
+  background: #1976e8;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 3px 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(25,118,232,0.3);
+  letter-spacing: 0.5px;
+}
+.zone{
+  position: relative;  /* ::before 위치 기준 */
+}
+/* escalating + selected 동시 적용 시 */
+.zone.escalating.selected{
+  border: 3px solid #ff6f00 !important;
+}
+
+/* ★ v6.5 그래프 헤더 강화 */
+.selected-zone-display{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:10px 14px;
+  background:linear-gradient(90deg,#e8f0ff,#f5f9ff);
+  border-left:4px solid #1976e8;
+  border-radius:6px;
+  margin-bottom:10px;
+}
+.selected-zone-display .sz-num{
+  font-size:24px;
+  font-weight:900;
+  color:#0054c8;
+  background:#fff;
+  width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;
+  box-shadow:0 2px 6px rgba(25,118,232,0.2);
+}
+.selected-zone-display .sz-info{flex:1;}
+.selected-zone-display .sz-name{
+  font-size:16px;font-weight:900;color:#0b234b;line-height:1.2;
+}
+.selected-zone-display .sz-sub{
+  font-size:12px;color:#48607e;margin-top:2px;
+}
+.selected-zone-display .sz-hint{
+  font-size:11px;color:#888;
+  padding:6px 10px;
+  background:#fff;
+  border-radius:14px;
+  border:1px dashed #c8d8f0;
+}
+
 </style>
 </head>
 <body>
 <div class="app">
 <header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.2</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="AURA_logout()">🔒 로그아웃</button></div></header>
 <nav class="tabs"><button class="tab active" data-tab="monitor" onclick="showPane('monitor')">🏠 모니터링</button><button class="tab new" data-tab="ai" onclick="showPane('ai')">🤖 AI 모델</button><button class="tab" data-tab="data" onclick="showPane('data')">📋 데이터 현황</button><button class="tab" data-tab="ana" onclick="showPane('ana')">📊 분석</button><button class="tab" data-tab="coef" onclick="showPane('coef')">📐 회귀 계수</button><button class="tab" data-tab="log" onclick="showPane('log')">📝 운영 로그</button><button class="tab" data-tab="setting" onclick="showPane('setting')">⚙ 설정</button><span class="tab-spacer"></span><div class="mini-stat"><span><i class="dot"></i>Open-Meteo</span><span><i class="dot"></i>AI 모델</span><span><i class="dot"></i>DB 연결</span></div></nav>
-<main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><section class="zones" id="zoneArea"></section><section class="measure-guide" id="measureGuide"></section><section class="bottom"><div class="panel"><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 최고온도</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div class="model-state"><h4>모델 사용 상태</h4><div>현재 사용 모델</div><div class="model-current" id="currentModelText">AI 모델 (TF.js)</div><hr style="border:0;border-top:1px solid var(--line)"><div>선택 기준</div><b class="green" id="selectCriteria">RMSE 기준 자동 선택</b><div style="font-size:12px;color:#667;margin-top:8px">※ 회귀식보다 AI 모델 성능이 나쁠 경우 자동 fallback</div></div></div><div class="panel"><div class="panel-head"><span>최근 살수 이행 기록</span><button class="small-btn" onclick="showPane('log')">더보기</button></div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>살수량</th><th>작업 차량</th><th>작업자</th><th>비고</th></tr></thead><tbody id="recentLogs"></tbody></table></div></section></main>
+<main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><section class="zones" id="zoneArea"></section><section class="measure-guide" id="measureGuide"></section><section class="bottom"><div class="panel"><div class="selected-zone-display" id="selectedZoneDisplay"><div class="sz-num">1</div><div class="sz-info"><div class="sz-name">구역 1 — 활주로 36방향 회전패드</div><div class="sz-sub">아래 그래프에 이 구역의 포장온도 예측 추이가 표시됩니다</div></div><div class="sz-hint">💡 키보드 <b>1~6</b> 또는 카드 클릭으로 빠른 전환</div></div><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 최고온도</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div class="model-state"><h4>모델 사용 상태</h4><div>현재 사용 모델</div><div class="model-current" id="currentModelText">AI 보정모델 (TF.js)</div><hr style="border:0;border-top:1px solid var(--line)"><div>선택 기준</div><b class="green" id="selectCriteria">RMSE 기준 자동 선택</b><div style="font-size:12px;color:#667;margin-top:8px">※ 회귀식보다 AI 모델 성능이 나쁠 경우 자동 fallback</div></div></div><div class="panel"><div class="panel-head"><span>최근 살수 이행 기록</span><button class="small-btn" onclick="showPane('log')">더보기</button></div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>살수량</th><th>작업 차량</th><th>작업자</th><th>비고</th></tr></thead><tbody id="recentLogs"></tbody></table></div></section></main>
 <main id="pane-ai" class="pane ai-pane"><div class="grid2"><div class="placeholder"><h2>🤖 TensorFlow.js AI 보정모델</h2><p>AI는 최종 온도를 직접 대체하지 않고, <b>상관식 예측 오차</b>를 학습합니다.</p><div class="tool-row"><label class="primary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><span>📂 엑셀 업로드</span><input type="file" accept=".xlsx,.xls" onchange="loadExcel(event)" style="display:none"></label><button class="ghost" onclick="trainTfModel()">🔄 AI 재학습</button><button class="ghost" onclick="if(confirm('학습 데이터와 모델을 모두 삭제할까요?')){state.measurements=[];state.fileInfo=null;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};localStorage.removeItem(METRICS_KEY);saveState();render();toast('초기화 완료');}">🗑️ 모델 삭제</button></div>
 <div style="background:#fff8ed;border:1px solid #ffcc80;border-radius:7px;padding:10px 12px;margin:10px 0;">
 <div style="font-size:13px;font-weight:900;color:#c45d00;margin-bottom:6px;">⚙ 고급 학습 옵션</div>
@@ -1704,6 +1789,10 @@ let zonesBuilt=false;
 function zoneCards(){
   const area=document.getElementById('zoneArea');
   if(!area)return;
+  // ★ v6.5 선택 강조 모드 활성 (항상 1개 선택되어 있음)
+  if(!area.classList.contains('has-selection')){
+    area.classList.add('has-selection');
+  }
   // 첫 렌더링
   if(!zonesBuilt||area.children.length<6){
     // ★ v6.5 새 구역 카드 — 현재 + 30분 후 + 위험도 변화
@@ -1763,12 +1852,14 @@ function zoneCards(){
     const stNow=statusOf(p.final);
     const stFut=statusOf(p30.final);
     
-    // 카드 클래스 (살수 중 또는 위험도 변화 강조)
+    // 카드 클래스 (살수 중 또는 위험도 변화 강조 + 선택)
     let cardClass='zone';
     if(p.sprinkled)cardClass+=' sprinkled';
     // 위험도가 한 단계 이상 상승 시 강조 (보더 색상)
     const escalation=(stFut.text!==stNow.text)&&(p30.final>p.final);
     if(escalation&&stFut.text!=='정상')cardClass+=' escalating';
+    // ★ v6.5 선택 상태
+    if(z.id===selectedZone)cardClass+=' selected';
     if(card.className!==cardClass)card.className=cardClass;
     
     // 현재 온도 (좌)
@@ -1874,10 +1965,25 @@ function updateMainStatus(){
   selectedZone=id;
   const z=zones.find(x=>x.id==id);
   if(!z)return;
+  // ★ v6.5 구역 카드 선택 상태 즉시 갱신
+  zoneCards();
+  // ★ v6.5 그래프 헤더 강화 — 구역명 + 서브 정보 큼직하게
   const t1=document.getElementById('selectedZoneTitle');
   if(t1)t1.textContent=`(${z.name})`;
   const t2=document.getElementById('perfZone');
   if(t2)t2.textContent=`(${z.name})`;
+  // 새 헤더 디스플레이 갱신
+  const display=document.getElementById('selectedZoneDisplay');
+  if(display){
+    display.innerHTML=`
+      <div class="sz-num">${z.id}</div>
+      <div class="sz-info">
+        <div class="sz-name">${z.name} — ${z.sub}</div>
+        <div class="sz-sub">아래 그래프에 이 구역의 포장온도 예측 추이가 표시됩니다</div>
+      </div>
+      <div class="sz-hint">💡 키보드 <b>1~6</b> 또는 카드 클릭으로 빠른 전환</div>
+    `;
+  }
   updateSummary();
   drawChart();
 }function updateSummary(){
@@ -4642,8 +4748,48 @@ loadState();
 clock();
 render();
 
+// ★ v6.5 초기 구역 디스플레이 갱신
+setTimeout(()=>{selectZone(selectedZone||1);},100);
+
 // ★ v6.5 필터 칩 초기 활성 상태 (전체)
 document.querySelectorAll('.filter-chip[data-value="all"]').forEach(c=>c.classList.add('active'));
+
+// ★ v6.5 키보드 단축키 — 구역 빠른 전환 (1~6, ESC)
+document.addEventListener('keydown',function(e){
+  // 입력 요소에서는 무시 (input, textarea, select)
+  const tag=document.activeElement&&document.activeElement.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
+  // 모달이 열려있을 때는 무시
+  const modalOpen=document.querySelector('.modal-overlay:not([style*="display: none"])');
+  if(modalOpen)return;
+  // 현재 활성 탭이 모니터링이 아니면 무시
+  const monitorActive=document.getElementById('pane-monitor')&&
+                       document.getElementById('pane-monitor').classList.contains('active');
+  if(!monitorActive)return;
+  // 1~6 키: 해당 구역 선택
+  const key=e.key;
+  if(key>='1'&&key<='6'){
+    e.preventDefault();
+    const id=parseInt(key);
+    selectZone(id);
+    toast(`구역 ${id} 선택 (키보드)`);
+  }
+  // ESC 키: 구역 1로 초기화
+  if(key==='Escape'){
+    if(selectedZone!==1){
+      selectZone(1);
+      toast('구역 1로 초기화 (ESC)');
+    }
+  }
+  // ←/→ 키: 이전/다음 구역
+  if(key==='ArrowLeft'||key==='ArrowRight'){
+    e.preventDefault();
+    let next=selectedZone+(key==='ArrowRight'?1:-1);
+    if(next<1)next=6;
+    if(next>6)next=1;
+    selectZone(next);
+  }
+});
 
 // 첫 접속 시 Open-Meteo Forecast 호출
 (async()=>{
