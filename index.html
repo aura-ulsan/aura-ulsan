@@ -993,6 +993,35 @@ function weatherInfo(wcode){
   return{emoji:'⛅',label:'기타',type:'unknown'};
 }
 
+// 풍향 각도 → 16방위 한글/영문 변환
+function windDirInfo(deg){
+  const d=Number(deg);
+  if(!isFinite(d))return{kor:'-',eng:'-',full:'-'};
+  // 16방위 (각 22.5°)
+  const dirs=[
+    {kor:'북',     eng:'N'},   // 0
+    {kor:'북북동', eng:'NNE'}, // 22.5
+    {kor:'북동',   eng:'NE'},  // 45
+    {kor:'동북동', eng:'ENE'}, // 67.5
+    {kor:'동',     eng:'E'},   // 90
+    {kor:'동남동', eng:'ESE'}, // 112.5
+    {kor:'남동',   eng:'SE'},  // 135
+    {kor:'남남동', eng:'SSE'}, // 157.5
+    {kor:'남',     eng:'S'},   // 180
+    {kor:'남남서', eng:'SSW'}, // 202.5
+    {kor:'남서',   eng:'SW'},  // 225
+    {kor:'서남서', eng:'WSW'}, // 247.5
+    {kor:'서',     eng:'W'},   // 270
+    {kor:'서북서', eng:'WNW'}, // 292.5
+    {kor:'북서',   eng:'NW'},  // 315
+    {kor:'북북서', eng:'NNW'}  // 337.5
+  ];
+  // 정규화 0~360
+  const norm=((d%360)+360)%360;
+  const idx=Math.round(norm/22.5)%16;
+  return{kor:dirs[idx].kor, eng:dirs[idx].eng, full:`${dirs[idx].eng} (${Math.round(norm)}°)`};
+}
+
 // 살수량(L) → 강수상당 mm 환산
 // 가정: 살수 면적 구역당 약 1,000㎡ → 1L/㎡ = 1mm
 const SPRINKLE_AREA_M2=1000;
@@ -1511,29 +1540,42 @@ function calcPred(z){
 }
 let sensorBarBuilt=false;
 function sensorCards(){
-  // ★ v6.5 일기 카드 추가 (8번째)
+  // ★ v6.5 정돈된 7개 카드
+  // 제거: 포장온도(대표) (중복 정보) / 이슬점 (학습 미사용)
+  // 분리: 일기 / 강수 → 2개 카드
+  // 개선: 풍향 한글 표시
   const wInfo=weatherInfo(wx.wcode);
-  const wLabel=wInfo.emoji+' '+wInfo.label;
-  const precipVal=(wx.precip!=null?Number(wx.precip).toFixed(1):'0.0')+' mm';
+  const wDir=windDirInfo(wx.dir);
+  const precipVal=wx.precip!=null?Number(wx.precip).toFixed(1):'0.0';
   const items=[
-    ['🌡️','포장온도 (대표)',wx.pave,'℃','AI 예측','red','pave'],
-    ['🌡️','기온',wx.air,'℃','Open-Meteo','orange','air'],
-    ['☀️','일사량',wx.solar,'MJ/㎡','Open-Meteo','orange','sol'],
-    ['💧','습도',wx.hum,'%','Open-Meteo','blue','hum'],
-    ['〰️','풍속',wx.wind,'m/s','Open-Meteo','green','ws'],
-    ['🧭','풍향',wx.dir,'°','Open-Meteo','green','wd'],
-    ['☔','이슬점',wx.dew,'℃','계산값','purple','dew'],
-    [wInfo.emoji,'일기 / 강수',wInfo.label,precipVal,'Open-Meteo','blue','weather']  // ★ 신규
+    ['🌡️','기온',         wx.air,                 '℃',     'Open-Meteo','orange','air',    'num'],
+    ['☀️','일사량',       wx.solar,               'MJ/㎡',  'Open-Meteo','orange','sol',    'num'],
+    ['💧','습도',         wx.hum,                 '%',     'Open-Meteo','blue',  'hum',    'num'],
+    ['〰️','풍속',         wx.wind,                'm/s',   'Open-Meteo','green', 'ws',     'num'],
+    ['🧭','풍향',         wDir.kor,               wDir.full,'Open-Meteo','green', 'wd',     'text'],
+    [wInfo.emoji,'일기',  wInfo.label,            '',      'Open-Meteo','purple','weather','text'],
+    ['💧','강수',         precipVal,              'mm',    'Open-Meteo','blue',  'precip', 'num']
   ];
   const area=document.getElementById('sensorArea');
   if(!area)return;
   if(!sensorBarBuilt||area.children.length===0){
     let h=items.map(it=>{
-      // 일기 카드는 값 표시 방식이 달라서 별도 처리
-      if(it[6]==='weather'){
-        return `<div class="sensor" data-sid="${it[6]}"><div class="sensor-icon ${it[5]}">${it[0]}</div><div><div class="sensor-title">${it[1]}</div><div class="sensor-value ${it[5]}"><span class="sv" style="font-size:14px">${it[2]}</span><span class="sensor-unit" style="margin-left:4px">${it[3]}</span></div><div class="sensor-src">${it[4]}</div></div></div>`;
+      const [icon,title,val,unit,src,color,sid,kind]=it;
+      let valHTML;
+      if(kind==='text'){
+        // 텍스트 카드 (풍향/일기): 글자 크기 축소
+        if(sid==='wd'){
+          // 풍향: 한글(크게) + 영문/각도(작게)
+          valHTML=`<span class="sv">${val}</span><span class="sensor-unit" style="font-size:11px;display:block;margin-top:2px;color:#666">${unit}</span>`;
+        } else {
+          // 일기: 한글만
+          valHTML=`<span class="sv" style="font-size:18px">${val}</span>`;
+        }
+      } else {
+        // 숫자 카드
+        valHTML=`<span class="sv">${fmt(val,title=='일사량'||title=='풍속'||title=='강수'?2:1)}</span><span class="sensor-unit">${unit}</span>`;
       }
-      return `<div class="sensor" data-sid="${it[6]}"><div class="sensor-icon ${it[5]}">${it[0]}</div><div><div class="sensor-title">${it[1]}</div><div class="sensor-value ${it[5]}"><span class="sv">${fmt(it[2],it[1]=='일사량'||it[1]=='풍속'?2:1)}</span><span class="sensor-unit">${it[3]}</span></div><div class="sensor-src">${it[4]}</div></div></div>`;
+      return `<div class="sensor" data-sid="${sid}"><div class="sensor-icon ${color}">${icon}</div><div><div class="sensor-title">${title}</div><div class="sensor-value ${color}">${valHTML}</div><div class="sensor-src">${src}</div></div></div>`;
     }).join('');
     h+=`<div class="sys-card" data-sid="sys"><div class="sys-title">시스템 상태</div><div class="sys-ok"><span class="shield">◆</span>정상 운영 중</div><div class="sys-row"><span>DB 연결</span><b>● 로컬</b></div><div class="sys-row"><span>AI 모델</span><b>● <span class="ai-state">${tfReady?'준비됨':'fallback'}</span></b></div><div class="sys-row"><span>미전송 데이터</span><b>0건</b></div></div>`;
     area.innerHTML=h;
@@ -1542,23 +1584,26 @@ function sensorCards(){
   }
   // 값만 업데이트
   items.forEach(it=>{
-    const card=area.querySelector(`[data-sid="${it[6]}"]`);
+    const [icon,title,val,unit,src,color,sid,kind]=it;
+    const card=area.querySelector(`[data-sid="${sid}"]`);
     if(!card)return;
     const valEl=card.querySelector('.sv');
-    if(it[6]==='weather'){
-      // 일기 카드: 텍스트 + 강수량
-      if(valEl&&valEl.textContent!==it[2])valEl.textContent=it[2];
-      const unitEl=card.querySelector('.sensor-unit');
-      if(unitEl&&unitEl.textContent!==it[3])unitEl.textContent=it[3];
-      // 아이콘도 변경
-      const iconEl=card.querySelector('.sensor-icon');
-      if(iconEl&&iconEl.textContent!==it[0])iconEl.textContent=it[0];
+    const unitEl=card.querySelector('.sensor-unit');
+    if(kind==='text'){
+      if(valEl&&valEl.textContent!==val)valEl.textContent=val;
+      if(sid==='wd'&&unitEl&&unitEl.textContent!==unit)unitEl.textContent=unit;
+      // 일기 아이콘 변경
+      if(sid==='weather'){
+        const iconEl=card.querySelector('.sensor-icon');
+        if(iconEl&&iconEl.textContent!==icon)iconEl.textContent=icon;
+      }
     } else {
-      const newVal=fmt(it[2],it[1]=='일사량'||it[1]=='풍속'?2:1);
+      const newVal=fmt(val,title=='일사량'||title=='풍속'||title=='강수'?2:1);
       if(valEl&&valEl.textContent!==newVal)valEl.textContent=newVal;
+      if(unitEl&&unitEl.textContent!==unit)unitEl.textContent=unit;
     }
     const srcEl=card.querySelector('.sensor-src');
-    if(srcEl&&srcEl.textContent!==it[4])srcEl.textContent=it[4];
+    if(srcEl&&srcEl.textContent!==src)srcEl.textContent=src;
   });
   const aiState=area.querySelector('.ai-state');
   if(aiState){
