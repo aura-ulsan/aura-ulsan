@@ -4012,12 +4012,11 @@ function loadExcel(e){
         r.imputedSrc=src;
       });
 
-      // state.measurements로 저장 (v6.3 형식)
-      state.measurements=rawRows.map(r=>({
+      // ★ v6.5 신규 측정 데이터 생성 (v6.3 형식)
+      const newRows=rawRows.map(r=>({
         id:newId('m'),
         date:r.date,day:r.day,time:r.time,zone:r.zone,warn:r.warn,
         air:r.air,solar:r.solar,hum:r.hum,wind:r.wind,
-        // ★ v6.5 일기/강수/구름
         precip:r.precip!=null?+Number(r.precip).toFixed(2):0,
         cloud:r.cloud!=null?+Number(r.cloud).toFixed(0):0,
         wcode:r.wcode!=null?Number(r.wcode):0,
@@ -4029,21 +4028,99 @@ function loadExcel(e){
         wxQuality:'estimated',
         createdAt:r.date+'T'+(r.time||'12:00')+':00'
       }));
+
+      // ★ v6.5 병합/덮어쓰기 모드 결정
+      const existingCount=(state.measurements||[]).length;
+      let mergeMode='merge';  // 기본값: 병합
+      let mergeStats={added:0,skipped:0,total:0};
+      
+      if(existingCount===0){
+        // 기존 데이터 없음 → 그냥 덮어쓰기
+        state.measurements=newRows;
+        mergeStats.added=newRows.length;
+        mergeStats.total=newRows.length;
+      } else {
+        // 기존 데이터 있음 → 사용자에게 선택
+        const msg=`기존 데이터 ${existingCount}건이 있습니다.\n신규 ${newRows.length}건을 어떻게 처리할까요?\n\n` +
+                  `[확인] 병합 (권장)\n` +
+                  `   - 기존 + 신규 합쳐서 저장\n` +
+                  `   - 같은 일자+시간+구역 중복 자동 제거\n\n` +
+                  `[취소] 덮어쓰기\n` +
+                  `   - 기존 ${existingCount}건 모두 삭제\n` +
+                  `   - 신규 ${newRows.length}건으로 교체`;
+        const useMerge=confirm(msg);
+        
+        if(useMerge){
+          // 병합 모드 — 중복 키(date|time|zone) 기준 제거
+          mergeMode='merge';
+          const map=new Map();
+          // 기존 데이터 먼저 등록 (보호)
+          (state.measurements||[]).forEach(r=>{
+            const key=`${r.date}|${r.time}|${r.zone}`;
+            map.set(key,r);
+          });
+          // 신규 데이터 추가 (중복은 기존 유지)
+          newRows.forEach(r=>{
+            const key=`${r.date}|${r.time}|${r.zone}`;
+            if(!map.has(key)){
+              map.set(key,r);
+              mergeStats.added++;
+            } else {
+              mergeStats.skipped++;
+            }
+          });
+          state.measurements=Array.from(map.values());
+          mergeStats.total=state.measurements.length;
+        } else {
+          // 덮어쓰기 모드
+          mergeMode='overwrite';
+          state.measurements=newRows;
+          mergeStats.added=newRows.length;
+          mergeStats.skipped=existingCount;  // 기존 데이터 삭제됨
+          mergeStats.total=newRows.length;
+        }
+      }
+      
       state.measurements=sortRowsLatest(state.measurements);
       state.fileInfo={
         name:f.name,
         total:rows.length,
-        valid:state.measurements.length,
+        valid:newRows.length,
         imputedAPI:imputedAPI,
         imputedAvg:imputedAvg,
         spk:state.measurements.filter(r=>r.spk).length,
-        zones:[...new Set(state.measurements.map(r=>r.zone))].sort()
+        zones:[...new Set(state.measurements.map(r=>r.zone))].sort(),
+        mergeMode:mergeMode,
+        mergeStats:mergeStats
       };
       saveState();
       trainAllModels();
       renderFileInfo();
       render();
-      const msg=`${f.name} — ${state.measurements.length}건`+
+      // ★ v6.5 병합 결과 표시
+      let modeLabel='';
+      if(mergeMode==='merge'){
+        modeLabel=`병합 모드: 신규 ${mergeStats.added}건 추가, 중복 ${mergeStats.skipped}건 제외 → 총 ${mergeStats.total}건`;
+      } else if(mergeMode==='overwrite'&&mergeStats.skipped>0){
+        modeLabel=`덮어쓰기: 기존 ${mergeStats.skipped}건 삭제, 신규 ${mergeStats.added}건 적용 → 총 ${mergeStats.total}건`;
+      } else {
+        modeLabel=`신규 ${mergeStats.added}건 적용 → 총 ${mergeStats.total}건`;
+      }
+      // ★ v6.5 운영 로그 기록
+      const nowDate=new Date();
+      const logTime=String(nowDate.getMonth()+1).padStart(2,'0')+'.'+
+                    String(nowDate.getDate()).padStart(2,'0')+' '+
+                    String(nowDate.getHours()).padStart(2,'0')+':'+
+                    String(nowDate.getMinutes()).padStart(2,'0');
+      (state.systemLogs=state.systemLogs||[]).unshift({
+        id:newId('sl'),
+        time:logTime,
+        timestamp:nowDate.toISOString(),
+        type:mergeMode==='merge'?'excel_merge':'excel_overwrite',
+        message:`📊 엑셀 ${mergeMode==='merge'?'병합':'덮어쓰기'} — ${f.name} (${modeLabel})`
+      });
+      saveState();
+      const msg=`${f.name} — ${modeLabel}`+
         (imputedAPI>0?` (Open-Meteo 보완 ${imputedAPI}건)`:'')+
         (imputedAvg>0?` (평균 보완 ${imputedAvg}건)`:'');
       toast(msg);
