@@ -802,6 +802,29 @@ pre{
   .zone-temp{font-size:24px;}
 }
 
+/* ★ v6.5 필터 칩 */
+.filter-chip{
+  padding:5px 14px;font-size:12px;font-weight:700;
+  border:1px solid #c8d8f0;border-radius:14px;
+  background:#fff;color:#3a4a66;cursor:pointer;
+  transition:all 0.15s;
+}
+.filter-chip:hover{background:#eef3fb;border-color:#9bb8e3;}
+.filter-chip.active{
+  background:#1976e8;color:#fff;border-color:#1976e8;
+  box-shadow:0 1px 3px rgba(25,118,232,0.3);
+}
+/* ★ v6.5 구역 카드 위험도 상승 강조 */
+.zone.escalating{
+  border:2px solid #ff6f00 !important;
+  box-shadow:0 0 12px rgba(255,111,0,0.4);
+  animation:pulse-warning 2s ease-in-out infinite;
+}
+@keyframes pulse-warning{
+  0%,100%{box-shadow:0 0 8px rgba(255,111,0,0.4);}
+  50%{box-shadow:0 0 16px rgba(255,111,0,0.7);}
+}
+
 </style>
 </head>
 <body>
@@ -828,12 +851,44 @@ pre{
 </div>
 </div>
 </div></div></main>
-<main id="pane-data" class="pane data-pane"><div class="placeholder"><h2>📋 데이터 현황</h2><div class="tool-row"><button class="primary" onclick="openDataModal()">+ 현장 데이터 입력</button><button class="ghost" onclick="downloadData()">⬇️ 엑셀 다운로드</button><button class="ghost" onclick="manualBackfill()">🤖 예측치 일괄 재계산</button><button class="ghost" onclick="clearTrainingData()">🗑️ 학습데이터 초기화</button><span id="dataSummary" style="margin-left:auto;font-weight:800;color:#0b234b;">--</span></div><div style="max-height:650px;overflow:auto"><table class="data-table"><thead><tr><th>일자</th><th>시간</th><th>구역</th><th>특보</th><th>일기</th><th>기온</th><th>일사량</th><th>습도</th><th>풍속</th><th>강수</th><th>실측</th><th>🤖 예측</th><th>오차</th><th>살수</th><th>살수량</th><th>살수후온도</th><th>출처</th><th>조작</th></tr></thead><tbody id="dataBody"></tbody></table></div></div></main>
+<main id="pane-data" class="pane data-pane"><div class="placeholder"><h2>📋 데이터 현황</h2><div class="tool-row"><button class="primary" onclick="openDataModal()">+ 현장 데이터 입력</button><button class="ghost" onclick="downloadData()">⬇️ 엑셀 다운로드</button><button class="ghost" onclick="manualBackfill()">🤖 예측치 일괄 재계산</button><button class="ghost" onclick="clearTrainingData()">🗑️ 학습데이터 초기화</button><span id="dataSummary" style="margin-left:auto;font-weight:800;color:#0b234b;">--</span></div>
+<!-- ★ v6.5 필터 영역 -->
+<div id="dataFilterArea" style="background:#f6f8fc;border:1px solid #d4dfee;border-radius:8px;padding:10px 12px;margin:10px 0;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+    <span style="font-size:12px;font-weight:800;color:#0b234b;">구역 :</span>
+    <button class="filter-chip" data-filter="zone" data-value="all" onclick="setDataFilter('zone','all')">전체</button>
+    <button class="filter-chip" data-filter="zone" data-value="1" onclick="setDataFilter('zone',1)">1</button>
+    <button class="filter-chip" data-filter="zone" data-value="2" onclick="setDataFilter('zone',2)">2</button>
+    <button class="filter-chip" data-filter="zone" data-value="3" onclick="setDataFilter('zone',3)">3</button>
+    <button class="filter-chip" data-filter="zone" data-value="4" onclick="setDataFilter('zone',4)">4</button>
+    <button class="filter-chip" data-filter="zone" data-value="5" onclick="setDataFilter('zone',5)">5</button>
+    <button class="filter-chip" data-filter="zone" data-value="6" onclick="setDataFilter('zone',6)">6</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+    <span style="font-size:12px;font-weight:800;color:#0b234b;">기간 :</span>
+    <button class="filter-chip" data-filter="period" data-value="all" onclick="setDataFilter('period','all')">전체</button>
+    <button class="filter-chip" data-filter="period" data-value="7" onclick="setDataFilter('period','7')">최근 7일</button>
+    <button class="filter-chip" data-filter="period" data-value="30" onclick="setDataFilter('period','30')">최근 30일</button>
+    <button class="filter-chip" data-filter="period" data-value="year" onclick="setDataFilter('period','year')">올해</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span style="font-size:12px;font-weight:800;color:#0b234b;">살수 :</span>
+    <button class="filter-chip" data-filter="spk" data-value="all" onclick="setDataFilter('spk','all')">전체</button>
+    <button class="filter-chip" data-filter="spk" data-value="1" onclick="setDataFilter('spk','1')">실시</button>
+    <button class="filter-chip" data-filter="spk" data-value="0" onclick="setDataFilter('spk','0')">미실시</button>
+    <button class="ghost" onclick="resetDataFilter()" style="margin-left:auto;font-size:11px;padding:4px 10px;">필터 초기화</button>
+  </div>
+</div>
+<!-- ★ 필터 결과 통계 -->
+<div id="filterStats" style="background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:8px 12px;margin-bottom:8px;font-size:12px;display:none;">
+  <span id="filterStatsText">--</span>
+</div>
+<div style="max-height:600px;overflow:auto"><table class="data-table"><thead><tr><th>일자</th><th>시간</th><th>구역</th><th>특보</th><th>일기</th><th>기온</th><th>일사량</th><th>습도</th><th>풍속</th><th>강수</th><th>실측</th><th>🤖 예측</th><th>오차</th><th>살수</th><th>살수량</th><th>살수후온도</th><th>출처</th><th>조작</th></tr></thead><tbody id="dataBody"></tbody></table></div></div></main>
 <main id="pane-ana" class="pane ana-pane"><div id="anaStatBox" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;"></div><div class="grid2"><div class="placeholder"><h2>📊 구역별 평균 포장온도 / 살수 저감량</h2><div class="chart-wrap" style="height:340px"><canvas id="analysisChart"></canvas></div></div><div class="placeholder"><h2>구역별 동적 보정계수</h2><table class="perf-table"><thead><tr><th>구역</th><th>보정계수</th><th>표본</th><th>상태</th></tr></thead><tbody id="correctionBody"></tbody></table><div style="margin-top:12px;padding:10px;background:#f7fbff;border:1px solid #cfdbea;border-radius:7px;font-size:11px;color:#3a4a66;line-height:1.6;">
 💡 <b>구역별 동적 보정계수</b>는 각 구역의 평균 예측 오차를 학습하여 자동 적용됩니다. 클리핑 범위 ±12℃, ±4℃를 넘으면 '주의'로 표시됩니다.
 </div></div></div></main>
 <main id="pane-coef" class="pane coef-pane"><div class="placeholder"><h2>📐 회귀 계수 및 상관식</h2><pre id="coefBox"></pre><button class="ghost" onclick="resetCorrections()">구역 보정계수 초기화</button></div></main>
-<main id="pane-log" class="pane log-pane"><div class="placeholder"><h2>📝 운영 로그</h2><div style="font-size:12px;color:#48607e;margin-bottom:10px;">💧 살수 이행은 수정/삭제 가능, 🚨/✅ 시스템 이벤트는 자동 기록</div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>구분</th><th>살수량</th><th>작업자</th><th>비고</th><th>조작</th></tr></thead><tbody id="fullLogs"></tbody></table></div></main>
+<main id="pane-log" class="pane log-pane"><div class="placeholder"><h2>📝 운영 로그 — 의사결정 추적</h2><div style="font-size:12px;color:#48607e;margin-bottom:10px;line-height:1.5;">💡 <b>알람 발생/해제, AI 시각 변경, 살수 결정, 엑셀 작업, 모델 재학습</b> 등 시스템 의사결정 이벤트가 자동 기록됩니다.<br>📊 살수 측정 데이터는 <b>데이터 현황</b> 탭에서 조회/수정/삭제할 수 있습니다.</div><table class="log-table"><thead><tr><th>시간</th><th>유형</th><th>구역</th><th>의사결정 / 이벤트</th></tr></thead><tbody id="fullLogs"></tbody></table></div></main>
 <main id="pane-setting" class="pane data-pane"><div class="placeholder"><h2>⚙ 설정</h2><p>API 키와 모델 우선순위를 관리합니다.</p><div class="tool-row"><button class="primary" onclick="openApi()">API 키 설정</button><button class="ghost" onclick="localStorage.clear();location.reload();">전체 로컬 저장 초기화</button></div></div></main>
 <footer class="footer"><div>A.U.R.A SYSTEM v6.2</div><div>데이터 기준 시간: <span id="dataClock">--</span></div><div>Copyright © 2026 AURA. All rights reserved.</div></footer></div>
 <div class="modal-bg" id="sprinkleModal"><div class="modal" style="width:480px;"><h2 id="modalTitle">구역 살수 이행</h2>
@@ -1538,6 +1593,40 @@ function calcPred(z){
   }
   return{formula:+formula.toFixed(1),ai:+ai.toFixed(1),final:+final.toFixed(1),sprinkled}
 }
+
+/* ════════════════════════════════════════════════════════════════
+   v6.5 30분 후 예측 — 구역 카드에 표시할 미래 예측값
+   ════════════════════════════════════════════════════════════════ */
+function calcPred30min(z){
+  // 30분 후 시각
+  const future=new Date(Date.now()+30*60*1000);
+  const today=future.toISOString().slice(0,10);
+  const futureHr=future.getHours()+future.getMinutes()/60;
+  // 30분 후 기상 가져오기
+  const fwx=getForecastAt(today,futureHr);
+  if(!fwx){
+    // Forecast 없으면 현재값으로 fallback
+    return calcPred(z);
+  }
+  // 현재 wx 백업 후 미래 기상으로 교체
+  const savedWx={...wx};
+  wx.air=fwx.air;
+  wx.solar=fwx.solar;
+  wx.hum=fwx.hum;
+  wx.wind=fwx.wind;
+  if(fwx.precip!=null)wx.precip=fwx.precip;
+  if(fwx.cloud!=null)wx.cloud=fwx.cloud;
+  if(fwx.wcode!=null)wx.wcode=fwx.wcode;
+  let result;
+  try{
+    result=calcPred(z);
+  }catch(err){
+    result={formula:0,ai:0,final:0,sprinkled:null};
+  }
+  // wx 원상복구
+  Object.assign(wx,savedWx);
+  return result;
+}
 let sensorBarBuilt=false;
 function sensorCards(){
   // ★ v6.5 정돈된 7개 카드
@@ -1617,48 +1706,144 @@ function zoneCards(){
   if(!area)return;
   // 첫 렌더링
   if(!zonesBuilt||area.children.length<6){
-    let h=zones.map(z=>`<div class="zone" data-zone="${z.id}" onclick="selectZone(${z.id})"><h3>${z.name}</h3><div class="zone-sub">${z.sub}</div><div class="zone-temp"><span class="zt-val">--</span><span class="zt-unit">℃</span></div><div class="zone-state"><i class="dot"></i><span class="zs-text">--</span></div><div class="pred-grid"><div class="pred-box"><div class="pred-lbl">상관식<br>기준 예측</div><div class="pred-val"><span class="pf-val">--</span> ℃</div></div><div class="pred-box"><div class="pred-lbl">AI 예측<br>(TF.js)</div><div class="pred-val orange"><span class="pa-val">--</span> ℃<span class="pred-delta pa-delta">(--)</span></div></div><div class="pred-box"><div class="pred-lbl">보정 후<br>최종 예측</div><div class="pred-val red"><span class="pn-val">--</span> ℃</div></div></div><div class="zone-actions"><button class="btn-run" onclick="event.stopPropagation();openSprinkle(${z.id})">💧 살수 실행</button><button class="btn-measure" onclick="event.stopPropagation();openMeasure(${z.id})">📏 측정 입력</button><button class="btn-sub full-width" onclick="event.stopPropagation();showPane('log')">📋 이력 보기</button></div></div>`).join('');
-    h+=`<div class="legend"><span>• 상관식: 회귀식 기준 예측값</span><span>• AI 예측: TensorFlow.js 모델 예측값</span><span style="color:#d71920">• 보정 후 최종: AI + 구역별 보정계수 최종값</span><span>( )는 AI 보정값</span></div>`;
+    // ★ v6.5 새 구역 카드 — 현재 + 30분 후 + 위험도 변화
+    let h=zones.map(z=>`<div class="zone" data-zone="${z.id}" onclick="selectZone(${z.id})">
+      <h3>${z.name}</h3>
+      <div class="zone-sub">${z.sub}</div>
+      <div class="zone-future" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 4px;margin:8px 0;background:#fafbfc;border-radius:8px;">
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:2px;">현재</div>
+          <div style="font-size:26px;font-weight:900;line-height:1.1;" class="zt-now">--</div>
+          <div style="font-size:11px;color:#999;">℃</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;color:#0054c8;font-weight:900;">
+          <div style="font-size:18px;" class="zt-arrow">→</div>
+          <div style="font-size:10px;font-weight:700;" class="zt-delta">--</div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:2px;">30분 후</div>
+          <div style="font-size:26px;font-weight:900;line-height:1.1;" class="zt-future">--</div>
+          <div style="font-size:11px;color:#999;">℃</div>
+        </div>
+      </div>
+      <div class="zone-state-row" style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:800;margin:4px 0;">
+        <span class="zs-now">🟢 정상</span>
+        <span style="color:#999;font-size:11px;">→</span>
+        <span class="zs-future">🟢 정상</span>
+      </div>
+      <div class="pred-grid">
+        <div class="pred-box"><div class="pred-lbl">상관식<br>기준 예측</div><div class="pred-val"><span class="pf-val">--</span> ℃</div></div>
+        <div class="pred-box"><div class="pred-lbl">AI 예측<br>(TF.js)</div><div class="pred-val orange"><span class="pa-val">--</span> ℃<span class="pred-delta pa-delta">(--)</span></div></div>
+        <div class="pred-box"><div class="pred-lbl">보정 후<br>최종 예측</div><div class="pred-val red"><span class="pn-val">--</span> ℃</div></div>
+      </div>
+      <div class="zone-actions">
+        <button class="btn-run" onclick="event.stopPropagation();openSprinkle(${z.id})">💧 살수 실행</button>
+        <button class="btn-measure" onclick="event.stopPropagation();openMeasure(${z.id})">📏 측정 입력</button>
+        <button class="btn-sub full-width" onclick="event.stopPropagation();showZoneHistory(${z.id})">📋 이력 보기</button>
+      </div>
+    </div>`).join('');
+    h+=`<div class="legend"><span>• <b>큰 글자</b>: 현재 → 30분 후 예측</span><span>• 상관식: 회귀식 / AI: TensorFlow.js / 최종: 구역 보정 포함</span><span style="color:#d71920">• 위험도 변화 시 🟢→🟡→🟠→🔴 표시</span></div>`;
     area.innerHTML=h;
     zonesBuilt=true;
   }
-  // 값만 업데이트
+  // 값 업데이트
   zones.forEach(z=>{
     const p=calcPred(z);
-    const status=p.final>=60?'경고':p.final>=58?'주의':p.sprinkled?'냉각감시':'정상';
-    const stColor=p.final>=60?'red':p.final>=58?'orange':'green';
+    const p30=calcPred30min(z);
     const card=area.querySelector(`[data-zone="${z.id}"]`);
     if(!card)return;
-    // 카드 클래스 (살수 중)
-    const newCardClass='zone'+(p.sprinkled?' sprinkled':'');
-    if(card.className!==newCardClass)card.className=newCardClass;
-    // 최종 온도
-    const ztVal=card.querySelector('.zt-val');
-    if(ztVal&&ztVal.textContent!==fmt(p.final))ztVal.textContent=fmt(p.final);
-    // zone-temp 색상 클래스
-    const ztDiv=card.querySelector('.zone-temp');
-    const newZtClass='zone-temp'+(stColor==='orange'?' orange':'');
-    if(ztDiv&&ztDiv.className!==newZtClass)ztDiv.className=newZtClass;
-    // 상태 텍스트/색상
-    const zsText=card.querySelector('.zs-text');
-    if(zsText&&zsText.textContent!==status)zsText.textContent=status;
-    const zsDiv=card.querySelector('.zone-state');
-    const newZsClass='zone-state '+stColor;
-    if(zsDiv&&zsDiv.className!==newZsClass)zsDiv.className=newZsClass;
-    // 상관식
+    
+    // 위험도 단계 함수
+    const statusOf=(t)=>{
+      if(t>=60)return{label:'🔴 위험',color:'#d71920',emoji:'🔴',text:'위험'};
+      if(t>=58)return{label:'🟠 경계',color:'#ff6f00',emoji:'🟠',text:'경계'};
+      if(t>=50)return{label:'🟡 주의',color:'#daa520',emoji:'🟡',text:'주의'};
+      return{label:'🟢 정상',color:'#078943',emoji:'🟢',text:'정상'};
+    };
+    const stNow=statusOf(p.final);
+    const stFut=statusOf(p30.final);
+    
+    // 카드 클래스 (살수 중 또는 위험도 변화 강조)
+    let cardClass='zone';
+    if(p.sprinkled)cardClass+=' sprinkled';
+    // 위험도가 한 단계 이상 상승 시 강조 (보더 색상)
+    const escalation=(stFut.text!==stNow.text)&&(p30.final>p.final);
+    if(escalation&&stFut.text!=='정상')cardClass+=' escalating';
+    if(card.className!==cardClass)card.className=cardClass;
+    
+    // 현재 온도 (좌)
+    const ztNow=card.querySelector('.zt-now');
+    if(ztNow){
+      ztNow.textContent=fmt(p.final);
+      ztNow.style.color=stNow.color;
+    }
+    // 30분 후 온도 (우)
+    const ztFuture=card.querySelector('.zt-future');
+    if(ztFuture){
+      ztFuture.textContent=fmt(p30.final);
+      ztFuture.style.color=stFut.color;
+    }
+    // 화살표 + 변화량
+    const delta=p30.final-p.final;
+    const ztArrow=card.querySelector('.zt-arrow');
+    const ztDelta=card.querySelector('.zt-delta');
+    if(ztArrow){
+      let arrow='→';
+      if(delta>=5)arrow='▲▲';
+      else if(delta>=2)arrow='▲';
+      else if(delta<=-5)arrow='▼▼';
+      else if(delta<=-2)arrow='▼';
+      ztArrow.textContent=arrow;
+      ztArrow.style.color=delta>=2?'#d71920':(delta<=-2?'#0054c8':'#666');
+    }
+    if(ztDelta){
+      const sign=delta>=0?'+':'';
+      ztDelta.textContent=`${sign}${fmt(delta,1)}℃`;
+      ztDelta.style.color=delta>=2?'#d71920':(delta<=-2?'#0054c8':'#666');
+    }
+    
+    // 상태 행 (현재 → 30분 후)
+    const zsNow=card.querySelector('.zs-now');
+    if(zsNow){zsNow.textContent=stNow.label;zsNow.style.color=stNow.color;}
+    const zsFuture=card.querySelector('.zs-future');
+    if(zsFuture){
+      zsFuture.textContent=stFut.label;
+      zsFuture.style.color=stFut.color;
+      // 위험도 상승 시 강조 (펄스)
+      if(escalation&&stFut.text!=='정상'){
+        zsFuture.style.fontWeight='900';
+        zsFuture.style.textShadow='0 0 4px rgba(215,25,32,0.3)';
+      } else {
+        zsFuture.style.fontWeight='800';
+        zsFuture.style.textShadow='';
+      }
+    }
+    
+    // 3분할 (현재 시점 모델 예측값들)
     const pfVal=card.querySelector('.pf-val');
     if(pfVal&&pfVal.textContent!==fmt(p.formula))pfVal.textContent=fmt(p.formula);
-    // AI
     const paVal=card.querySelector('.pa-val');
     if(paVal&&paVal.textContent!==fmt(p.ai))paVal.textContent=fmt(p.ai);
     const paDelta=card.querySelector('.pa-delta');
     const deltaTxt=`(${p.ai-p.formula>=0?'+':''}${fmt(p.ai-p.formula)})`;
     if(paDelta&&paDelta.textContent!==deltaTxt)paDelta.textContent=deltaTxt;
-    // 최종
     const pnVal=card.querySelector('.pn-val');
     if(pnVal&&pnVal.textContent!==fmt(p.final))pnVal.textContent=fmt(p.final);
   });
   updateMainStatus();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   v6.5 구역별 이력 보기 — 데이터 현황 탭으로 이동 + 구역 필터 적용
+   ════════════════════════════════════════════════════════════════ */
+function showZoneHistory(zoneId){
+  // 1. 데이터 현황 탭으로 이동
+  showPane('data');
+  // 2. 구역 필터 적용
+  if(typeof setDataFilter==='function'){
+    setDataFilter('zone',zoneId);
+    toast(`구역 ${zoneId} 이력 표시`);
+  }
 }
 function updateMainStatus(){
   // 알람 활성 시엔 renderAlarmUI가 처리하므로 패스
@@ -2498,7 +2683,7 @@ setInterval(()=>{
 },5*60*1000);
 
 function logsRender(){
-  // 1. 모니터링 - 최근 살수 이행 기록 (표시만, 수정/삭제 X)
+  // 1. 모니터링 - 최근 살수 이행 기록 (그대로 유지 — 빠른 참조용)
   const sprayMeas=(state.measurements||[]).filter(m=>m.spk===1)
     .sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
   const recentEl=document.getElementById('recentLogs');
@@ -2513,45 +2698,47 @@ function logsRender(){
       }).join('');
     }
   }
-  // 2. 운영 로그 탭 - 시스템 이벤트 + 살수 이행 통합 표시
+  // 2. ★ v6.5 운영 로그 탭 — 의사결정 추적 (살수 이력은 데이터 현황으로)
   const fullEl=document.getElementById('fullLogs');
   if(fullEl){
-    // 살수 이행 항목 (수정/삭제 가능)
-    const sprayItems=sprayMeas.map(m=>({
-      time:m.date+' '+m.time,
-      timestamp:m.createdAt||(m.date+'T'+m.time),
-      type:'살수',
-      zone:'구역 '+m.zone,
-      vol:m.vol?Math.round(m.vol)+'L':'—',
-      worker:m.worker||'—',
-      note:m.note||'살수 이행 (실측 '+(m.pt!=null?m.pt.toFixed(1):'—')+'℃ → 후 '+(m.after!==''&&m.after!=null?Number(m.after).toFixed(1):'—')+'℃)',
-      measId:m.id,
-      isSystem:false
-    }));
-    // 시스템 이벤트
-    const sysItems=(state.systemLogs||[]).map(s=>({
-      time:s.time,
-      timestamp:s.timestamp,
-      type:s.type==='alarm_start'?'알람':s.type==='alarm_end'?'해제':s.type==='alarm_ack'?'확인':'시스템',
-      zone:Array.isArray(s.zones)?s.zones.map(z=>'구역 '+z).join(','):'—',
-      vol:'—',
-      worker:'시스템',
-      note:s.message,
-      sysId:s.id,
-      isSystem:true
-    }));
-    const all=[...sprayItems,...sysItems].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
+    // 시스템 이벤트만 표시 (살수 이행 제외)
+    const sysItems=(state.systemLogs||[]).map(s=>{
+      let typeBadge='시스템',typeColor='#666',typeIcon='ℹ️';
+      switch(s.type){
+        case 'alarm_start':typeIcon='🚨';typeBadge='알람 발생';typeColor='#d71920';break;
+        case 'alarm_end':typeIcon='✅';typeBadge='알람 해제';typeColor='#078943';break;
+        case 'alarm_ack':typeIcon='👁️';typeBadge='운영자 확인';typeColor='#0054c8';break;
+        case 'time_change':typeIcon='🤖';typeBadge='AI 시각 변경';typeColor='#0054c8';break;
+        case 'excel_merge':typeIcon='📊';typeBadge='엑셀 병합';typeColor='#078943';break;
+        case 'excel_overwrite':typeIcon='⚠️';typeBadge='엑셀 덮어쓰기';typeColor='#ff6f00';break;
+        case 'model_retrain':typeIcon='🧠';typeBadge='AI 재학습';typeColor='#0054c8';break;
+        case 'login':typeIcon='🔑';typeBadge='로그인';typeColor='#666';break;
+        case 'settings_change':typeIcon='⚙️';typeBadge='설정 변경';typeColor='#666';break;
+        case 'sprinkle_decision':typeIcon='💧';typeBadge='살수 결정';typeColor='#0054c8';break;
+        case 'heat_change':typeIcon='🔥';typeBadge='폭염 상태 변경';typeColor='#ff6f00';break;
+        default:typeIcon='ℹ️';typeBadge='시스템';typeColor='#666';
+      }
+      return {
+        time:s.time,
+        timestamp:s.timestamp,
+        typeBadge,typeColor,typeIcon,
+        zone:Array.isArray(s.zones)?s.zones.map(z=>'구역 '+z).join(','):'—',
+        note:s.message,
+        sysId:s.id
+      };
+    });
+    const all=sysItems.sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||''));
+    
+    // 헤더 갱신 (살수 이력 제거, 의사결정 추적 강조)
+    const head=fullEl.parentElement.querySelector('thead tr');
+    if(head)head.innerHTML='<th style="width:120px">시간</th><th style="width:130px">유형</th><th style="width:110px">구역</th><th>의사결정 / 이벤트</th>';
+    
     if(all.length===0){
-      fullEl.innerHTML='<tr><td colspan="7" style="text-align:center;color:#888;padding:18px;">기록이 없습니다</td></tr>';
+      fullEl.innerHTML='<tr><td colspan="4" style="text-align:center;color:#888;padding:30px;">의사결정 이벤트 기록이 없습니다.<br><span style="font-size:11px;color:#aaa;">알람·살수 결정·엑셀 작업·AI 재학습 등이 자동으로 기록됩니다.</span></td></tr>';
     } else {
-      fullEl.innerHTML=all.map(l=>{
-        const action=l.isSystem
-          ?''
-          :`<button onclick="editSprayMeas('${l.measId}')" style="padding:3px 8px;background:#1976e8;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:800;cursor:pointer;margin-right:3px;">수정</button><button onclick="deleteSprayMeas('${l.measId}')" style="padding:3px 8px;background:#d71920;color:#fff;border:none;border-radius:4px;font-size:11px;font-weight:800;cursor:pointer;">삭제</button>`;
-        const typeBadge=l.isSystem
-          ?(l.type==='알람'?'<span style="color:#d71920;font-weight:800">🚨 '+l.type+'</span>':'<span style="color:#078943;font-weight:800">✅ '+l.type+'</span>')
-          :'<span style="color:#0054c8;font-weight:800">💧 '+l.type+'</span>';
-        return `<tr><td>${l.time}</td><td>${l.zone}</td><td>${typeBadge}</td><td>${l.vol}</td><td>${l.worker}</td><td style="text-align:left;font-size:11px;">${l.note}</td><td>${action}</td></tr>`;
+      fullEl.innerHTML=all.slice(0,200).map(l=>{
+        const typeBadge=`<span style="color:${l.typeColor};font-weight:800;font-size:12px;">${l.typeIcon} ${l.typeBadge}</span>`;
+        return `<tr><td style="font-size:12px;">${l.time}</td><td>${typeBadge}</td><td style="font-size:12px;">${l.zone}</td><td style="text-align:left;font-size:12px;">${l.note}</td></tr>`;
       }).join('');
     }
   }
@@ -2783,6 +2970,18 @@ function confirmSprinkle(){
     const sign=err>=0?'+':'';
     compareMsg=` | 예측 ${modalPred.predAI.toFixed(1)}℃ vs 실측 ${pt}℃ (오차 ${sign}${err.toFixed(1)}℃)`;
   }
+  // ★ v6.5 운영 로그에 살수 결정 기록
+  const nowD=new Date();
+  const logT=String(nowD.getMonth()+1).padStart(2,'0')+'.'+String(nowD.getDate()).padStart(2,'0')+' '+String(nowD.getHours()).padStart(2,'0')+':'+String(nowD.getMinutes()).padStart(2,'0');
+  const volMsg=vol?`${Math.round(vol)}L`:'미입력';
+  (state.systemLogs=state.systemLogs||[]).unshift({
+    id:newId('sl'),
+    time:logT,
+    timestamp:nowD.toISOString(),
+    type:'sprinkle_decision',
+    zones:[id],
+    message:`💧 구역 ${id} 살수 결정 — 실측 ${pt}℃ → 살수후 ${after!==''?Number(after).toFixed(1):'—'}℃ / 살수량 ${volMsg} / 작업자 ${worker||'—'}`
+  });
   if(state.measurements.length>=5){
     trainAllModels();
     toast('구역 '+id+' 등록 완료. 모델 재학습됨 (R²='+metrics.formula.r2.toFixed(3)+')'+compareMsg);
@@ -3217,13 +3416,95 @@ function playAlarmSound(){
 setInterval(checkAlarm,5000);
 loadAlarmState();
 function showPane(name){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));document.getElementById('pane-'+name).classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==name));if(name==='coef')renderCoef();if(name==='log')logsRender();if(name==='ana')renderAnalysis();if(name==='data')renderData()}function renderCoef(){if(!formulaModel)return;document.getElementById('coefBox').textContent=`포장온도 상관식\nTₚ = ${fmt(formulaModel.intercept,3)} ${formulaModel.coefs.map((c,i)=>(c>=0?' + ':' - ')+Math.abs(c).toFixed(3)+'×'+['기온','일사량','습도','풍속','일사량²','풍속×일사량'][i]).join('')}\n\nTensorFlow.js AI 보정\nAI 보정값 = 실측 포장온도 - 상관식 예측값\n\n최종 운영값\n최종값 = 상관식 기준 예측 + AI 보정값 + 구역별 동적 보정계수\n\n구역별 보정계수\n`+zones.map(z=>`${z.name}: ${fmt(state.corr[z.id]||0,2)}℃`).join('\n')}function resetCorrections(){state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('구역 보정계수 초기화 완료')}
+/* ════════════════════════════════════════════════════════════════
+   v6.5 데이터 현황 필터 시스템
+   ════════════════════════════════════════════════════════════════ */
+let dataFilter={zone:'all', period:'all', spk:'all'};
+
+function setDataFilter(type,value){
+  dataFilter[type]=value;
+  // 칩 활성 상태 갱신
+  document.querySelectorAll('.filter-chip').forEach(chip=>{
+    if(chip.dataset.filter===type){
+      chip.classList.toggle('active',String(chip.dataset.value)===String(value));
+    }
+  });
+  renderData();
+}
+
+function resetDataFilter(){
+  dataFilter={zone:'all',period:'all',spk:'all'};
+  document.querySelectorAll('.filter-chip').forEach(chip=>{
+    chip.classList.toggle('active',chip.dataset.value==='all');
+  });
+  renderData();
+  toast('필터 초기화');
+}
+
+function applyDataFilter(rows){
+  let result=rows;
+  // 구역 필터
+  if(dataFilter.zone!=='all'){
+    result=result.filter(r=>String(r.zone)===String(dataFilter.zone));
+  }
+  // 기간 필터
+  if(dataFilter.period!=='all'){
+    const now=new Date();
+    let cutoff=null;
+    if(dataFilter.period==='7')cutoff=new Date(now.getTime()-7*24*60*60*1000);
+    else if(dataFilter.period==='30')cutoff=new Date(now.getTime()-30*24*60*60*1000);
+    else if(dataFilter.period==='year')cutoff=new Date(now.getFullYear(),0,1);
+    if(cutoff){
+      const cutoffStr=cutoff.toISOString().slice(0,10);
+      result=result.filter(r=>(r.date||'')>=cutoffStr);
+    }
+  }
+  // 살수 필터
+  if(dataFilter.spk!=='all'){
+    result=result.filter(r=>String(r.spk||0)===String(dataFilter.spk));
+  }
+  return result;
+}
+
 function renderData(){
-  document.getElementById('dataSummary').textContent=`총 ${state.measurements.length}건 (수동 입력 ${state.measurements.filter(r=>(r.source||r.imputedSrc)==='manual').length}건)`;
-  const rows=sortRowsLatest(state.measurements);
+  const total=state.measurements.length;
+  const manualCount=state.measurements.filter(r=>(r.source||r.imputedSrc)==='manual').length;
+  // ★ v6.5 필터 적용
+  const rows=sortRowsLatest(applyDataFilter(state.measurements));
+  const filtered=rows.length;
+  
+  // 헤더 카운트
+  document.getElementById('dataSummary').textContent=
+    filtered===total?`총 ${total}건 (수동 입력 ${manualCount}건)`
+                    :`${filtered}건 표시 / 총 ${total}건`;
+  
+  // 필터 통계 카드
+  const statsEl=document.getElementById('filterStats');
+  const statsText=document.getElementById('filterStatsText');
+  const hasFilter=dataFilter.zone!=='all'||dataFilter.period!=='all'||dataFilter.spk!=='all';
+  if(hasFilter&&filtered>0){
+    statsEl.style.display='block';
+    const avgPt=rows.reduce((a,r)=>a+(Number(r.pt)||0),0)/filtered;
+    const maxPt=Math.max(...rows.map(r=>Number(r.pt)||0));
+    const spkCount=rows.filter(r=>r.spk).length;
+    const dangerCount=rows.filter(r=>Number(r.pt)>=60).length;
+    // 평균 예측 오차
+    const withPred=rows.filter(r=>r.predError!=null&&isFinite(r.predError));
+    const maeStr=withPred.length>0?
+      `평균 예측 오차 ${(withPred.map(r=>Math.abs(r.predError)).reduce((a,b)=>a+b,0)/withPred.length).toFixed(2)}℃`
+      :'';
+    statsText.innerHTML=`📊 <b>${filtered}건</b> · 평균 ${avgPt.toFixed(1)}℃ · 최고 <b style="color:#d71920">${maxPt.toFixed(1)}℃</b> · 살수 ${spkCount}회 · 위험(60℃+) ${dangerCount}건${maeStr?' · '+maeStr:''}`;
+  } else {
+    statsEl.style.display='none';
+  }
+  
   const head=document.querySelector('#pane-data .data-table thead tr');
   if(head)head.innerHTML='<th>일자</th><th>시간</th><th>구역</th><th>특보</th><th>일기</th><th>기온(℃)</th><th>일사량(MJ/㎡)</th><th>습도(%)</th><th>풍속(m/s)</th><th>강수(mm)</th><th>실측(℃)</th><th>🤖 예측(℃)</th><th>오차(℃)</th><th>살수</th><th>살수량(L)</th><th>살수후(℃)</th><th>출처</th><th>조작</th>';
   if(!rows.length){
-    document.getElementById('dataBody').innerHTML='<tr><td colspan="18" style="text-align:center;padding:30px;color:#888;">데이터가 없습니다. AI 모델 탭에서 엑셀을 업로드하거나, [+ 현장 데이터 입력] 버튼을 눌러 시작하세요.</td></tr>';
+    const emptyMsg=total===0?
+      '데이터가 없습니다. AI 모델 탭에서 엑셀을 업로드하거나, [+ 현장 데이터 입력] 버튼을 눌러 시작하세요.':
+      '필터 조건에 해당하는 데이터가 없습니다. [필터 초기화]를 누르세요.';
+    document.getElementById('dataBody').innerHTML=`<tr><td colspan="18" style="text-align:center;padding:30px;color:#888;">${emptyMsg}</td></tr>`;
     return;
   }
   document.getElementById('dataBody').innerHTML=rows.slice(0,300).map(r=>{
@@ -3236,11 +3517,9 @@ function renderData(){
     else if(src==='api')srcStr='<span style="color:#ff6f00;font-size:11px;font-weight:800">API</span>';
     else if(src==='avg')srcStr='<span style="color:#888;font-size:11px;">평균</span>';
     else srcStr='<span style="color:#0054c8;font-size:11px;">엑셀</span>';
-    // ★ v6.5 일기/강수
     const wInfo=weatherInfo(r.wcode);
     const weatherStr=`<span title="${wInfo.label}">${wInfo.emoji}</span>`;
     const precipStr=(r.precip!=null&&isFinite(r.precip)&&r.precip>0)?`<span style="color:#0054c8;font-weight:800">${fmt(r.precip,1)}</span>`:'—';
-    // 예측치/오차 표시
     let predStr='—',errStr='—';
     if(r.predAI!=null&&isFinite(r.predAI)){
       const badge=r.predUsed==='ai'?'<sup style="color:#0054c8;font-size:9px;">AI</sup>':'<sup style="color:#666;font-size:9px;">식</sup>';
@@ -4362,6 +4641,9 @@ setTimeout(()=>{
 loadState();
 clock();
 render();
+
+// ★ v6.5 필터 칩 초기 활성 상태 (전체)
+document.querySelectorAll('.filter-chip[data-value="all"]').forEach(c=>c.classList.add('active'));
 
 // 첫 접속 시 Open-Meteo Forecast 호출
 (async()=>{
