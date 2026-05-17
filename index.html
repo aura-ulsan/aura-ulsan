@@ -207,7 +207,7 @@ button{font-family:inherit;cursor:pointer;}
 /* 센서 패널 */
 .sensors{
   display:grid;
-  grid-template-columns:repeat(7,1fr) 200px;
+  grid-template-columns:repeat(7,1fr);  /* ★ v6.5 시스템 카드 제거 → 7개 균등 */
   gap:10px;
 }
 .sensor,.sys-card,.zone,.panel,.placeholder{
@@ -290,6 +290,7 @@ button{font-family:inherit;cursor:pointer;}
   grid-template-columns:repeat(6,1fr);
   gap:10px;
   align-items:stretch;
+  margin-bottom:6px;  /* ★ v6.5 측정 가이드와의 시각 분리 */
 }
 .zone{
   padding:12px 13px;
@@ -494,11 +495,13 @@ button{font-family:inherit;cursor:pointer;}
 .legend span:nth-child(3){color:#d71920;}
 
 /* ═══════════ 측정 가이드 ═══════════ */
-.measure-guide{margin-bottom:12px;}
+.measure-guide{margin:6px 0 12px;}
 .guide-card{
   background:#fff;border:1px solid var(--line);border-radius:9px;
   padding:10px 14px;display:flex;align-items:center;gap:12px;
-  box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  box-shadow:0 2px 8px rgba(0,30,80,0.08);  /* ★ 그림자 강화 — 시각 분리 */
+  position:relative;
+  z-index:2;  /* ★ 구역 카드 위에 표시 (호버/선택 효과와 충돌 방지) */
 }
 .guide-card.heat-warning{background:linear-gradient(90deg,#fff7f7,#fff);border-color:#ef9a9a;}
 .guide-card.heat-advisory{background:linear-gradient(90deg,#fff8f0,#fff);border-color:#ffcc80;}
@@ -796,7 +799,7 @@ pre{
 }
 @media(max-width:1300px){
   .app{min-width:1180px;}
-  .sensors{grid-template-columns:repeat(7,1fr) 170px;}
+  .sensors{grid-template-columns:repeat(7,1fr);}
   .sensor-icon{font-size:30px;}
   .sensor-value{font-size:18px;}
   .zone-temp{font-size:24px;}
@@ -1715,16 +1718,19 @@ function calcPred30min(z){
 }
 let sensorBarBuilt=false;
 function sensorCards(){
-  // ★ v6.5 정돈된 7개 카드
-  // 제거: 포장온도(대표) (중복 정보) / 이슬점 (학습 미사용)
-  // 분리: 일기 / 강수 → 2개 카드
-  // 개선: 풍향 한글 표시
+  // ★ v6.5 정돈된 7개 카드 (시스템 상태 카드 제거 — 상단 탭바와 중복)
+  // 일사량 카드에 누적 일사량 함께 표시 (열관성 시각화)
   const wInfo=weatherInfo(wx.wcode);
   const wDir=windDirInfo(wx.dir);
   const precipVal=wx.precip!=null?Number(wx.precip).toFixed(1):'0.0';
+  // ★ 감쇠 누적 일사 계산 (현재 시각 기준)
+  const today=new Date().toISOString().slice(0,10);
+  const nowHr=new Date().getHours();
+  let solarDecayVal=0;
+  try{solarDecayVal=calcSolarDecay(today,nowHr,4);}catch(err){solarDecayVal=0;}
   const items=[
     ['🌡️','기온',         wx.air,                 '℃',     'Open-Meteo','orange','air',    'num'],
-    ['☀️','일사량',       wx.solar,               'MJ/㎡',  'Open-Meteo','orange','sol',    'num'],
+    ['☀️','일사량',       wx.solar,               'MJ/㎡',  'Open-Meteo','orange','sol',    'solar'],
     ['💧','습도',         wx.hum,                 '%',     'Open-Meteo','blue',  'hum',    'num'],
     ['〰️','풍속',         wx.wind,                'm/s',   'Open-Meteo','green', 'ws',     'num'],
     ['🧭','풍향',         wDir.kor,               wDir.full,'Open-Meteo','green', 'wd',     'text'],
@@ -1738,21 +1744,20 @@ function sensorCards(){
       const [icon,title,val,unit,src,color,sid,kind]=it;
       let valHTML;
       if(kind==='text'){
-        // 텍스트 카드 (풍향/일기): 글자 크기 축소
         if(sid==='wd'){
-          // 풍향: 한글(크게) + 영문/각도(작게)
           valHTML=`<span class="sv">${val}</span><span class="sensor-unit" style="font-size:11px;display:block;margin-top:2px;color:#666">${unit}</span>`;
         } else {
-          // 일기: 한글만
           valHTML=`<span class="sv" style="font-size:18px">${val}</span>`;
         }
+      } else if(kind==='solar'){
+        // ★ 일사량 + 누적 (4시간 감쇠) 함께 표시
+        valHTML=`<span class="sv">${fmt(val,2)}</span><span class="sensor-unit">${unit}</span><div style="font-size:10px;color:#888;margin-top:3px;font-weight:700">누적 4h: <span class="sv-decay">${fmt(solarDecayVal,1)}</span> MJ/㎡</div>`;
       } else {
-        // 숫자 카드
         valHTML=`<span class="sv">${fmt(val,title=='일사량'||title=='풍속'||title=='강수'?2:1)}</span><span class="sensor-unit">${unit}</span>`;
       }
       return `<div class="sensor" data-sid="${sid}"><div class="sensor-icon ${color}">${icon}</div><div><div class="sensor-title">${title}</div><div class="sensor-value ${color}">${valHTML}</div><div class="sensor-src">${src}</div></div></div>`;
     }).join('');
-    h+=`<div class="sys-card" data-sid="sys"><div class="sys-title">시스템 상태</div><div class="sys-ok"><span class="shield">◆</span>정상 운영 중</div><div class="sys-row"><span>DB 연결</span><b>● 로컬</b></div><div class="sys-row"><span>AI 모델</span><b>● <span class="ai-state">${tfReady?'준비됨':'fallback'}</span></b></div><div class="sys-row"><span>미전송 데이터</span><b>0건</b></div></div>`;
+    // ★ 시스템 상태 카드 제거 (상단 탭바 우측 상태점과 중복)
     area.innerHTML=h;
     sensorBarBuilt=true;
     return;
@@ -1767,11 +1772,18 @@ function sensorCards(){
     if(kind==='text'){
       if(valEl&&valEl.textContent!==val)valEl.textContent=val;
       if(sid==='wd'&&unitEl&&unitEl.textContent!==unit)unitEl.textContent=unit;
-      // 일기 아이콘 변경
       if(sid==='weather'){
         const iconEl=card.querySelector('.sensor-icon');
         if(iconEl&&iconEl.textContent!==icon)iconEl.textContent=icon;
       }
+    } else if(kind==='solar'){
+      // 일사량 + 누적
+      const newVal=fmt(val,2);
+      if(valEl&&valEl.textContent!==newVal)valEl.textContent=newVal;
+      if(unitEl&&unitEl.textContent!==unit)unitEl.textContent=unit;
+      const decayEl=card.querySelector('.sv-decay');
+      const newDecay=fmt(solarDecayVal,1);
+      if(decayEl&&decayEl.textContent!==newDecay)decayEl.textContent=newDecay;
     } else {
       const newVal=fmt(val,title=='일사량'||title=='풍속'||title=='강수'?2:1);
       if(valEl&&valEl.textContent!==newVal)valEl.textContent=newVal;
@@ -1780,11 +1792,6 @@ function sensorCards(){
     const srcEl=card.querySelector('.sensor-src');
     if(srcEl&&srcEl.textContent!==src)srcEl.textContent=src;
   });
-  const aiState=area.querySelector('.ai-state');
-  if(aiState){
-    const newState=tfReady?'준비됨':'fallback';
-    if(aiState.textContent!==newState)aiState.textContent=newState;
-  }
 }
 let zonesBuilt=false;
 function zoneCards(){
@@ -2008,16 +2015,11 @@ function updateMainStatus(){
     return;
   }
   // 운영 시간 — 정상 예측
-  // 30분 후 일사량 추정 (단순화)
-  const futHr=Math.min(OP_END,nowHr+0.5);
-  const futSolar=estimateSolarAt(futHr);
-  const savedSol=wx.solar;
-  wx.solar=futSolar;
-  const noFut=calcPred(z).final;
-  wx.solar=savedSol;
-  const no=Math.max(p.final,noFut);
+  // ★ v6.5 30분 후 예측 — calcPred30min 사용 (구역 카드와 동일 로직)
+  const p30=calcPred30min(z);
+  const no=Math.max(p.final, p30.final);  // 자연 상승 (살수 안 함) — 현재와 30분 후 중 큰 값
   const drop=coolingEffect(z.id,p.final);
-  const yes=clamp(no-drop*.72,0,90,no);
+  const yes=clamp(no-drop*.72,0,90,no);   // 살수 시 예측 = 자연상승 - 살수 저감 효과
   setEl('sumNo',fmt(no)+' ℃');
   setEl('sumYes',fmt(yes)+' ℃');
   setEl('sumDrop',fmt(no-yes));
