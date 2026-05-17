@@ -207,8 +207,8 @@ button{font-family:inherit;cursor:pointer;}
 /* 센서 패널 */
 .sensors{
   display:grid;
-  grid-template-columns:repeat(7,1fr);  /* ★ v6.5 시스템 카드 제거 → 7개 균등 */
-  gap:10px;
+  grid-template-columns:repeat(8,1fr);  /* ★ v6.5 누적일사 카드 추가 → 8개 균등 */
+  gap:8px;
 }
 .sensor,.sys-card,.zone,.panel,.placeholder{
   background:#fff;
@@ -299,6 +299,8 @@ button{font-family:inherit;cursor:pointer;}
   position:relative;
   cursor:pointer;
   transition:all .15s;
+  min-height:340px;  /* ★ v6.5 콘텐츠 모두 표시 보장 (이력보기 버튼 포함) */
+  overflow:hidden;   /* ★ 내용 넘침 방지 */
 }
 .zone:hover{
   border-color:#0b63ce;
@@ -799,9 +801,9 @@ pre{
 }
 @media(max-width:1300px){
   .app{min-width:1180px;}
-  .sensors{grid-template-columns:repeat(7,1fr);}
-  .sensor-icon{font-size:30px;}
-  .sensor-value{font-size:18px;}
+  .sensors{grid-template-columns:repeat(8,1fr);gap:6px;}
+  .sensor-icon{font-size:26px;}
+  .sensor-value{font-size:16px;}
   .zone-temp{font-size:24px;}
 }
 
@@ -1174,9 +1176,11 @@ function sprinkleToMM(volumeL){
   return volumeL/SPRINKLE_AREA_M2;
 }
 
-// 감쇠 시정수 (분)
-const TAU_SOLAR=90;   // 일사 감쇠
-const TAU_WATER=120;  // 비/살수 감쇠
+// 감쇠 시정수 (분) — 자동 튜닝 가능
+let TAU_SOLAR=90;   // 일사 감쇠 (기본 90분, 자동 튜닝으로 갱신)
+let TAU_WATER=120;  // 비/살수 감쇠 (기본 120분)
+let TAU_TUNED_AT=null;  // 마지막 자동 튜닝 시각
+let _tauTunedThisSession=false;  // 세션당 1회 실행 플래그
 
 // 감쇠 누적 계산
 function decaySum(values, tauMinutes, intervalMinutes){
@@ -1287,6 +1291,112 @@ function calcMinSinceSprinkle(dateStr, time, zone, maxBack){
     if(ageMin>=0&&ageMin<minAge)minAge=ageMin;
   });
   return minAge;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   v6.5 τ 자동 튜닝 — 데이터 기반 최적 시정수 찾기
+   τ_solar 후보 [60, 75, 90, 105, 120, 135, 150] 시도
+   τ_water 후보 [60, 90, 120, 150, 180] 시도
+   각 조합에서 회귀식 R² 계산, 최대값 채택
+   ════════════════════════════════════════════════════════════════ */
+function autoTuneTau(){
+  if(!state.measurements||state.measurements.length<100){
+    console.log('[τ 튜닝] 데이터 부족 (100건 미만) — 기본값 유지');
+    return false;
+  }
+  console.log('[τ 튜닝] 시작 — 데이터 '+state.measurements.length+'건');
+  const startTime=Date.now();
+  const origSolar=TAU_SOLAR, origWater=TAU_WATER;
+  const solarCandidates=[60,75,90,105,120,135,150,180];
+  const waterCandidates=[60,90,120,150,180];
+  
+  // 학습 데이터 필터링 (이상치 제외)
+  const valid=state.measurements.filter(r=>
+    isFinite(r.pt)&&r.pt>-20&&r.pt<100&&
+    isFinite(r.air)&&isFinite(r.solar)&&isFinite(r.hum)&&isFinite(r.wind)
+  );
+  if(valid.length<100)return false;
+  
+  let bestSolar=90, bestWater=120, bestR2=-Infinity;
+  
+  // 그리드 서치 (8 × 5 = 40 조합)
+  for(const ts of solarCandidates){
+    for(const tw of waterCandidates){
+      TAU_SOLAR=ts;TAU_WATER=tw;
+      // features 재계산
+      const X=[],Y=[];
+      valid.forEach(r=>{
+        try{
+          enrichRowForFeatures(r);
+          X.push(features(r));
+          Y.push(r.pt);
+        }catch(err){}
+      });
+      if(X.length<50)continue;
+      // 임시 회귀식
+      const mdl=fitLR(X,Y);
+      const pred=X.map(x=>predictLR(mdl,x));
+      // R² 계산
+      const yMean=Y.reduce((a,b)=>a+b,0)/Y.length;
+      let ssRes=0,ssTot=0;
+      for(let i=0;i<Y.length;i++){
+        ssRes+=(Y[i]-pred[i])**2;
+        ssTot+=(Y[i]-yMean)**2;
+      }
+      const r2=1-ssRes/ssTot;
+      if(r2>bestR2){
+        bestR2=r2;
+        bestSolar=ts;
+        bestWater=tw;
+      }
+    }
+  }
+  
+  // 기본값 대비 의미 있는 개선이 있을 때만 적용
+  TAU_SOLAR=origSolar;TAU_WATER=origWater;
+  // 원래값 R² 계산
+  const Xo=[],Yo=[];
+  valid.forEach(r=>{
+    try{
+      enrichRowForFeatures(r);
+      Xo.push(features(r));
+      Yo.push(r.pt);
+    }catch(err){}
+  });
+  const mdlO=fitLR(Xo,Yo);
+  const predO=Xo.map(x=>predictLR(mdlO,x));
+  const yMeanO=Yo.reduce((a,b)=>a+b,0)/Yo.length;
+  let ssResO=0,ssTotO=0;
+  for(let i=0;i<Yo.length;i++){
+    ssResO+=(Yo[i]-predO[i])**2;
+    ssTotO+=(Yo[i]-yMeanO)**2;
+  }
+  const origR2=1-ssResO/ssTotO;
+  
+  const elapsed=((Date.now()-startTime)/1000).toFixed(1);
+  
+  // 0.005 이상 개선 시에만 적용 (잡음 회피)
+  if(bestR2>origR2+0.005){
+    TAU_SOLAR=bestSolar;
+    TAU_WATER=bestWater;
+    TAU_TUNED_AT=new Date().toISOString();
+    saveState();
+    console.log(`[τ 튜닝] 완료 (${elapsed}초): τ_solar=${bestSolar}분, τ_water=${bestWater}분 (R² ${origR2.toFixed(3)} → ${bestR2.toFixed(3)})`);
+    // 운영 로그에 기록
+    const nowD=new Date();
+    const logT=String(nowD.getMonth()+1).padStart(2,'0')+'.'+String(nowD.getDate()).padStart(2,'0')+' '+String(nowD.getHours()).padStart(2,'0')+':'+String(nowD.getMinutes()).padStart(2,'0');
+    (state.systemLogs=state.systemLogs||[]).unshift({
+      id:newId('sl'),
+      time:logT,
+      timestamp:nowD.toISOString(),
+      type:'tau_tune',
+      message:`🔬 자동 시정수 튜닝 — τ_solar ${origSolar}→${bestSolar}분, τ_water ${origWater}→${bestWater}분 (R² ${origR2.toFixed(3)}→${bestR2.toFixed(3)})`
+    });
+    return true;
+  } else {
+    console.log(`[τ 튜닝] 개선 없음 (${elapsed}초): 기본 τ_solar=${origSolar}, τ_water=${origWater} 유지`);
+    return false;
+  }
 }
 
 function loadState(){try{const raw=localStorage.getItem(LS);if(raw){const obj=JSON.parse(raw);state={...state,...obj};}}catch(e){}
@@ -1414,14 +1524,15 @@ function features(r){
   ];
 }
 
-function formulaFeaturesCurrent(z){
-  // 현재 wx 객체 + 살수 상태 기반으로 features 구성
-  const today=new Date().toISOString().slice(0,10);
-  const now=new Date();
-  const hr=now.getHours()+now.getMinutes()/60;
-  const timeStr=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+function formulaFeaturesCurrent(z, futureMin){
+  // ★ v6.5 futureMin: 현재로부터 N분 후 features 계산 (기본 0 = 현재)
+  // 30분 후 예측 시 futureMin=30 사용하면 시각/누적/물 변수도 일관되게 계산
+  const target=new Date(Date.now()+(futureMin||0)*60*1000);
+  const today=target.toISOString().slice(0,10);
+  const hr=target.getHours()+target.getMinutes()/60;
+  const timeStr=String(target.getHours()).padStart(2,'0')+':'+String(target.getMinutes()).padStart(2,'0');
   
-  // 가상 r 객체 생성
+  // 가상 r 객체 생성 (wx는 호출자가 미래 기상으로 설정한 상태여야 함)
   const r={
     air:wx.air, solar:wx.solar, hum:wx.hum, wind:wx.wind,
     time:timeStr, zone:z.id,
@@ -1500,11 +1611,15 @@ function trainAllModels(runTf=true){
   let train=state.measurements.filter(r=>{
     if(!isFinite(r.pt)||r.pt<=-20||r.pt>=100)return false;
     if(!isFinite(r.air)||!isFinite(r.solar)||!isFinite(r.hum)||!isFinite(r.wind))return false;
-    // 살수 데이터: 살수 직후(after 측정값)는 제외하고 일반 pt만 사용
-    // → 살수 행의 pt는 살수 전 실측이므로 안전
     return true;
   });
   if(train.length<5){toast('학습 데이터 부족: 회귀식/AI 학습 보류');return}
+  
+  // ★ v6.5 자동 시정수 튜닝 — 데이터 100건 이상이고 아직 안 했을 때 (조용히 1회)
+  if(!_tauTunedThisSession && train.length>=100){
+    autoTuneTau();
+    _tauTunedThisSession=true;
+  }
   
   // ★ v6.5 학습 전 features 사전계산
   train.forEach(enrichRowForFeatures);
@@ -1661,8 +1776,8 @@ async function trainTfModel(show=true){
   render();if(show)toast(tfReady?'TensorFlow.js AI 보정모델 학습 완료':'AI 성능 미달: 상관식 fallback 적용')
 }
 function predictAiResidual(x){if(!tfReady||!tfModel||!normInfo)return 0;const xn=x.map((v,i)=>((Number(v)||0)-(normInfo.means[i]||0))/(normInfo.stds[i]||1));const t=tf.tensor2d([xn]);let v=tfModel.predict(t).dataSync()[0];t.dispose();v=v*(normInfo.yStd||1)+(normInfo.yMean||0);return clamp(v,-12,12,0)}function coolingEffect(zid,temp){const rows=state.measurements.filter(r=>r.spk&&r.zone==zid&&r.after!=='');if(rows.length){return rows.reduce((a,r)=>a+(r.pt-r.after),0)/rows.length}const all=state.measurements.filter(r=>r.spk&&r.after!=='');return all.length?all.reduce((a,r)=>a+(r.pt-r.after),0)/all.length:6.0}
-function calcPred(z){
-  const x=formulaFeaturesCurrent(z);
+function calcPred(z, futureMin){
+  const x=formulaFeaturesCurrent(z, futureMin);
   let formula=clamp(predictLR(formulaModel,x)+((z.id-3)*0.12),0,90,wx.pave||45);
   let ai=clamp(formula+predictAiResidual(x),0,90,formula);
   let final=clamp((tfReady?ai:formula)+(state.corr[z.id]||0),0,90,formula);
@@ -1678,7 +1793,6 @@ function calcPred(z){
       formula=clamp(final-0.9,0,90,final);
     }
     // 30분 이후: water_decay 변수가 살수 효과를 학습 모델에 자동 반영
-    // → formula/ai/final 그대로 사용 (hardcoded reheat 제거)
   }
   return{formula:+formula.toFixed(1),ai:+ai.toFixed(1),final:+final.toFixed(1),sprinkled}
 }
@@ -1708,7 +1822,8 @@ function calcPred30min(z){
   if(fwx.wcode!=null)wx.wcode=fwx.wcode;
   let result;
   try{
-    result=calcPred(z);
+    // ★ v6.5 futureMin=30 전달 — 시각/누적/물 변수도 30분 후 기준으로 일관 계산
+    result=calcPred(z, 30);
   }catch(err){
     result={formula:0,ai:0,final:0,sprinkled:null};
   }
@@ -1717,9 +1832,8 @@ function calcPred30min(z){
   return result;
 }
 let sensorBarBuilt=false;
+let _lastSolarDecay=null;  // ★ v6.5 추세 화살표용 이전값
 function sensorCards(){
-  // ★ v6.5 정돈된 7개 카드 (시스템 상태 카드 제거 — 상단 탭바와 중복)
-  // 일사량 카드에 누적 일사량 함께 표시 (열관성 시각화)
   const wInfo=weatherInfo(wx.wcode);
   const wDir=windDirInfo(wx.dir);
   const precipVal=wx.precip!=null?Number(wx.precip).toFixed(1):'0.0';
@@ -1728,9 +1842,27 @@ function sensorCards(){
   const nowHr=new Date().getHours();
   let solarDecayVal=0;
   try{solarDecayVal=calcSolarDecay(today,nowHr,4);}catch(err){solarDecayVal=0;}
+  // ★ 추세 계산 (이전값 대비)
+  let trendArrow='→',trendVal='',trendColor='#666';
+  if(_lastSolarDecay!=null&&isFinite(_lastSolarDecay)){
+    const diff=solarDecayVal-_lastSolarDecay;
+    const sign=diff>=0?'+':'';
+    trendVal=`${sign}${diff.toFixed(1)}`;
+    if(diff>=0.5){trendArrow='▲';trendColor='#d71920';}
+    else if(diff>=0.1){trendArrow='↗';trendColor='#ff6f00';}
+    else if(diff<=-0.5){trendArrow='▼';trendColor='#0054c8';}
+    else if(diff<=-0.1){trendArrow='↘';trendColor='#1976e8';}
+  }
+  _lastSolarDecay=solarDecayVal;
+  // 가열/식는 중 라벨
+  let trendLabel='안정';
+  if(trendArrow==='▲'||trendArrow==='↗')trendLabel='가열 중';
+  else if(trendArrow==='▼'||trendArrow==='↘')trendLabel='식는 중';
+  
   const items=[
     ['🌡️','기온',         wx.air,                 '℃',     'Open-Meteo','orange','air',    'num'],
-    ['☀️','일사량',       wx.solar,               'MJ/㎡',  'Open-Meteo','orange','sol',    'solar'],
+    ['☀️','일사량',       wx.solar,               'MJ/㎡',  'Open-Meteo','orange','sol',    'num'],
+    ['📊','누적 일사 (4h)',solarDecayVal,         'MJ/㎡',  '계산값','red','solar-decay','decay'],
     ['💧','습도',         wx.hum,                 '%',     'Open-Meteo','blue',  'hum',    'num'],
     ['〰️','풍속',         wx.wind,                'm/s',   'Open-Meteo','green', 'ws',     'num'],
     ['🧭','풍향',         wDir.kor,               wDir.full,'Open-Meteo','green', 'wd',     'text'],
@@ -1749,15 +1881,14 @@ function sensorCards(){
         } else {
           valHTML=`<span class="sv" style="font-size:18px">${val}</span>`;
         }
-      } else if(kind==='solar'){
-        // ★ 일사량 + 누적 (4시간 감쇠) 함께 표시
-        valHTML=`<span class="sv">${fmt(val,2)}</span><span class="sensor-unit">${unit}</span><div style="font-size:10px;color:#888;margin-top:3px;font-weight:700">누적 4h: <span class="sv-decay">${fmt(solarDecayVal,1)}</span> MJ/㎡</div>`;
+      } else if(kind==='decay'){
+        // ★ 누적 일사 카드 — 큰 숫자 + 추세 화살표 + 라벨
+        valHTML=`<span class="sv">${fmt(val,1)}</span><span class="sensor-unit">${unit}</span><div style="font-size:11px;font-weight:800;margin-top:3px;line-height:1.3"><span class="sv-trend-arrow" style="color:${trendColor}">${trendArrow}</span> <span class="sv-trend-val" style="color:${trendColor}">${trendVal}</span> <span class="sv-trend-label" style="color:#666">${trendLabel}</span></div>`;
       } else {
         valHTML=`<span class="sv">${fmt(val,title=='일사량'||title=='풍속'||title=='강수'?2:1)}</span><span class="sensor-unit">${unit}</span>`;
       }
       return `<div class="sensor" data-sid="${sid}"><div class="sensor-icon ${color}">${icon}</div><div><div class="sensor-title">${title}</div><div class="sensor-value ${color}">${valHTML}</div><div class="sensor-src">${src}</div></div></div>`;
     }).join('');
-    // ★ 시스템 상태 카드 제거 (상단 탭바 우측 상태점과 중복)
     area.innerHTML=h;
     sensorBarBuilt=true;
     return;
@@ -1776,14 +1907,17 @@ function sensorCards(){
         const iconEl=card.querySelector('.sensor-icon');
         if(iconEl&&iconEl.textContent!==icon)iconEl.textContent=icon;
       }
-    } else if(kind==='solar'){
-      // 일사량 + 누적
-      const newVal=fmt(val,2);
+    } else if(kind==='decay'){
+      // 누적 일사 카드 갱신
+      const newVal=fmt(val,1);
       if(valEl&&valEl.textContent!==newVal)valEl.textContent=newVal;
       if(unitEl&&unitEl.textContent!==unit)unitEl.textContent=unit;
-      const decayEl=card.querySelector('.sv-decay');
-      const newDecay=fmt(solarDecayVal,1);
-      if(decayEl&&decayEl.textContent!==newDecay)decayEl.textContent=newDecay;
+      const arrowEl=card.querySelector('.sv-trend-arrow');
+      if(arrowEl){arrowEl.textContent=trendArrow;arrowEl.style.color=trendColor;}
+      const trendValEl=card.querySelector('.sv-trend-val');
+      if(trendValEl){trendValEl.textContent=trendVal;trendValEl.style.color=trendColor;}
+      const trendLblEl=card.querySelector('.sv-trend-label');
+      if(trendLblEl&&trendLblEl.textContent!==trendLabel)trendLblEl.textContent=trendLabel;
     } else {
       const newVal=fmt(val,title=='일사량'||title=='풍속'||title=='강수'?2:1);
       if(valEl&&valEl.textContent!==newVal)valEl.textContent=newVal;
@@ -2017,9 +2151,10 @@ function updateMainStatus(){
   // 운영 시간 — 정상 예측
   // ★ v6.5 30분 후 예측 — calcPred30min 사용 (구역 카드와 동일 로직)
   const p30=calcPred30min(z);
-  const no=Math.max(p.final, p30.final);  // 자연 상승 (살수 안 함) — 현재와 30분 후 중 큰 값
+  // ★ v6.5 Math.max 제거 — 30분 후가 떨어질 수도 있음 (오후 흐림 등) 실제 모델 출력 그대로
+  const no=p30.final;
   const drop=coolingEffect(z.id,p.final);
-  const yes=clamp(no-drop*.72,0,90,no);   // 살수 시 예측 = 자연상승 - 살수 저감 효과
+  const yes=clamp(no-drop*.72,0,90,no);
   setEl('sumNo',fmt(no)+' ℃');
   setEl('sumYes',fmt(yes)+' ℃');
   setEl('sumDrop',fmt(no-yes));
