@@ -299,8 +299,8 @@ button{font-family:inherit;cursor:pointer;}
   position:relative;
   cursor:pointer;
   transition:all .15s;
-  min-height:340px;  /* ★ v6.5 콘텐츠 모두 표시 보장 (이력보기 버튼 포함) */
-  overflow:hidden;   /* ★ 내용 넘침 방지 */
+  /* ★ v6.5+ overflow:hidden 제거 — 콘텐츠 잘림 방지 */
+  /* min-height는 충분히 (콘텐츠가 모두 보이도록) */
 }
 .zone:hover{
   border-color:#0b63ce;
@@ -942,7 +942,7 @@ pre{
 </div>
 </div>
 </div></div></main>
-<main id="pane-data" class="pane data-pane"><div class="placeholder"><h2>📋 데이터 현황</h2><div class="tool-row"><button class="primary" onclick="openDataModal()">+ 현장 데이터 입력</button><button class="ghost" onclick="downloadData()">⬇️ 엑셀 다운로드</button><button class="ghost" onclick="manualBackfill()">🤖 예측치 일괄 재계산</button><button class="ghost" onclick="clearTrainingData()">🗑️ 학습데이터 초기화</button><span id="dataSummary" style="margin-left:auto;font-weight:800;color:#0b234b;">--</span></div>
+<main id="pane-data" class="pane data-pane"><div class="placeholder"><h2>📋 데이터 현황</h2><div class="tool-row"><button class="primary" onclick="openBulkDataModal()">+ 6구역 일괄 입력</button><button class="ghost" onclick="downloadData()">⬇️ 엑셀 다운로드</button><button class="ghost" onclick="manualBackfill()">🤖 예측치 일괄 재계산</button><button class="ghost" onclick="clearTrainingData()">🗑️ 학습데이터 초기화</button><span id="dataSummary" style="margin-left:auto;font-weight:800;color:#0b234b;">--</span></div>
 <!-- ★ v6.5 필터 영역 -->
 <div id="dataFilterArea" style="background:#f6f8fc;border:1px solid #d4dfee;border-radius:8px;padding:10px 12px;margin:10px 0;">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
@@ -1030,6 +1030,54 @@ pre{
 <div class="form-row"><label>살수량(L)</label><input id="dVol" type="number" step="0.1" placeholder="(살수 시)"></div>
 <div class="form-row"><label>살수후 온도(℃)</label><input id="dAfter" type="number" step="0.1" placeholder="(살수 시)"></div>
 <div class="modal-actions"><button class="ghost" onclick="closeDataModal()">취소</button><button class="primary" onclick="confirmDataRow()">저장</button></div></div></div>
+
+<!-- ★ v6.5+ 6구역 일괄 입력 모달 -->
+<div class="modal-bg" id="bulkDataModal"><div class="modal" style="width:780px;max-height:92vh;overflow-y:auto;">
+  <h2>📋 6구역 일괄 입력</h2>
+  <div style="background:#f0f6ff;border:1px solid #c8d8f0;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#0b234b;line-height:1.5;">
+    💡 <b>공통 정보 (일자·시간·기상)</b>를 1번만 입력하고 <b>6구역 측정값</b>을 한 번에 등록합니다.<br>
+    🔹 포장온도를 <b>비워두면 그 구역은 제외</b>됩니다 (선택적 입력 가능).<br>
+    🔹 살수 체크 시 살수량·살수후 온도 입력하세요.
+  </div>
+  
+  <h3 style="margin:0 0 8px;color:#0054c8;font-size:14px;">📅 공통 정보</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:50px;">일자</label><input id="bkDate" type="date" style="flex:1;"></div>
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:50px;">시간</label><input id="bkTime" type="time" style="flex:1;"></div>
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:50px;">특보</label><select id="bkWarn" style="flex:1;"><option value="0">없음</option><option value="1">주의보</option><option value="2">경보</option></select></div>
+  </div>
+  
+  <h3 style="margin:14px 0 8px;color:#0054c8;font-size:14px;">🌤️ 기상 정보 (Open-Meteo 자동)</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:60px;">기온(℃)</label><input id="bkAir" type="number" step="0.1" style="flex:1;"></div>
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:60px;">일사(MJ)</label><input id="bkSolar" type="number" step="0.01" style="flex:1;"></div>
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:60px;">습도(%)</label><input id="bkHum" type="number" step="1" style="flex:1;"></div>
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:60px;">풍속(m/s)</label><input id="bkWind" type="number" step="0.01" style="flex:1;"></div>
+  </div>
+  
+  <h3 style="margin:14px 0 8px;color:#0054c8;font-size:14px;">🌡️ 구역별 측정값 (포장온도 비우면 그 구역 제외)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px;">
+    <thead>
+      <tr style="background:#f6f8fc;">
+        <th style="padding:8px;border:1px solid #d8e0ea;text-align:left;">구역</th>
+        <th style="padding:8px;border:1px solid #d8e0ea;">포장온도(℃)</th>
+        <th style="padding:8px;border:1px solid #d8e0ea;">살수</th>
+        <th style="padding:8px;border:1px solid #d8e0ea;">살수량(L)</th>
+        <th style="padding:8px;border:1px solid #d8e0ea;">살수후 온도(℃)</th>
+      </tr>
+    </thead>
+    <tbody id="bulkZoneRows"></tbody>
+  </table>
+  
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:60px;">작업자</label><input id="bkWorker" type="text" placeholder="(선택)" style="flex:1;"></div>
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:60px;">비고</label><input id="bkNote" type="text" placeholder="(선택)" style="flex:1;"></div>
+  </div>
+  
+  <div id="bulkPreview" style="background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12px;display:none;"></div>
+  
+  <div class="modal-actions"><button class="ghost" onclick="closeBulkDataModal()">취소</button><button class="primary" onclick="confirmBulkData()" style="font-size:14px;font-weight:900;">모두 저장</button></div>
+</div></div>
 <div class="modal-bg" id="apiModal"><div class="modal" style="width:520px;max-height:88vh;overflow-y:auto;">
   <h2>🌐 Open-Meteo 설정</h2>
   <div style="background:#f0f6ff;border:1px solid #c8d8f0;border-radius:5px;padding:10px;margin-bottom:14px;font-size:12px;">
@@ -3855,6 +3903,184 @@ function openDataModal(){
   setTimeout(()=>document.getElementById('dPt').focus(),100);
 }
 
+/* ════════════════════════════════════════════════════════════════
+   v6.5+ 6구역 일괄 입력 — 운영자 효율성 개선
+   포장온도 비우면 그 구역 제외 (선택적 입력)
+   ════════════════════════════════════════════════════════════════ */
+function openBulkDataModal(){
+  const now=new Date();
+  document.getElementById('bkDate').value=now.toISOString().slice(0,10);
+  document.getElementById('bkTime').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('bkWarn').value='0';
+  document.getElementById('bkAir').value=wx.air.toFixed(1);
+  document.getElementById('bkSolar').value=wx.solar.toFixed(2);
+  document.getElementById('bkHum').value=wx.hum.toFixed(0);
+  document.getElementById('bkWind').value=wx.wind.toFixed(2);
+  document.getElementById('bkWorker').value='';
+  document.getElementById('bkNote').value='';
+  // 6구역 표 행 생성
+  const tbody=document.getElementById('bulkZoneRows');
+  tbody.innerHTML=zones.map(z=>`
+    <tr data-zone="${z.id}">
+      <td style="padding:6px 8px;border:1px solid #d8e0ea;font-weight:800;background:#fafbfc;">
+        <div style="font-size:13px;">${z.name}</div>
+        <div style="font-size:10px;color:#888;font-weight:500;">${z.sub}</div>
+      </td>
+      <td style="padding:4px;border:1px solid #d8e0ea;text-align:center;">
+        <input type="number" step="0.1" class="bk-pt" data-zone="${z.id}"
+               style="width:90px;padding:6px;text-align:center;border:1px solid #c8d8f0;border-radius:4px;font-weight:800;"
+               placeholder="(비우면 제외)" oninput="updateBulkPreview()">
+      </td>
+      <td style="padding:4px;border:1px solid #d8e0ea;text-align:center;">
+        <input type="checkbox" class="bk-spk" data-zone="${z.id}" 
+               style="width:18px;height:18px;cursor:pointer;" onchange="toggleBulkSpk(${z.id});updateBulkPreview()">
+      </td>
+      <td style="padding:4px;border:1px solid #d8e0ea;text-align:center;">
+        <input type="number" step="1" class="bk-vol" data-zone="${z.id}" disabled
+               style="width:80px;padding:6px;text-align:center;border:1px solid #c8d8f0;border-radius:4px;background:#f5f5f5;"
+               placeholder="(살수 시)">
+      </td>
+      <td style="padding:4px;border:1px solid #d8e0ea;text-align:center;">
+        <input type="number" step="0.1" class="bk-after" data-zone="${z.id}" disabled
+               style="width:80px;padding:6px;text-align:center;border:1px solid #c8d8f0;border-radius:4px;background:#f5f5f5;"
+               placeholder="(살수 시)">
+      </td>
+    </tr>
+  `).join('');
+  document.getElementById('bulkPreview').style.display='none';
+  document.getElementById('bulkDataModal').classList.add('show');
+  setTimeout(()=>{
+    const firstInput=document.querySelector('.bk-pt[data-zone="1"]');
+    if(firstInput)firstInput.focus();
+  },100);
+}
+
+function closeBulkDataModal(){
+  document.getElementById('bulkDataModal').classList.remove('show');
+}
+
+function toggleBulkSpk(zone){
+  const spk=document.querySelector(`.bk-spk[data-zone="${zone}"]`);
+  const vol=document.querySelector(`.bk-vol[data-zone="${zone}"]`);
+  const after=document.querySelector(`.bk-after[data-zone="${zone}"]`);
+  if(spk.checked){
+    vol.disabled=false;
+    after.disabled=false;
+    vol.style.background='#fff';
+    after.style.background='#fff';
+    vol.focus();
+  } else {
+    vol.disabled=true;
+    after.disabled=true;
+    vol.value='';
+    after.value='';
+    vol.style.background='#f5f5f5';
+    after.style.background='#f5f5f5';
+  }
+}
+
+function updateBulkPreview(){
+  const validCount=Array.from(document.querySelectorAll('.bk-pt')).filter(i=>i.value!==''&&isFinite(+i.value)).length;
+  const spkCount=Array.from(document.querySelectorAll('.bk-spk')).filter(c=>c.checked).length;
+  const previewEl=document.getElementById('bulkPreview');
+  if(validCount===0){
+    previewEl.style.display='none';
+    return;
+  }
+  previewEl.style.display='block';
+  previewEl.innerHTML=`📊 등록 예정: <b>${validCount}건</b>${spkCount>0?` (살수 ${spkCount}건 포함)`:''}`;
+}
+
+function confirmBulkData(){
+  const date=document.getElementById('bkDate').value;
+  const time=document.getElementById('bkTime').value;
+  const warn=+document.getElementById('bkWarn').value||0;
+  const air=+document.getElementById('bkAir').value;
+  const solar=+document.getElementById('bkSolar').value;
+  const hum=+document.getElementById('bkHum').value;
+  const wind=+document.getElementById('bkWind').value;
+  const worker=document.getElementById('bkWorker').value.trim();
+  const note=document.getElementById('bkNote').value.trim();
+  
+  // 기본 검증
+  if(!date||!time){toast('일자와 시간을 입력하세요');return;}
+  if(!isFinite(air)||!isFinite(solar)||!isFinite(hum)||!isFinite(wind)){
+    toast('기상 정보를 모두 입력하세요');return;
+  }
+  
+  // 입력된 구역 수집
+  const toAdd=[];
+  zones.forEach(z=>{
+    const pt=document.querySelector(`.bk-pt[data-zone="${z.id}"]`).value;
+    if(pt===''||!isFinite(+pt))return;  // 비어있으면 제외
+    const ptVal=+pt;
+    if(ptVal<-20||ptVal>100){toast(`구역 ${z.id} 포장온도가 범위(-20~100) 밖입니다`);return;}
+    const spk=document.querySelector(`.bk-spk[data-zone="${z.id}"]`).checked?1:0;
+    const vol=spk?+document.querySelector(`.bk-vol[data-zone="${z.id}"]`).value||0:0;
+    const after=spk?+document.querySelector(`.bk-after[data-zone="${z.id}"]`).value:'';
+    if(spk&&vol<=0){toast(`구역 ${z.id} 살수량을 입력하세요`);return;}
+    
+    // 요일 자동
+    const dt=new Date(date+'T'+time+':00');
+    const dayNames=['일','월','화','수','목','금','토'];
+    const day=dayNames[dt.getDay()];
+    
+    toAdd.push({
+      id:newId('m'),
+      date:date,day:day,time:time,zone:z.id,warn:warn,
+      air:air,solar:solar,hum:hum,wind:wind,
+      precip:wx.precip||0,cloud:wx.cloud||0,wcode:wx.wcode||0,
+      pt:ptVal,spk:spk,vol:vol,after:after,
+      truck:'',worker:worker,note:note||(spk?'일괄 입력 (살수)':'일괄 입력'),
+      source:'manual',
+      createdAt:dt.toISOString(),
+      wxSource:'manual-input',
+      wxQuality:'measured'
+    });
+  });
+  
+  if(toAdd.length===0){
+    toast('최소 1개 구역의 포장온도를 입력하세요');
+    return;
+  }
+  
+  // 일괄 추가
+  state.measurements=state.measurements||[];
+  state.measurements=[...toAdd, ...state.measurements];
+  state.measurements=sortRowsLatest(state.measurements);
+  
+  // 살수 결정 로그 (각 살수 구역마다)
+  const spkRecords=toAdd.filter(r=>r.spk);
+  const nowD=new Date();
+  const logT=String(nowD.getMonth()+1).padStart(2,'0')+'.'+String(nowD.getDate()).padStart(2,'0')+' '+String(nowD.getHours()).padStart(2,'0')+':'+String(nowD.getMinutes()).padStart(2,'0');
+  if(spkRecords.length>0){
+    spkRecords.forEach(r=>{
+      const volMsg=r.vol?`${Math.round(r.vol)}L`:'미입력';
+      (state.systemLogs=state.systemLogs||[]).unshift({
+        id:newId('sl'),
+        time:logT,
+        timestamp:nowD.toISOString(),
+        type:'sprinkle_decision',
+        zones:[r.zone],
+        message:`💧 구역 ${r.zone} 살수 결정 (일괄 입력) — 실측 ${r.pt}℃ → 살수후 ${r.after!==''?Number(r.after).toFixed(1):'—'}℃ / ${volMsg} / ${worker||'—'}`
+      });
+    });
+  }
+  
+  saveState();
+  
+  // 모델 재학습
+  if(state.measurements.length>=5){
+    trainAllModels();
+    toast(`✅ ${toAdd.length}건 일괄 등록 완료${spkRecords.length>0?` (살수 ${spkRecords.length}건)`:''} · 모델 재학습됨 (R²=${metrics.formula.r2.toFixed(3)})`);
+  } else {
+    toast(`✅ ${toAdd.length}건 일괄 등록 완료 · 학습 데이터 ${state.measurements.length}건`);
+  }
+  
+  closeBulkDataModal();
+  render();
+}
+
 function editDataRow(idOrIdx){
   // ID 또는 인덱스 모두 지원
   let r,idx;
@@ -4801,126 +5027,8 @@ function renderFileInfo(){
   box.innerHTML=h;
 }
 
-// ── 학습 옵션 적용한 features 함수로 교체 ──────────────────────
-const originalFeatures=features;
-function featuresWithOpts(r){
-  const opts=getTrainOpts();
-  let f=[r.air,r.solar,r.hum,r.wind];
-  if(opts.advanced)f=f.concat([r.solar*r.solar, r.wind*r.solar]);
-  return f;
-}
-// features 함수 덮어쓰기 (전역)
-features=featuresWithOpts;
-formulaFeaturesCurrent=function(z){
-  const opts=getTrainOpts();
-  let f=[wx.air,wx.solar,wx.hum,wx.wind];
-  if(opts.advanced)f=f.concat([wx.solar*wx.solar, wx.wind*wx.solar]);
-  return f;
-};
-
-// ── trainAllModels에 옵션 필터 적용 ──────────────────────
-const originalTrainAllModels=trainAllModels;
-trainAllModels=function(runTf=true){
-  if(!state.measurements||state.measurements.length<5){
-    if(formulaModel)formulaModel=null;
-    return;
-  }
-  const opts=getTrainOpts();
-  let filtered=state.measurements.filter(r=>isFinite(r.pt)&&r.pt>-20&&r.pt<100&&isFinite(r.air)&&isFinite(r.solar)&&isFinite(r.hum)&&isFinite(r.wind));
-  if(opts.nospk)filtered=filtered.filter(r=>!r.spk);
-  if(opts.noimputed)filtered=filtered.filter(r=>!r.imputed);
-  if(filtered.length<5){
-    toast('필터 후 학습 데이터 부족 — 옵션을 완화하세요');
-    return;
-  }
-  const X=filtered.map(features),Y=filtered.map(r=>r.pt);
-  formulaModel=fitLR(X,Y);
-  // 변수 이름 저장
-  formulaModel.featureNames=opts.advanced?
-    ['기온','일사량','습도','풍속','일사량²','풍속×일사량']:
-    ['기온','일사량','습도','풍속'];
-  const fp=X.map(x=>clamp(predictLR(formulaModel,x),0,90,wx.pave));
-  metrics.formula=calcMetrics(Y,fp);
-  metrics.formula.n=filtered.length;
-  // 구역별 보정계수
-  let sums={},cnt={};
-  filtered.forEach((r,i)=>{const e=clamp(r.pt-fp[i],-8,8,0);sums[r.zone]=(sums[r.zone]||0)+e;cnt[r.zone]=(cnt[r.zone]||0)+1;});
-  for(let z=1;z<=6;z++){if(cnt[z])state.corr[z]=+clamp(0.8*(state.corr[z]||0)+0.2*(sums[z]/cnt[z]),-6,6,0).toFixed(2);}
-  if(runTf)trainTfModel(false);
-  renderData();renderAnalysis();renderCoef();
-};
-
-// ── 회귀계수 표시 — 변수별 종합 영향도 (개선안 1) ──────────────────────
-const originalRenderCoef=renderCoef;
-renderCoef=function(){
-  const box=document.getElementById('coefBox');
-  if(!box)return;
-  if(!formulaModel||!formulaModel.coefs||!formulaModel.coefs.length){
-    box.textContent='학습된 모델이 없습니다. AI 모델 탭에서 엑셀을 먼저 업로드하세요.';
-    return;
-  }
-  const fNames=formulaModel.featureNames||['기온','일사량','습도','풍속','일사량²','풍속×일사량'];
-  const coefs=formulaModel.coefs;
-  // 평균값 계산 (학습데이터)
-  const trainRows=state.measurements||[];
-  const avgSol=trainRows.length?trainRows.reduce((s,r)=>s+r.solar,0)/trainRows.length:2;
-  const avgWind=trainRows.length?trainRows.reduce((s,r)=>s+r.wind,0)/trainRows.length:3;
-  // 인덱스
-  const idxAir=fNames.indexOf('기온'),idxSol=fNames.indexOf('일사량'),
-        idxHum=fNames.indexOf('습도'),idxWind=fNames.indexOf('풍속'),
-        idxSolSq=fNames.indexOf('일사량²'),idxWindSol=fNames.indexOf('풍속×일사량');
-  // 종합 영향도
-  let solComb=null,windComb=null;
-  if(idxSol>=0){
-    solComb=coefs[idxSol];
-    if(idxSolSq>=0)solComb+=2*avgSol*coefs[idxSolSq];
-    if(idxWindSol>=0)solComb+=avgWind*coefs[idxWindSol];
-  }
-  if(idxWind>=0){
-    windComb=coefs[idxWind];
-    if(idxWindSol>=0)windComb+=avgSol*coefs[idxWindSol];
-  }
-
-  let txt='';
-  txt+='════════════════════════════════════════════\n';
-  txt+='🎯 변수별 종합 영향도 (운영 기준)\n';
-  txt+=`평균 일사량 ${avgSol.toFixed(2)} MJ/㎡, 평균 풍속 ${avgWind.toFixed(2)} m/s 기준\n`;
-  txt+='════════════════════════════════════════════\n';
-  if(idxAir>=0)txt+=`  기온         1℃ 상승 시 → 포장온도 ${coefs[idxAir]>=0?'+':''}${coefs[idxAir].toFixed(2)}℃\n`;
-  if(solComb!==null)txt+=`  일사량 [종합] 1MJ/㎡ 증가 시 → 포장온도 ${solComb>=0?'+':''}${solComb.toFixed(2)}℃\n`;
-  if(idxHum>=0)txt+=`  습도         1% 증가 시 → 포장온도 ${coefs[idxHum]>=0?'+':''}${coefs[idxHum].toFixed(2)}℃\n`;
-  if(windComb!==null)txt+=`  풍속 [종합]   1m/s 증가 시 → 포장온도 ${windComb>=0?'+':''}${windComb.toFixed(2)}℃\n`;
-  txt+='\n💡 [종합]은 비선형/교호항을 합산한 실제 운영 영향도입니다.\n\n';
-
-  txt+='════════════════════════════════════════════\n';
-  txt+='📐 원본 회귀식 (통계 분석용)\n';
-  txt+='════════════════════════════════════════════\n';
-  txt+=`Tₚ = ${formulaModel.intercept.toFixed(3)}`;
-  coefs.forEach((c,i)=>{
-    txt+=(c>=0?' + ':' − ')+Math.abs(c).toFixed(3)+'×'+(fNames[i]||`X${i}`);
-  });
-  txt+='\n\n';
-  txt+='⚠️ 일사량 단독 계수가 음수로 보일 수 있지만,\n';
-  txt+='   일사량² 항과 함께 봐야 합니다.\n';
-  txt+='   실제 운영에서는 위 [종합] 값을 참고하세요.\n\n';
-
-  txt+='════════════════════════════════════════════\n';
-  txt+='🤖 TensorFlow.js AI 보정\n';
-  txt+='════════════════════════════════════════════\n';
-  txt+='AI 보정값 = 실측 포장온도 − 상관식 예측값\n';
-  txt+='최종 운영값 = 상관식 + AI 보정 + 구역별 동적 보정\n\n';
-
-  txt+='════════════════════════════════════════════\n';
-  txt+='📍 구역별 동적 보정계수\n';
-  txt+='════════════════════════════════════════════\n';
-  zones.forEach(z=>{
-    const c=state.corr[z.id]||0;
-    txt+=`  ${z.name}: ${c>=0?'+':''}${c.toFixed(2)}℃\n`;
-  });
-  txt+='\n';
-  txt+=`📊 모델 성능 — R² ${metrics.formula.r2.toFixed(3)} · RMSE ${metrics.formula.rmse.toFixed(2)}℃ · 학습 ${metrics.formula.n||0}건\n`;
-  box.textContent=txt;
-};
+// ★ v6.5+ 옛 v6.2 코드 (features 6개 덮어쓰기) 제거됨
+// 16개 features 함수가 정상 동작하도록 함
 
 // 초기화 시 옵션 복원 + 파일 정보 복원 + 일일 로그 로드
 setTimeout(()=>{
