@@ -290,7 +290,7 @@ button{font-family:inherit;cursor:pointer;}
   grid-template-columns:repeat(6,1fr);
   gap:10px;
   align-items:stretch;
-  margin-bottom:6px;  /* ★ v6.5 측정 가이드와의 시각 분리 */
+  margin-bottom:18px;  /* ★ v6.5+ 측정 가이드와의 시각 분리 강화 (6→18px) */
 }
 .zone{
   padding:12px 13px;
@@ -299,8 +299,7 @@ button{font-family:inherit;cursor:pointer;}
   position:relative;
   cursor:pointer;
   transition:all .15s;
-  /* ★ v6.5+ overflow:hidden 제거 — 콘텐츠 잘림 방지 */
-  /* min-height는 충분히 (콘텐츠가 모두 보이도록) */
+  z-index:3;  /* ★ v6.5+ 측정 가이드(z-index:2)보다 위에 표시 */
 }
 .zone:hover{
   border-color:#0b63ce;
@@ -497,13 +496,13 @@ button{font-family:inherit;cursor:pointer;}
 .legend span:nth-child(3){color:#d71920;}
 
 /* ═══════════ 측정 가이드 ═══════════ */
-.measure-guide{margin:6px 0 12px;}
+.measure-guide{margin:18px 0 14px;}  /* ★ v6.5+ 위 마진 강화 (6→18px) */
 .guide-card{
   background:#fff;border:1px solid var(--line);border-radius:9px;
   padding:10px 14px;display:flex;align-items:center;gap:12px;
-  box-shadow:0 2px 8px rgba(0,30,80,0.08);  /* ★ 그림자 강화 — 시각 분리 */
+  box-shadow:0 2px 8px rgba(0,30,80,0.08);
   position:relative;
-  z-index:2;  /* ★ 구역 카드 위에 표시 (호버/선택 효과와 충돌 방지) */
+  z-index:1;  /* ★ v6.5+ 카드(z-index:3)보다 아래에 — 카드의 이력보기 버튼 안 가림 */
 }
 .guide-card.heat-warning{background:linear-gradient(90deg,#fff7f7,#fff);border-color:#ef9a9a;}
 .guide-card.heat-advisory{background:linear-gradient(90deg,#fff8f0,#fff);border-color:#ffcc80;}
@@ -4008,17 +4007,30 @@ function confirmBulkData(){
     toast('기상 정보를 모두 입력하세요');return;
   }
   
-  // 입력된 구역 수집
+  // ★ v6.5+ 검증 오류 시 전체 중단 (forEach return 함정 해결)
+  let validationError=null;
   const toAdd=[];
   zones.forEach(z=>{
+    if(validationError)return;  // 이전 구역에서 오류 발생 → 더 이상 처리 안 함
     const pt=document.querySelector(`.bk-pt[data-zone="${z.id}"]`).value;
-    if(pt===''||!isFinite(+pt))return;  // 비어있으면 제외
+    if(pt===''||!isFinite(+pt))return;  // 비어있으면 그 구역만 제외 (정상)
     const ptVal=+pt;
-    if(ptVal<-20||ptVal>100){toast(`구역 ${z.id} 포장온도가 범위(-20~100) 밖입니다`);return;}
+    if(ptVal<-20||ptVal>100){
+      validationError=`구역 ${z.id} 포장온도가 범위(-20~100℃) 밖입니다: ${ptVal}℃`;
+      return;
+    }
     const spk=document.querySelector(`.bk-spk[data-zone="${z.id}"]`).checked?1:0;
     const vol=spk?+document.querySelector(`.bk-vol[data-zone="${z.id}"]`).value||0:0;
-    const after=spk?+document.querySelector(`.bk-after[data-zone="${z.id}"]`).value:'';
-    if(spk&&vol<=0){toast(`구역 ${z.id} 살수량을 입력하세요`);return;}
+    const afterRaw=document.querySelector(`.bk-after[data-zone="${z.id}"]`).value;
+    const after=spk&&afterRaw!==''?+afterRaw:'';
+    if(spk&&vol<=0){
+      validationError=`구역 ${z.id} 살수 체크되었으나 살수량을 입력하세요`;
+      return;
+    }
+    if(spk&&afterRaw!==''&&(after<-20||after>100)){
+      validationError=`구역 ${z.id} 살수후 온도가 범위 밖입니다: ${after}℃`;
+      return;
+    }
     
     // 요일 자동
     const dt=new Date(date+'T'+time+':00');
@@ -4039,9 +4051,44 @@ function confirmBulkData(){
     });
   });
   
+  // ★ 검증 오류 시 전체 등록 중단
+  if(validationError){
+    toast('❌ '+validationError);
+    return;
+  }
+  
   if(toAdd.length===0){
     toast('최소 1개 구역의 포장온도를 입력하세요');
     return;
+  }
+  
+  // ★ v6.5+ 예측치 계산 (현재 모델 기준)
+  // 입력 시점의 예측치를 기록 → 데이터 현황 탭에서 오차 비교 가능
+  if(formulaModel&&formulaModel.coefs&&formulaModel.coefs.length>0){
+    toAdd.forEach(r=>{
+      try{
+        // wx 임시 백업 후 입력값으로 교체 (해당 시각 기상 사용)
+        const savedWx={...wx};
+        wx.air=r.air; wx.solar=r.solar; wx.hum=r.hum; wx.wind=r.wind;
+        wx.precip=r.precip; wx.cloud=r.cloud; wx.wcode=r.wcode;
+        
+        const zObj=zones.find(z=>z.id===r.zone);
+        if(zObj){
+          const x=formulaFeaturesCurrent(zObj);
+          const predF=clamp(predictLR(formulaModel,x)+((r.zone-3)*0.12),0,90,r.air+10);
+          const predA=clamp(predF+predictAiResidual(x),0,90,predF);
+          const predFinal=clamp((tfReady?predA:predF)+(state.corr[r.zone]||0),0,90,predF);
+          r.predFormula=+predF.toFixed(1);
+          r.predAI=+predA.toFixed(1);
+          r.predUsed=tfReady?'ai':'formula';
+          r.predError=+(r.pt-predFinal).toFixed(1);
+        }
+        // wx 복원
+        Object.assign(wx,savedWx);
+      }catch(err){
+        console.error('예측치 계산 오류:',err);
+      }
+    });
   }
   
   // 일괄 추가
