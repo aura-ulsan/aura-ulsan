@@ -290,7 +290,7 @@ button{font-family:inherit;cursor:pointer;}
   grid-template-columns:repeat(6,1fr);
   gap:10px;
   align-items:stretch;
-  margin-bottom:18px;  /* ★ v6.5+ 측정 가이드와의 시각 분리 강화 (6→18px) */
+  margin-bottom:40px;  /* ★ v6.5+ 측정 가이드와의 시각 분리 (z-index 충돌 회피) */
 }
 .zone{
   padding:12px 13px;
@@ -299,7 +299,7 @@ button{font-family:inherit;cursor:pointer;}
   position:relative;
   cursor:pointer;
   transition:all .15s;
-  z-index:3;  /* ★ v6.5+ 측정 가이드(z-index:2)보다 위에 표시 */
+  /* ★ v6.5+ z-index 제거 — margin으로만 분리 (가림 문제 근본 해결) */
 }
 .zone:hover{
   border-color:#0b63ce;
@@ -496,13 +496,12 @@ button{font-family:inherit;cursor:pointer;}
 .legend span:nth-child(3){color:#d71920;}
 
 /* ═══════════ 측정 가이드 ═══════════ */
-.measure-guide{margin:18px 0 14px;}  /* ★ v6.5+ 위 마진 강화 (6→18px) */
+.measure-guide{margin:24px 0 14px;}  /* ★ v6.5+ 위 마진 강화 (18→24px) */
 .guide-card{
   background:#fff;border:1px solid var(--line);border-radius:9px;
   padding:10px 14px;display:flex;align-items:center;gap:12px;
   box-shadow:0 2px 8px rgba(0,30,80,0.08);
-  position:relative;
-  z-index:1;  /* ★ v6.5+ 카드(z-index:3)보다 아래에 — 카드의 이력보기 버튼 안 가림 */
+  /* ★ v6.5+ z-index 제거 — 카드와 margin으로만 분리 */
 }
 .guide-card.heat-warning{background:linear-gradient(90deg,#fff7f7,#fff);border-color:#ef9a9a;}
 .guide-card.heat-advisory{background:linear-gradient(90deg,#fff8f0,#fff);border-color:#ffcc80;}
@@ -1031,12 +1030,13 @@ pre{
 <div class="modal-actions"><button class="ghost" onclick="closeDataModal()">취소</button><button class="primary" onclick="confirmDataRow()">저장</button></div></div></div>
 
 <!-- ★ v6.5+ 6구역 일괄 입력 모달 -->
-<div class="modal-bg" id="bulkDataModal"><div class="modal" style="width:780px;max-height:92vh;overflow-y:auto;">
+<div class="modal-bg" id="bulkDataModal"><div class="modal" style="width:880px;max-height:92vh;overflow-y:auto;">
   <h2>📋 6구역 일괄 입력</h2>
   <div style="background:#f0f6ff;border:1px solid #c8d8f0;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#0b234b;line-height:1.5;">
     💡 <b>공통 정보 (일자·시간·기상)</b>를 1번만 입력하고 <b>6구역 측정값</b>을 한 번에 등록합니다.<br>
-    🔹 포장온도를 <b>비워두면 그 구역은 제외</b>됩니다 (선택적 입력 가능).<br>
-    🔹 살수 체크 시 살수량·살수후 온도 입력하세요.
+    🔹 포장온도를 <b>비워두면 그 구역은 제외</b>됩니다 (개별 입력처럼 사용 가능).<br>
+    🔹 살수 체크 시 살수량·살수후 온도 입력하세요.<br>
+    ⌨️ <b>Enter</b> — 다음 칸으로 / <b>Ctrl+Enter</b> — 모두 저장
   </div>
   
   <h3 style="margin:0 0 8px;color:#0054c8;font-size:14px;">📅 공통 정보</h3>
@@ -1047,20 +1047,20 @@ pre{
   </div>
   
   <h3 style="margin:14px 0 8px;color:#0054c8;font-size:14px;">🌤️ 기상 정보 (Open-Meteo 자동)</h3>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
-    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:60px;">기온(℃)</label><input id="bkAir" type="number" step="0.1" style="flex:1;"></div>
-    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:60px;">일사(MJ)</label><input id="bkSolar" type="number" step="0.01" style="flex:1;"></div>
-    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:60px;">습도(%)</label><input id="bkHum" type="number" step="1" style="flex:1;"></div>
-    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:60px;">풍속(m/s)</label><input id="bkWind" type="number" step="0.01" style="flex:1;"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:80px;">기온 (℃)</label><input id="bkAir" type="number" step="0.1" style="flex:1;"></div>
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:80px;">일사 (MJ/㎡)</label><input id="bkSolar" type="number" step="0.01" style="flex:1;"></div>
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:80px;">습도 (%)</label><input id="bkHum" type="number" step="1" style="flex:1;"></div>
+    <div class="form-row" style="margin:0;"><label style="width:auto;min-width:80px;">풍속 (m/s)</label><input id="bkWind" type="number" step="0.01" style="flex:1;"></div>
   </div>
   
-  <h3 style="margin:14px 0 8px;color:#0054c8;font-size:14px;">🌡️ 구역별 측정값 (포장온도 비우면 그 구역 제외)</h3>
+  <h3 style="margin:14px 0 8px;color:#0054c8;font-size:14px;">🌡️ 구역별 측정값 <span style="font-size:11px;font-weight:500;color:#888;">(포장온도 비우면 그 구역 제외)</span></h3>
   <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px;">
     <thead>
       <tr style="background:#f6f8fc;">
-        <th style="padding:8px;border:1px solid #d8e0ea;text-align:left;">구역</th>
-        <th style="padding:8px;border:1px solid #d8e0ea;">포장온도(℃)</th>
-        <th style="padding:8px;border:1px solid #d8e0ea;">살수</th>
+        <th style="padding:8px;border:1px solid #d8e0ea;text-align:left;width:230px;">구역</th>
+        <th style="padding:8px;border:1px solid #d8e0ea;width:130px;">포장온도(℃)</th>
+        <th style="padding:8px;border:1px solid #d8e0ea;width:60px;">살수</th>
         <th style="padding:8px;border:1px solid #d8e0ea;">살수량(L)</th>
         <th style="padding:8px;border:1px solid #d8e0ea;">살수후 온도(℃)</th>
       </tr>
@@ -1075,7 +1075,7 @@ pre{
   
   <div id="bulkPreview" style="background:#fff8e1;border:1px solid #ffe082;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12px;display:none;"></div>
   
-  <div class="modal-actions"><button class="ghost" onclick="closeBulkDataModal()">취소</button><button class="primary" onclick="confirmBulkData()" style="font-size:14px;font-weight:900;">모두 저장</button></div>
+  <div class="modal-actions"><button class="ghost" onclick="closeBulkDataModal()">취소</button><button class="primary" onclick="confirmBulkData()" style="font-size:14px;font-weight:900;">모두 저장 (Ctrl+Enter)</button></div>
 </div></div>
 <div class="modal-bg" id="apiModal"><div class="modal" style="width:520px;max-height:88vh;overflow-y:auto;">
   <h2>🌐 Open-Meteo 설정</h2>
@@ -3921,28 +3921,28 @@ function openBulkDataModal(){
   const tbody=document.getElementById('bulkZoneRows');
   tbody.innerHTML=zones.map(z=>`
     <tr data-zone="${z.id}">
-      <td style="padding:6px 8px;border:1px solid #d8e0ea;font-weight:800;background:#fafbfc;">
-        <div style="font-size:13px;">${z.name}</div>
-        <div style="font-size:10px;color:#888;font-weight:500;">${z.sub}</div>
+      <td style="padding:8px 10px;border:1px solid #d8e0ea;background:#fafbfc;">
+        <div style="font-size:13px;font-weight:800;color:#0b234b;">${z.name}</div>
+        <div style="font-size:10px;color:#888;font-weight:500;margin-top:2px;">${z.sub}</div>
       </td>
       <td style="padding:4px;border:1px solid #d8e0ea;text-align:center;">
         <input type="number" step="0.1" class="bk-pt" data-zone="${z.id}"
-               style="width:90px;padding:6px;text-align:center;border:1px solid #c8d8f0;border-radius:4px;font-weight:800;"
-               placeholder="(비우면 제외)" oninput="updateBulkPreview()">
+               style="width:100px;padding:8px 6px;text-align:center;border:1px solid #c8d8f0;border-radius:4px;font-weight:800;font-size:14px;"
+               placeholder="℃" oninput="updateBulkPreview()" onkeydown="bulkKeyHandler(event,${z.id},'pt')">
       </td>
       <td style="padding:4px;border:1px solid #d8e0ea;text-align:center;">
         <input type="checkbox" class="bk-spk" data-zone="${z.id}" 
-               style="width:18px;height:18px;cursor:pointer;" onchange="toggleBulkSpk(${z.id});updateBulkPreview()">
+               style="width:22px;height:22px;cursor:pointer;" onchange="toggleBulkSpk(${z.id});updateBulkPreview()">
       </td>
       <td style="padding:4px;border:1px solid #d8e0ea;text-align:center;">
         <input type="number" step="1" class="bk-vol" data-zone="${z.id}" disabled
-               style="width:80px;padding:6px;text-align:center;border:1px solid #c8d8f0;border-radius:4px;background:#f5f5f5;"
-               placeholder="(살수 시)">
+               style="width:90px;padding:6px;text-align:center;border:1px solid #c8d8f0;border-radius:4px;background:#f5f5f5;"
+               placeholder="L" onkeydown="bulkKeyHandler(event,${z.id},'vol')">
       </td>
       <td style="padding:4px;border:1px solid #d8e0ea;text-align:center;">
         <input type="number" step="0.1" class="bk-after" data-zone="${z.id}" disabled
-               style="width:80px;padding:6px;text-align:center;border:1px solid #c8d8f0;border-radius:4px;background:#f5f5f5;"
-               placeholder="(살수 시)">
+               style="width:90px;padding:6px;text-align:center;border:1px solid #c8d8f0;border-radius:4px;background:#f5f5f5;"
+               placeholder="℃" onkeydown="bulkKeyHandler(event,${z.id},'after')">
       </td>
     </tr>
   `).join('');
@@ -3952,6 +3952,35 @@ function openBulkDataModal(){
     const firstInput=document.querySelector('.bk-pt[data-zone="1"]');
     if(firstInput)firstInput.focus();
   },100);
+}
+
+// ★ v6.5+ 일괄 입력 키보드 단축키
+// Enter → 다음 구역의 같은 컬럼으로 이동 (포장온도)
+// Ctrl+Enter → 즉시 저장
+function bulkKeyHandler(e, zone, col){
+  if(e.key==='Enter'){
+    if(e.ctrlKey||e.metaKey){
+      e.preventDefault();
+      confirmBulkData();
+      return;
+    }
+    e.preventDefault();
+    // 다음 구역 같은 컬럼으로 이동
+    if(zone<6){
+      const next=document.querySelector(`.bk-${col}[data-zone="${zone+1}"]`);
+      if(next&&!next.disabled){
+        next.focus();
+        next.select();
+      } else if(next){
+        // 비활성이면 다음 구역의 포장온도로
+        const fallback=document.querySelector(`.bk-pt[data-zone="${zone+1}"]`);
+        if(fallback){fallback.focus();fallback.select();}
+      }
+    } else {
+      // 마지막 구역 → 저장 버튼으로
+      document.querySelector('#bulkDataModal .primary').focus();
+    }
+  }
 }
 
 function closeBulkDataModal(){
