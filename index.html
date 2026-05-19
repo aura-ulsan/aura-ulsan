@@ -199,9 +199,9 @@ button{font-family:inherit;cursor:pointer;}
 
 /* ═══════════ 모니터링 메인 그리드 ═══════════ */
 .main{
-  padding:14px;
-  gap:8px;  /* ★ 12→8px */
-  grid-template-rows:118px auto auto auto 1fr;  /* ★ 각 행 auto로 자연스럽게 */
+  padding:clamp(8px,1vh,14px);
+  gap:clamp(4px,0.6vh,8px);
+  grid-template-rows:clamp(90px,10vh,118px) auto auto auto 1fr;
   overflow:visible;
 }
 
@@ -294,7 +294,7 @@ button{font-family:inherit;cursor:pointer;}
   margin-bottom:8px;  /* ★ 40→8px */
 }
 .zone{
-  padding:8px 10px;  /* ★ v6.5+ 12px→8px 압축 (위아래 8px 절약) */
+  padding:clamp(5px,0.6vh,8px) clamp(7px,0.8vw,10px);
   display:flex;flex-direction:column;
   min-width:0;
   position:relative;
@@ -307,26 +307,26 @@ button{font-family:inherit;cursor:pointer;}
   box-shadow:0 3px 12px rgba(11,99,206,.12);
 }
 .zone h3{
-  font-size:18px;font-weight:900;  /* ★ 20→18px */
+  font-size:clamp(14px,1.6vh,18px);font-weight:900;
   color:#0b234b;
   line-height:1.05;
-  margin:0 0 2px;  /* ★ 3→2px */
+  margin:0 0 2px;
   letter-spacing:-.3px;
 }
 .zone-sub{
-  font-size:12px;font-weight:700;
+  font-size:clamp(10px,1.1vh,12px);font-weight:700;
   color:#48607e;
   line-height:1.3;
-  margin-bottom:5px;  /* ★ 8→5px */
-  min-height:28px;    /* ★ 34→28px */
+  margin-bottom:clamp(3px,0.4vh,5px);
+  min-height:clamp(22px,2.8vh,28px);
   word-break:keep-all;
 }
 .zone-temp{
-  font-size:26px;font-weight:900;  /* ★ 30→26px */
+  font-size:clamp(20px,2.4vh,26px);font-weight:900;
   color:#d71920;
   line-height:1;
   letter-spacing:-1.5px;
-  margin:0 0 2px;  /* ★ 4→2px */
+  margin:0 0 2px;
 }
 .zone-temp.orange{color:#ff6f00;}
 .zone-temp.green{color:#078943;}
@@ -338,9 +338,9 @@ button{font-family:inherit;cursor:pointer;}
 }
 .zone-state{
   display:flex;align-items:center;gap:6px;
-  font-size:12px;font-weight:800;
+  font-size:clamp(10px,1.1vh,12px);font-weight:800;
   color:#078943;
-  margin-bottom:6px;  /* ★ 10→6px */
+  margin-bottom:clamp(3px,0.4vh,6px);
 }
 .zone-state .dot{
   width:10px;height:10px;
@@ -358,15 +358,15 @@ button{font-family:inherit;cursor:pointer;}
   border:1px solid #d8e0ea;
   border-radius:7px;
   overflow:hidden;
-  margin-bottom:6px;  /* ★ 10→6px */
+  margin-bottom:clamp(3px,0.4vh,6px);
   background:#fbfdff;
 }
 .pred-box{
-  padding:5px 4px;  /* ★ 7→5px */
+  padding:clamp(3px,0.4vh,5px) 4px;
   text-align:center;
   border-right:1px solid #d8e0ea;
   display:flex;flex-direction:column;
-  gap:2px;  /* ★ 4→2px */
+  gap:clamp(1px,0.2vh,2px);
   min-width:0;
 }
 .pred-box:last-child{border-right:0;}
@@ -392,14 +392,14 @@ button{font-family:inherit;cursor:pointer;}
 .zone-actions{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:4px;  /* ★ 6→4px */
+  gap:3px;
   margin-top:auto;
 }
 .zone-actions button{
-  height:30px;  /* ★ 34→30px */
+  height:clamp(24px,2.8vh,30px);
   padding:0 4px;
   border-radius:6px;
-  font-size:11px;font-weight:900;  /* ★ 12→11px */
+  font-size:clamp(9px,1vh,11px);font-weight:900;
   display:inline-flex;align-items:center;justify-content:center;
   gap:3px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -497,7 +497,7 @@ button{font-family:inherit;cursor:pointer;}
 .legend span:nth-child(3){color:#d71920;}
 
 /* ═══════════ 측정 가이드 ═══════════ */
-.measure-guide{margin:8px 0 10px;}
+.measure-guide{margin:clamp(4px,0.5vh,8px) 0 clamp(6px,0.8vh,10px);}
 .guide-card{
   background:#fff;border:1px solid var(--line);border-radius:9px;
   padding:10px 14px;display:flex;align-items:center;gap:12px;
@@ -533,7 +533,7 @@ button{font-family:inherit;cursor:pointer;}
   display:grid;
   grid-template-columns:1.5fr .9fr 1.1fr;
   gap:12px;
-  min-height:340px;  /* ★ 그래프 패널 최소 높이 보장 */
+  min-height:clamp(240px,28vh,340px);  /* ★ 반응형 */
 }
 .panel{
   padding:12px 14px;
@@ -594,7 +594,8 @@ button{font-family:inherit;cursor:pointer;}
 
 .chart-wrap{
   position:relative;
-  flex:1;min-height:280px;  /* ★ v6.5 최소 높이 보장 (시인성 ↑) */
+  flex:1;
+  min-height:clamp(160px,18vh,280px);  /* ★ 반응형: 화면 높이의 18% */
 }
 
 /* 표 */
@@ -2011,7 +2012,7 @@ function zoneCards(){
     let h=zones.map(z=>`<div class="zone" data-zone="${z.id}" onclick="selectZone(${z.id})">
       <h3>${z.name}</h3>
       <div class="zone-sub">${z.sub}</div>
-      <div class="zone-future" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:5px 4px;margin:4px 0;background:#fafbfc;border-radius:8px;">
+      <div class="zone-future" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:clamp(3px,0.4vh,5px) 4px;margin:clamp(2px,0.3vh,4px) 0;background:#fafbfc;border-radius:8px;">
         <div style="text-align:center;flex:1;">
           <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:2px;">현재</div>
           <div style="font-size:26px;font-weight:900;line-height:1.1;" class="zt-now">--</div>
