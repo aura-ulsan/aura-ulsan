@@ -2363,8 +2363,13 @@ function fillDailyFromOpenMeteo(){
         wx.solar=Math.max(0,Math.min(SOLAR_MAX,hist.solar??savedWx.solar));
         wx.hum=hist.hum??savedWx.hum;
         wx.wind=hist.wind??savedWx.wind;
+        // ★ v6.5+ 해당 시간의 시각으로 _fixedNow 설정
+        // formulaFeaturesCurrent의 sin/cos/누적일사가 h시 기준으로 계산되도록
+        const histDate=new Date(today+'T'+String(h).padStart(2,'0')+':00:00');
+        window._fixedNow=histDate.getTime();
         const z=zones.find(x=>x.id==selectedZone)||zones[0];
         pt=calcPred(z).final;
+        window._fixedNow=null;  // 복원
         Object.assign(wx,savedWx);
       } else {
         pt=(hist.air||20)+(hist.solar||0)*8;
