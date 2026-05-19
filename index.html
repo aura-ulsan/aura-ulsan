@@ -293,39 +293,39 @@ button{font-family:inherit;cursor:pointer;}
   margin-bottom:40px;
 }
 .zone{
-  padding:12px 13px;
+  padding:8px 10px;  /* ★ v6.5+ 12px→8px 압축 (위아래 8px 절약) */
   display:flex;flex-direction:column;
   min-width:0;
   position:relative;
   cursor:pointer;
   transition:all .15s;
-  overflow:visible;  /* ★ 카드 콘텐츠가 잘리지 않도록 */
+  overflow:visible;
 }
 .zone:hover{
   border-color:#0b63ce;
   box-shadow:0 3px 12px rgba(11,99,206,.12);
 }
 .zone h3{
-  font-size:20px;font-weight:900;
+  font-size:18px;font-weight:900;  /* ★ 20→18px */
   color:#0b234b;
   line-height:1.05;
-  margin:0 0 3px;
+  margin:0 0 2px;  /* ★ 3→2px */
   letter-spacing:-.3px;
 }
 .zone-sub{
-  font-size:13px;font-weight:700;
+  font-size:12px;font-weight:700;
   color:#48607e;
   line-height:1.3;
-  margin-bottom:8px;
-  min-height:34px;
+  margin-bottom:5px;  /* ★ 8→5px */
+  min-height:28px;    /* ★ 34→28px */
   word-break:keep-all;
 }
 .zone-temp{
-  font-size:30px;font-weight:900;
+  font-size:26px;font-weight:900;  /* ★ 30→26px */
   color:#d71920;
   line-height:1;
   letter-spacing:-1.5px;
-  margin:0 0 4px;
+  margin:0 0 2px;  /* ★ 4→2px */
 }
 .zone-temp.orange{color:#ff6f00;}
 .zone-temp.green{color:#078943;}
@@ -337,9 +337,9 @@ button{font-family:inherit;cursor:pointer;}
 }
 .zone-state{
   display:flex;align-items:center;gap:6px;
-  font-size:13px;font-weight:800;
+  font-size:12px;font-weight:800;
   color:#078943;
-  margin-bottom:10px;
+  margin-bottom:6px;  /* ★ 10→6px */
 }
 .zone-state .dot{
   width:10px;height:10px;
@@ -357,15 +357,15 @@ button{font-family:inherit;cursor:pointer;}
   border:1px solid #d8e0ea;
   border-radius:7px;
   overflow:hidden;
-  margin-bottom:10px;
+  margin-bottom:6px;  /* ★ 10→6px */
   background:#fbfdff;
 }
 .pred-box{
-  padding:7px 4px;
+  padding:5px 4px;  /* ★ 7→5px */
   text-align:center;
   border-right:1px solid #d8e0ea;
   display:flex;flex-direction:column;
-  gap:4px;
+  gap:2px;  /* ★ 4→2px */
   min-width:0;
 }
 .pred-box:last-child{border-right:0;}
@@ -391,14 +391,14 @@ button{font-family:inherit;cursor:pointer;}
 .zone-actions{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:6px;
+  gap:4px;  /* ★ 6→4px */
   margin-top:auto;
 }
 .zone-actions button{
-  height:34px;
+  height:30px;  /* ★ 34→30px */
   padding:0 4px;
   border-radius:6px;
-  font-size:12px;font-weight:900;
+  font-size:11px;font-weight:900;  /* ★ 12→11px */
   display:inline-flex;align-items:center;justify-content:center;
   gap:3px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -918,7 +918,7 @@ pre{
 </head>
 <body>
 <div class="app">
-<header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.2</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="AURA_logout()">🔒 로그아웃</button></div></header>
+<header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.5</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div><div style="font-size:10px;color:#8a9ab0;margin-top:1px;">© 2026 AURA. All rights reserved.</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="AURA_logout()">🔒 로그아웃</button></div></header>
 <nav class="tabs"><button class="tab active" data-tab="monitor" onclick="showPane('monitor')">🏠 모니터링</button><button class="tab new" data-tab="ai" onclick="showPane('ai')">🤖 AI 모델</button><button class="tab" data-tab="data" onclick="showPane('data')">📋 데이터 현황</button><button class="tab" data-tab="ana" onclick="showPane('ana')">📊 분석</button><button class="tab" data-tab="coef" onclick="showPane('coef')">📐 회귀 계수</button><button class="tab" data-tab="log" onclick="showPane('log')">📝 운영 로그</button><button class="tab" data-tab="setting" onclick="showPane('setting')">⚙ 설정</button><span class="tab-spacer"></span><div class="mini-stat"><span><i class="dot"></i>Open-Meteo</span><span><i class="dot"></i>AI 모델</span><span><i class="dot"></i>DB 연결</span></div></nav>
 <main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><section class="zones" id="zoneArea"></section><div id="zoneLegendArea"></div><section class="measure-guide" id="measureGuide"></section><section class="bottom"><div class="panel"><div class="selected-zone-display" id="selectedZoneDisplay"><div class="sz-num">1</div><div class="sz-info"><div class="sz-name">구역 1 — 활주로 36방향 회전패드</div><div class="sz-sub">아래 그래프에 이 구역의 포장온도 예측 추이가 표시됩니다</div></div><div class="sz-hint">💡 키보드 <b>1~6</b> 또는 카드 클릭으로 빠른 전환</div></div><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 최고온도</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div class="model-state"><h4>모델 사용 상태</h4><div>현재 사용 모델</div><div class="model-current" id="currentModelText">AI 보정모델 (TF.js)</div><hr style="border:0;border-top:1px solid var(--line)"><div>선택 기준</div><b class="green" id="selectCriteria">RMSE 기준 자동 선택</b><div style="font-size:12px;color:#667;margin-top:8px">※ 회귀식보다 AI 모델 성능이 나쁠 경우 자동 fallback</div></div></div><div class="panel"><div class="panel-head"><span>최근 살수 이행 기록</span><button class="small-btn" onclick="showPane('log')">더보기</button></div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>살수량</th><th>작업 차량</th><th>작업자</th><th>비고</th></tr></thead><tbody id="recentLogs"></tbody></table></div></section></main>
 <main id="pane-ai" class="pane ai-pane"><div class="grid2"><div class="placeholder"><h2>🤖 TensorFlow.js AI 보정모델</h2><p>AI는 최종 온도를 직접 대체하지 않고, <b>상관식 예측 오차</b>를 학습합니다.</p><div class="tool-row"><label class="primary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><span>📂 엑셀 업로드</span><input type="file" accept=".xlsx,.xls" onchange="loadExcel(event)" style="display:none"></label><button class="ghost" onclick="trainTfModel()">🔄 AI 재학습</button><button class="ghost" onclick="if(confirm('학습 데이터와 모델을 모두 삭제할까요?')){state.measurements=[];state.fileInfo=null;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};localStorage.removeItem(METRICS_KEY);saveState();render();toast('초기화 완료');}">🗑️ 모델 삭제</button></div>
@@ -979,7 +979,7 @@ pre{
 <main id="pane-coef" class="pane coef-pane"><div class="placeholder"><h2>📐 회귀 계수 및 상관식</h2><pre id="coefBox"></pre><button class="ghost" onclick="resetCorrections()">구역 보정계수 초기화</button></div></main>
 <main id="pane-log" class="pane log-pane"><div class="placeholder"><h2>📝 운영 로그 — 의사결정 추적</h2><div style="font-size:12px;color:#48607e;margin-bottom:10px;line-height:1.5;">💡 <b>알람 발생/해제, AI 시각 변경, 살수 결정, 엑셀 작업, 모델 재학습</b> 등 시스템 의사결정 이벤트가 자동 기록됩니다.<br>📊 살수 측정 데이터는 <b>데이터 현황</b> 탭에서 조회/수정/삭제할 수 있습니다.</div><table class="log-table"><thead><tr><th>시간</th><th>유형</th><th>구역</th><th>의사결정 / 이벤트</th></tr></thead><tbody id="fullLogs"></tbody></table></div></main>
 <main id="pane-setting" class="pane data-pane"><div class="placeholder"><h2>⚙ 설정</h2><p>API 키와 모델 우선순위를 관리합니다.</p><div class="tool-row"><button class="primary" onclick="openApi()">API 키 설정</button><button class="ghost" onclick="localStorage.clear();location.reload();">전체 로컬 저장 초기화</button></div></div></main>
-<footer class="footer"><div>A.U.R.A SYSTEM v6.2</div><div>데이터 기준 시간: <span id="dataClock">--</span></div><div>Copyright © 2026 AURA. All rights reserved.</div></footer></div>
+</div>
 <div class="modal-bg" id="sprinkleModal"><div class="modal" style="width:480px;"><h2 id="modalTitle">구역 살수 이행</h2>
 <div class="form-row"><label>일자</label><input id="mDate" type="date" onchange="updateAutoWeatherDebounced()"></div>
 <div class="form-row"><label>시간</label><input id="mTime" type="time" onchange="updateAutoWeatherDebounced()"></div>
@@ -1161,7 +1161,7 @@ function loadMetrics(){
   }catch(e){}
 }
 loadMetrics();
-function fmt(v,d=1){return isFinite(v)?Number(v).toFixed(d):'--'}function clamp(v,min,max,fallback){v=Number(v);if(!isFinite(v))return fallback;return Math.max(min,Math.min(max,v))}function sortRowsLatest(rows){return rows.slice().sort((a,b)=>String((b.date||'')+' '+(b.time||'')).localeCompare(String((a.date||'')+' '+(a.time||''))))}function clock(){const n=new Date();const s=n.toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).replace(/\. /g,'.').replace('.','.')+' '+n.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('clock').textContent=s;document.getElementById('dataClock').textContent=s}setInterval(clock,1000);
+function fmt(v,d=1){return isFinite(v)?Number(v).toFixed(d):'--'}function clamp(v,min,max,fallback){v=Number(v);if(!isFinite(v))return fallback;return Math.max(min,Math.min(max,v))}function sortRowsLatest(rows){return rows.slice().sort((a,b)=>String((b.date||'')+' '+(b.time||'')).localeCompare(String((a.date||'')+' '+(a.time||''))))}function clock(){const n=new Date();const s=n.toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).replace(/\. /g,'.').replace('.','.')+' '+n.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('clock').textContent=s;}setInterval(clock,1000);
 
 /* ════════════════════════════════════════════════════════════════
    v6.5 일기/강수/살수 통합 유틸 함수
@@ -2009,7 +2009,7 @@ function zoneCards(){
     let h=zones.map(z=>`<div class="zone" data-zone="${z.id}" onclick="selectZone(${z.id})">
       <h3>${z.name}</h3>
       <div class="zone-sub">${z.sub}</div>
-      <div class="zone-future" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 4px;margin:8px 0;background:#fafbfc;border-radius:8px;">
+      <div class="zone-future" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:5px 4px;margin:4px 0;background:#fafbfc;border-radius:8px;">
         <div style="text-align:center;flex:1;">
           <div style="font-size:11px;color:#666;font-weight:700;margin-bottom:2px;">현재</div>
           <div style="font-size:26px;font-weight:900;line-height:1.1;" class="zt-now">--</div>
