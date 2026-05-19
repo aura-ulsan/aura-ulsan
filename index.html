@@ -629,7 +629,8 @@ button{font-family:inherit;cursor:pointer;}
   text-align:left;font-weight:800;
 }
 .log-table th,.log-table td{
-  padding:6px 6px;  /* ★ 12건 패널 안에 딱 맞도록 미세 조정 */
+  padding:8px 6px;  /* ★ 12건이 패널 하단까지 채우도록 */
+  font-size:12.5px;
 }
 .log-table td:nth-child(1){white-space:nowrap;}
 
@@ -1504,34 +1505,17 @@ if(state.logs&&state.logs.length){
   }
 }
 if(state.measurements&&state.measurements.length>=5){
-  // 회귀식 즉시 학습 (빠름)
+  // ★ v6.5+ D방식 — 회귀식 즉시 학습 후 바로 표시
+  // tfReady가 localStorage에서 true로 복원되어 있고 캐시된 _aiResidualCache가 있으면 깜빡임 없음
+  // 캐시 없으면 첫 화면은 회귀식, 1.5초 후 AI 학습 완료되면 자연스럽게 교체
   trainAllModels(false);
-  // ★ v6.5+ AI 학습 완료까지 화면을 회색으로 가린 후 한 번에 정확한 값 표시
-  // → F5 후 순간 회귀식 값 보였다가 AI 값으로 바뀌는 깜빡임 방지
-  const loadingOverlay=document.createElement('div');
-  loadingOverlay.id='aiLoadingOverlay';
-  loadingOverlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(245,248,252,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;font-family:inherit;';
-  loadingOverlay.innerHTML='<div style="font-size:48px;animation:pulse 1.2s ease-in-out infinite;">🤖</div><div style="font-size:16px;font-weight:900;color:#0054c8;">AI 보정모델 학습 중...</div><div style="font-size:12px;color:#5a6a7e;">잠시만 기다려 주세요 (약 2초)</div><style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}</style>';
-  document.body.appendChild(loadingOverlay);
-  
   setTimeout(async()=>{
     try{
-      console.log('[AI 자동 학습 시작]');
       await trainTfModel(false);
-      console.log('[AI 자동 학습 완료] R²:',metrics.ai.r2);
-      // 강제 화면 갱신
       sensorBarBuilt=false;
       if(typeof render==='function')render();
     }catch(err){
       console.error('[AI 자동 학습 실패]',err);
-    }finally{
-      // ★ 학습 완료 후 오버레이 페이드 아웃
-      const ov=document.getElementById('aiLoadingOverlay');
-      if(ov){
-        ov.style.transition='opacity 0.4s';
-        ov.style.opacity='0';
-        setTimeout(()=>ov.remove(),400);
-      }
     }
   },1500);
 }
