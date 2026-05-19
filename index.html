@@ -1872,18 +1872,13 @@ function calcPred(z, futureMin){
    v6.5 30분 후 예측 — 구역 카드에 표시할 미래 예측값
    ════════════════════════════════════════════════════════════════ */
 function calcPred30min(z){
-  // 30분 후 시각
   const future=new Date(Date.now()+30*60*1000);
   const today=future.toISOString().slice(0,10);
   const futureHr=future.getHours()+future.getMinutes()/60;
-  // 30분 후 기상 가져오기
   const fwx=getForecastAt(today,futureHr);
-  if(!fwx){
-    // Forecast 없으면 현재값으로 fallback
-    return calcPred(z);
-  }
-  // 현재 wx 백업 후 미래 기상으로 교체
-  const savedWx={...wx};
+  if(!fwx) return calcPred(z);
+  // ★ wx 완전 복사본 저장 (null 포함 모든 속성)
+  const savedWx=JSON.parse(JSON.stringify(wx));
   wx.air=fwx.air;
   wx.solar=fwx.solar;
   wx.hum=fwx.hum;
@@ -1893,13 +1888,13 @@ function calcPred30min(z){
   if(fwx.wcode!=null)wx.wcode=fwx.wcode;
   let result;
   try{
-    // ★ v6.5 futureMin=30 전달 — 시각/누적/물 변수도 30분 후 기준으로 일관 계산
-    result=calcPred(z, 30);
+    result=calcPred(z,30);
   }catch(err){
     result={formula:0,ai:0,final:0,sprinkled:null};
+  }finally{
+    // ★ finally로 항상 복원 보장 (에러 시에도)
+    Object.assign(wx,savedWx);
   }
-  // wx 원상복구
-  Object.assign(wx,savedWx);
   return result;
 }
 let sensorBarBuilt=false;
@@ -2053,10 +2048,15 @@ function zoneCards(){
     }
     zonesBuilt=true;
   }
+  // ★ v6.5+ 먼저 모든 구역 현재 예측 계산 (wx 오염 방지)
+  // calcPred30min이 wx를 임시 교체하므로, calcPred와 분리해서 순서대로 실행
+  const allPreds   = zones.map(z=>calcPred(z));
+  const allPreds30 = zones.map(z=>calcPred30min(z));
+
   // 값 업데이트
-  zones.forEach(z=>{
-    const p=calcPred(z);
-    const p30=calcPred30min(z);
+  zones.forEach((z,zi)=>{
+    const p=allPreds[zi];
+    const p30=allPreds30[zi];
     const card=area.querySelector(`[data-zone="${z.id}"]`);
     if(!card)return;
     
