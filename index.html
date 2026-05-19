@@ -2330,8 +2330,10 @@ function drawChart(){
     setTimeout(fillDailyFromOpenMeteo,200);
   }
 
-  const nowHr=new Date().getHours()+new Date().getMinutes()/60;
-  const today=new Date().toISOString().slice(0,10);
+  // ★ 고정 시각 사용 — refreshPredCache와 동일한 시각 기준
+  const _now=new Date(window._fixedNow||Date.now());
+  const nowHr=_now.getHours()+_now.getMinutes()/60;
+  const today=_now.toISOString().slice(0,10);
   const ACCURATE_HOURS=3;
   const accurateEnd=Math.min(OP_END,nowHr+ACCURATE_HOURS);
 
@@ -2340,11 +2342,21 @@ function drawChart(){
     .filter(d=>d.src==='estimated'&&d.hour>=OP_START&&d.hour<=nowHr)
     .map(d=>({x:d.hour,y:d.temp}));
 
+  // ★ 현재 시점 예측값을 pastData 끝에 추가 (파란 실선이 현재까지 이어지도록)
+  if(nowHr>=OP_START&&nowHr<=OP_END){
+    const cached=window._cachedPreds&&window._cachedPreds[selectedZone];
+    if(cached){
+      const lastPast=pastData[pastData.length-1];
+      if(!lastPast||Math.abs(lastPast.x-nowHr)>0.05){
+        pastData.push({x:nowHr,y:cached.final});
+      }
+    }
+  }
+
   // ★ [2] 실측 포인트 — 운영자가 직접 입력한 현장 측정값 (선 없이 포인트만)
   const measuredPoints=dailyTempLog
     .filter(d=>d.src==='measured'&&d.hour>=OP_START&&d.hour<=OP_END)
     .map(d=>({x:d.hour,y:d.temp}));
-  // ★ 가짜 실측 추가 제거 (wx.pave를 실측으로 넣던 코드 삭제)
 
   // ★ [3] 단기 예측 (현재~+3시간) + [4] 장기 예측 (+3시간~20시)
   const futureData=[];
@@ -2353,11 +2365,14 @@ function drawChart(){
   if(formulaModel&&nowHr<OP_END){
     const z=zones.find(x=>x.id==selectedZone)||zones[0];
     const savedWx=JSON.parse(JSON.stringify(wx));
-    const startFh=Math.max(OP_START,Math.ceil(nowHr*2)/2);
+    // ★ 현재 시각을 포함한 시점부터 시작 (30분 단위)
+    const startFh=Math.max(OP_START,Math.floor(nowHr*2)/2);
     const hasForecast=!!forecastCache[today];
     const SAFE_AIR=[15,38],SAFE_SOLAR=[0.3,3.5],SAFE_HUM=[20,95],SAFE_WIND=[0.5,15];
 
     for(let fh=startFh;fh<=OP_END;fh+=0.5){
+      // ★ 각 시점의 시각으로 _fixedNow 설정 (features 계산 일관성)
+      window._fixedNow=_now.getTime()+(fh-nowHr)*3600*1000;
       if(hasForecast){
         const fwx=getForecastAt(today,fh);
         if(fwx){
@@ -2374,11 +2389,14 @@ function drawChart(){
       if(fh<=accurateEnd) futureData.push({x:fh,y:pt});
       else futureRefData.push({x:fh,y:pt});
     }
+    // ★ _fixedNow 복원 (현재 시각으로)
+    window._fixedNow=_now.getTime();
     Object.assign(wx,savedWx);
 
     // 부드러운 연결 (10℃ 이상 점프만 완화)
     if(futureData.length>=2){
-      const currentVal=wx.pave;
+      const currentVal=window._cachedPreds&&window._cachedPreds[selectedZone]?
+        window._cachedPreds[selectedZone].final : wx.pave;
       if(Math.abs(futureData[0].y-currentVal)>10){
         for(let i=0;i<Math.min(2,futureData.length);i++){
           const r=0.3*(1-i*0.5);
@@ -2387,10 +2405,10 @@ function drawChart(){
       }
     }
 
-    // 과거→예측 연결점
+    // 과거→예측 연결 (이미 현재 시점이 pastData 끝에 있으므로 자동 연결)
     if(pastData.length>0&&futureData.length>0){
       const lastPast=pastData[pastData.length-1];
-      if(futureData[0].x>lastPast.x)
+      if(futureData[0].x>lastPast.x+0.1)
         futureData.unshift({x:lastPast.x,y:lastPast.y});
     }
     // 단기→장기 연결
