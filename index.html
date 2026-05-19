@@ -1596,9 +1596,9 @@ function features(r){
 }
 
 function formulaFeaturesCurrent(z, futureMin){
-  // ★ v6.5 futureMin: 현재로부터 N분 후 features 계산 (기본 0 = 현재)
-  // 30분 후 예측 시 futureMin=30 사용하면 시각/누적/물 변수도 일관되게 계산
-  const target=new Date(Date.now()+(futureMin||0)*60*1000);
+  // ★ v6.5+ window._fixedNow 사용 — refreshPredCache에서 고정된 시각으로 계산
+  // 매번 Date.now() 호출 시 밀리초 차이로 sin/cos, 누적일사 등이 달라지는 문제 해결
+  const target=new Date((window._fixedNow||Date.now())+(futureMin||0)*60*1000);
   const today=target.toISOString().slice(0,10);
   const hr=target.getHours()+target.getMinutes()/60;
   const timeStr=String(target.getHours()).padStart(2,'0')+':'+String(target.getMinutes()).padStart(2,'0');
@@ -1872,7 +1872,7 @@ function calcPred(z, futureMin){
    v6.5 30분 후 예측 — 구역 카드에 표시할 미래 예측값
    ════════════════════════════════════════════════════════════════ */
 function calcPred30min(z){
-  const future=new Date(Date.now()+30*60*1000);
+  const future=new Date((window._fixedNow||Date.now())+30*60*1000);
   const today=future.toISOString().slice(0,10);
   const futureHr=future.getHours()+future.getMinutes()/60;
   const fwx=getForecastAt(today,futureHr);
@@ -1903,9 +1903,10 @@ function sensorCards(){
   const wInfo=weatherInfo(wx.wcode);
   const wDir=windDirInfo(wx.dir);
   const precipVal=wx.precip!=null?Number(wx.precip).toFixed(1):'0.0';
-  // ★ 감쇠 누적 일사 계산 (선택된 구역 기준)
-  const today=new Date().toISOString().slice(0,10);
-  const nowHr=new Date().getHours();
+  // ★ 감쇠 누적 일사 계산 (선택된 구역 기준, 고정 시각 사용)
+  const _sNow=new Date(window._fixedNow||Date.now());
+  const today=_sNow.toISOString().slice(0,10);
+  const nowHr=_sNow.getHours();
   let solarDecayVal=0;
   try{solarDecayVal=calcSolarDecay(today,nowHr,4,selectedZone||1);}catch(err){solarDecayVal=0;}
   // ★ 추세 계산 (이전값 대비)
@@ -4477,16 +4478,23 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 function refreshPredCache(){
   window._cachedPreds={};
   window._cachedPreds30={};
-  // 1단계: 모든 구역 현재 예측 (wx 오염 없음)
-  const allP=zones.map(z=>calcPred(z));
-  // 2단계: 모든 구역 30분 후 예측 (wx 교체→복원, 현재 예측과 분리)
-  const allP30=zones.map(z=>calcPred30min(z));
-  zones.forEach((z,i)=>{
-    window._cachedPreds[z.id]=allP[i];
-    window._cachedPreds30[z.id]=allP30[i];
-  });
-  // wx.pave도 캐시에서 계산 (일관성 보장)
-  wx.pave=Math.max(...allP.map(p=>p.final));
+  // ★ 시각 고정 — 이 함수 안에서만 동일한 시각으로 계산
+  window._fixedNow=Date.now();
+  try{
+    // 1단계: 모든 구역 현재 예측 (wx 오염 없음)
+    const allP=zones.map(z=>calcPred(z));
+    // 2단계: 모든 구역 30분 후 예측 (wx 교체→복원, 현재 예측과 분리)
+    const allP30=zones.map(z=>calcPred30min(z));
+    zones.forEach((z,i)=>{
+      window._cachedPreds[z.id]=allP[i];
+      window._cachedPreds30[z.id]=allP30[i];
+    });
+    // wx.pave도 캐시에서 계산 (일관성 보장)
+    wx.pave=Math.max(...allP.map(p=>p.final));
+  }finally{
+    // ★ 항상 해제 (에러 시에도)
+    window._fixedNow=null;
+  }
 }
 
 function render(){
