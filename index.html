@@ -2357,7 +2357,7 @@ function fillDailyFromOpenMeteo(){
       if(formulaModel){
         const savedWx={...wx};
         wx.air=hist.air??savedWx.air;
-        wx.solar=hist.solar??savedWx.solar;
+        wx.solar=Math.max(0,Math.min(SOLAR_MAX,hist.solar??savedWx.solar));  // ★ 클리핑
         wx.hum=hist.hum??savedWx.hum;
         wx.wind=hist.wind??savedWx.wind;
         const z=zones.find(x=>x.id==selectedZone)||zones[0];
@@ -4648,7 +4648,7 @@ function fetchHistoryWeather(startDate,endDate){
       for(let i=0;i<h.time.length;i++){
         const ts=h.time[i],datePart=ts.split('T')[0],hourPart=parseInt(ts.split('T')[1].split(':')[0]);
         if(!historyCache[datePart])historyCache[datePart]={};
-        const solarMJ=h.shortwave_radiation[i]!==null?+(h.shortwave_radiation[i]*0.0036).toFixed(2):null;
+        const solarMJ=h.shortwave_radiation[i]!==null?+Math.min(SOLAR_MAX,Math.max(0,h.shortwave_radiation[i]*0.0036)).toFixed(2):null;
         historyCache[datePart][hourPart]={
           air: h.temperature_2m[i]!==null?+h.temperature_2m[i].toFixed(1):null,
           solar: solarMJ,
