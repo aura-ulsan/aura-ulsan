@@ -1166,7 +1166,7 @@ pre{
   </div>
 </div></div>
 <script>
-const LS='aura_v62_full_state';let chart=null,analysisChart=null,currentZoneForModal=1,selectedZone=1,tfReady=false;let formulaModel=null,tfModel=null,normInfo=null,metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};let wx={pave:24.5,air:20.0,solar:3.48,hum:30,wind:7.10,dir:305,dew:8.0,precip:0,cloud:0,wcode:0};const zones=[{id:1,name:'구역 1',sub:'활주로 36방향 회전패드',base:46.1},{id:2,name:'구역 2',sub:'활주로 36방향 목표점표지',base:46.1},{id:3,name:'구역 3',sub:'활주로 진입지점',base:46.1},{id:4,name:'구역 4',sub:'활주로 18방향 목표점표지',base:46.1},{id:5,name:'구역 5',sub:'활주로 18방향 회전패드',base:46.1},{id:6,name:'구역 6',sub:'계류장',base:46.1}];let state={corr:{1:0,2:0,3:0,4:0,5:0,6:0},sprinkled:{},measurements:null,systemLogs:[]};
+const LS='aura_v62_full_state';let chart=null,analysisChart=null,currentZoneForModal=1,selectedZone=1,tfReady=false;let formulaModel=null,tfModel=null,normInfo=null,metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};let wx={pave:24.5,air:20.0,solar:0,hum:30,wind:7.10,dir:305,dew:8.0,precip:0,cloud:0,wcode:0};const zones=[{id:1,name:'구역 1',sub:'활주로 36방향 회전패드',base:46.1},{id:2,name:'구역 2',sub:'활주로 36방향 목표점표지',base:46.1},{id:3,name:'구역 3',sub:'활주로 진입지점',base:46.1},{id:4,name:'구역 4',sub:'활주로 18방향 목표점표지',base:46.1},{id:5,name:'구역 5',sub:'활주로 18방향 회전패드',base:46.1},{id:6,name:'구역 6',sub:'계류장',base:46.1}];let state={corr:{1:0,2:0,3:0,4:0,5:0,6:0},sprinkled:{},measurements:null,systemLogs:[]};
 
 // ★ metrics localStorage 저장/복원 — F5 시 즉시 R² 표시
 const METRICS_KEY='aura_v62_metrics';
@@ -4873,17 +4873,22 @@ function updateWxFromForecast(){
   const today=new Date().toISOString().slice(0,10);
   const nowHr=new Date().getHours()+new Date().getMinutes()/60;
   const fwx=getForecastAt(today,nowHr);
-  if(!fwx)return;
+
+  if(!fwx){
+    // ★ v6.5+ forecast 없는 시간대 = 야간 또는 데이터 없음
+    // → solar 0으로 강제 (낮 값이 잔류하지 않도록)
+    wx.solar=0;
+    return;
+  }
   wx.air=+fwx.air.toFixed(1);
-  wx.solar=+fwx.solar.toFixed(2);
+  // ★ forecast가 있어도 solar가 비정상이면 클리핑
+  wx.solar=Math.max(0,Math.min(SOLAR_MAX,+fwx.solar.toFixed(2)));
   wx.hum=Math.round(fwx.hum);
   wx.wind=+fwx.wind.toFixed(2);
   if(fwx.dir!=null)wx.dir=Math.round(fwx.dir);
-  // ★ v6.5 강수/구름/일기
   if(fwx.precip!=null)wx.precip=Number(fwx.precip);
   if(fwx.cloud!=null)wx.cloud=Number(fwx.cloud);
   if(fwx.wcode!=null)wx.wcode=Number(fwx.wcode);
-  // 이슬점 근사 계산 (Magnus 공식)
   const a=17.27,b=237.7;
   const alpha=Math.log(fwx.hum/100)+(a*fwx.air)/(b+fwx.air);
   wx.dew=+((b*alpha)/(a-alpha)).toFixed(1);
