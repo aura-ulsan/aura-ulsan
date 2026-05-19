@@ -2360,7 +2360,7 @@ function fillDailyFromOpenMeteo(){
       if(formulaModel){
         const savedWx={...wx};
         wx.air=hist.air??savedWx.air;
-        wx.solar=Math.max(0,Math.min(SOLAR_MAX,hist.solar??savedWx.solar));  // ★ 클리핑
+        wx.solar=Math.max(0,Math.min(SOLAR_MAX,hist.solar??savedWx.solar));
         wx.hum=hist.hum??savedWx.hum;
         wx.wind=hist.wind??savedWx.wind;
         const z=zones.find(x=>x.id==selectedZone)||zones[0];
@@ -2371,12 +2371,25 @@ function fillDailyFromOpenMeteo(){
       }
       estimated.push({hour:h,temp:pt,src:'estimated'});
     }
-    // ★ v6.5+ estimated는 새로 계산한 값만 사용
-    // 기존 dailyTempLog의 estimated는 버리고 measured만 유지
+    // ★ v6.5+ 완전 교체:
+    // 1. measured만 유지
+    // 2. estimated는 새로 계산한 값만
+    // 3. nowHr 이후의 recordDailyTemp estimated는 제거 (과거 시간대 오염 방지)
     const prevMeasured=dailyTempLog.filter(d=>d.src==='measured');
-    const merged=estimated.concat(prevMeasured);
+    // nowHr 이후의 recordDailyTemp 값 (현재 시각 근처)만 유지
+    const recentEst=dailyTempLog.filter(d=>d.src==='estimated'&&d.hour>=nowHr);
+    const merged=[...estimated,...recentEst,...prevMeasured];
     merged.sort((a,b)=>a.hour-b.hour);
-    dailyTempLog=merged;
+    // 같은 시간대 중복 제거 (정수 시각은 새로 계산한 estimated 우선)
+    const seen=new Set();
+    dailyTempLog=merged.filter(d=>{
+      const key=Math.round(d.hour*2)/2;  // 30분 단위로 중복 체크
+      if(d.src==='measured')return true;  // measured는 항상 유지
+      if(seen.has(key))return false;
+      seen.add(key);
+      return true;
+    });
+    dailyTempLog.sort((a,b)=>a.hour-b.hour);
     saveDailyLog();
     drawChart();
     console.log(`Open-Meteo 보충: ${estimated.length}개 추정점`);
