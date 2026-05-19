@@ -2183,16 +2183,8 @@ function updateMainStatus(){
   selectedZone=id;
   const z=zones.find(x=>x.id==id);
   if(!z)return;
-  // ★ v6.5+ 1회 계산 후 캐시 — zoneCards/updateSummary/drawChart 중복 계산 방지
-  // wx 오염 없이 일관된 값 보장
-  window._cachedPreds={};
-  window._cachedPreds30={};
-  const allP=zones.map(z=>calcPred(z));
-  const allP30=zones.map(z=>calcPred30min(z));
-  zones.forEach((z,i)=>{
-    window._cachedPreds[z.id]=allP[i];
-    window._cachedPreds30[z.id]=allP30[i];
-  });
+  // ★ v6.5+ 캐시 1회 갱신 — F5/좌우키/숫자키 모두 동일한 계산 경로
+  refreshPredCache();
   const t1=document.getElementById('selectedZoneTitle');
   if(t1)t1.textContent=`(${z.name})`;
   const t2=document.getElementById('perfZone');
@@ -4478,7 +4470,41 @@ function resetCfgDefaults(){
   });
 }
 // 기존 saveApi (혹시 다른 곳에서 호출 시)
-function saveApi(){saveCfg();}function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}function render(){wx.pave=Math.max(...zones.map(z=>calcPred(z).final));sensorCards();zoneCards();selectZone(selectedZone);logsRender();renderData();renderAnalysis();renderCoef();renderFileInfo();renderMeasureGuide();saveState()}
+function saveApi(){saveCfg();}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500)}
+
+// ★ v6.5+ 예측 캐시 1회 계산 — render/selectZone/좌우키 모두 동일한 값 사용
+function refreshPredCache(){
+  window._cachedPreds={};
+  window._cachedPreds30={};
+  // 1단계: 모든 구역 현재 예측 (wx 오염 없음)
+  const allP=zones.map(z=>calcPred(z));
+  // 2단계: 모든 구역 30분 후 예측 (wx 교체→복원, 현재 예측과 분리)
+  const allP30=zones.map(z=>calcPred30min(z));
+  zones.forEach((z,i)=>{
+    window._cachedPreds[z.id]=allP[i];
+    window._cachedPreds30[z.id]=allP30[i];
+  });
+  // wx.pave도 캐시에서 계산 (일관성 보장)
+  wx.pave=Math.max(...allP.map(p=>p.final));
+}
+
+function render(){
+  refreshPredCache();  // ★ 1회 계산 후 캐시
+  sensorCards();
+  zoneCards();
+  // selectZone은 캐시 갱신 없이 UI만 업데이트
+  const z=zones.find(x=>x.id==selectedZone);
+  if(z){
+    const t1=document.getElementById('selectedZoneTitle');
+    if(t1)t1.textContent=`(${z.name})`;
+    const t2=document.getElementById('perfZone');
+    if(t2)t2.textContent=`(${z.name})`;
+  }
+  updateSummary();
+  drawChart();
+  logsRender();renderData();renderAnalysis();renderCoef();renderFileInfo();renderMeasureGuide();saveState();
+}
 
 /* ════════════════════════════════════════════════════════════════
    v6.2 + v6.0 통합 — Open-Meteo, 학습 옵션, 회귀계수 종합 영향도
