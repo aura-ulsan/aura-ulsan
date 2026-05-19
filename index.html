@@ -2377,7 +2377,10 @@ function fillDailyFromOpenMeteo(){
       }
       estimated.push({hour:h,temp:pt,src:'estimated'});
     }
-    const merged=estimated.concat(dailyTempLog);
+    // ★ v6.5+ estimated는 새로 계산한 값만 사용
+    // 기존 dailyTempLog의 estimated는 버리고 measured만 유지
+    const prevMeasured=dailyTempLog.filter(d=>d.src==='measured');
+    const merged=estimated.concat(prevMeasured);
     merged.sort((a,b)=>a.hour-b.hour);
     dailyTempLog=merged;
     saveDailyLog();
