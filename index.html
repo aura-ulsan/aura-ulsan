@@ -2300,18 +2300,12 @@ function loadDailyLog(){
     const saved=JSON.parse(raw);
     const today=new Date().toISOString().slice(0,10);
     if(saved.date===today){
-      dailyTempLog=saved.log||[];
+      // ★ v6.5+ estimated는 항상 재계산 — measured만 복원
+      // 클리핑 오류, 모델 변경 등 어떤 경우에도 항상 최신 코드로 계산
+      const allLog=saved.log||[];
+      dailyTempLog=allLog.filter(d=>d.src==='measured');
       dailyDate=saved.date;
-      openMeteoTried=!!saved.openMeteoTried;
-      // ★ v6.5+ 비정상 데이터 자동 감지 — 일사 6.4+ MJ 등 옛 클리핑 미적용 데이터
-      // 11시 이전에 50℃ 초과면 옛 잘못된 데이터로 판단 → 재계산 트리거
-      const abnormal=dailyTempLog.some(d=>d.hour<11&&d.temp>50&&d.src==='estimated');
-      if(abnormal){
-        console.log('[v6.5+ 비정상 데이터 감지] dailyTempLog 초기화 후 재계산');
-        dailyTempLog=[];
-        openMeteoTried=false;
-        saveDailyLog();
-      }
+      openMeteoTried=false;  // ★ 항상 재계산 트리거
     } else {
       dailyTempLog=[];
       dailyDate=today;
