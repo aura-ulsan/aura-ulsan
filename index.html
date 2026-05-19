@@ -2278,10 +2278,12 @@ function recordDailyTemp(){
   const now=new Date();
   const hr=now.getHours()+now.getMinutes()/60+now.getSeconds()/3600;
   const last=dailyTempLog.length?dailyTempLog[dailyTempLog.length-1]:null;
-  if(last&&last.src==='measured'&&(hr-last.hour)<0.083){
+  // ★ v6.5+ src:'estimated' — AI 예측값이므로 실측 아님
+  // 실측(src:'measured')은 운영자 직접 입력 시에만 추가됨
+  if(last&&last.src==='estimated'&&(hr-last.hour)<0.083){
     last.temp=p.final;last.hour=hr;
-  } else {
-    dailyTempLog.push({hour:hr,temp:p.final,src:'measured'});
+  } else if(!last||last.src!=='measured'){
+    dailyTempLog.push({hour:hr,temp:p.final,src:'estimated'});
   }
   saveDailyLog();
 }
@@ -2438,7 +2440,7 @@ function drawChart(){
     },
     // [3] 단기 예측 (파랑 점선)
     {
-      label:'단기 예측 (±3h)',
+      label:'단기 예측 (향후 3시간)',
       data:futureData,
       borderColor:'#42a5f5',
       backgroundColor:'rgba(66,165,245,.05)',
@@ -2582,7 +2584,7 @@ function drawChart(){
     leg.innerHTML=`
       <div><span style="display:inline-block;width:20px;height:2px;background:#1565c0;vertical-align:middle;margin-right:5px;"></span>기상 실측 기반 (06시~현재)</div>
       <div><span style="display:inline-block;width:8px;height:8px;background:#ff6f00;border-radius:50%;vertical-align:middle;margin-right:5px;"></span>실측 포인트 (운영자 입력)</div>
-      <div><span style="display:inline-block;width:20px;border-top:2px dashed #42a5f5;vertical-align:middle;margin-right:5px;"></span>단기 예측 (±3시간)</div>
+      <div><span style="display:inline-block;width:20px;border-top:2px dashed #42a5f5;vertical-align:middle;margin-right:5px;"></span>단기 예측 (향후 3시간)</div>
       <div><span style="display:inline-block;width:20px;border-top:2px dashed #bdbdbd;vertical-align:middle;margin-right:5px;"></span>장기 예측 (참고용)</div>
     `;
   }
@@ -3494,6 +3496,16 @@ function confirmMeasure(){
   });
 
   saveState();
+  // ★ v6.5+ 오늘 측정이면 그래프에 주황 실측 포인트 추가
+  const todayStr=new Date().toISOString().slice(0,10);
+  if(date===todayStr){
+    const hrVal=parseInt(time.split(':')[0])+parseInt(time.split(':')[1])/60;
+    const idx=dailyTempLog.findIndex(d=>Math.abs(d.hour-hrVal)<0.1);
+    if(idx>=0)dailyTempLog.splice(idx,1);
+    dailyTempLog.push({hour:hrVal,temp:pt,src:'measured',zone:id});
+    dailyTempLog.sort((a,b)=>a.hour-b.hour);
+    saveDailyLog();
+  }
   // ★ v6.4 C방식 — 등록 후 예측 vs 실측 비교 토스트
   let compareMsg='';
   if(measurePred){
@@ -4146,6 +4158,19 @@ function confirmBulkData(){
   
   saveState();
   
+  // ★ v6.5+ 오늘 측정이면 그래프에 주황 실측 포인트 추가
+  const todayStr2=new Date().toISOString().slice(0,10);
+  if(date===todayStr2){
+    toAdd.forEach(r=>{
+      const hrVal=parseInt(r.time.split(':')[0])+parseInt(r.time.split(':')[1])/60;
+      const idx=dailyTempLog.findIndex(d=>Math.abs(d.hour-hrVal)<0.1&&d.zone===r.zone);
+      if(idx>=0)dailyTempLog.splice(idx,1);
+      dailyTempLog.push({hour:hrVal,temp:r.pt,src:'measured',zone:r.zone});
+    });
+    dailyTempLog.sort((a,b)=>a.hour-b.hour);
+    saveDailyLog();
+  }
+
   // 모델 재학습
   if(state.measurements.length>=5){
     trainAllModels();
