@@ -289,8 +289,8 @@ button{font-family:inherit;cursor:pointer;}
   display:grid;
   grid-template-columns:repeat(6,1fr);
   gap:10px;
-  align-items:stretch;
-  margin-bottom:40px;  /* ★ v6.5+ 측정 가이드와의 시각 분리 (z-index 충돌 회피) */
+  align-items:start;  /* ★ v6.5+ stretch→start: 컨테이너가 카드 높이에 맞게 늘어남 */
+  margin-bottom:40px;
 }
 .zone{
   padding:12px 13px;
@@ -299,7 +299,7 @@ button{font-family:inherit;cursor:pointer;}
   position:relative;
   cursor:pointer;
   transition:all .15s;
-  /* ★ v6.5+ z-index 제거 — margin으로만 분리 (가림 문제 근본 해결) */
+  overflow:visible;  /* ★ 카드 콘텐츠가 잘리지 않도록 */
 }
 .zone:hover{
   border-color:#0b63ce;
