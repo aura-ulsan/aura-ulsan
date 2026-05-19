@@ -2048,15 +2048,15 @@ function zoneCards(){
     }
     zonesBuilt=true;
   }
-  // ★ v6.5+ 먼저 모든 구역 현재 예측 계산 (wx 오염 방지)
-  // calcPred30min이 wx를 임시 교체하므로, calcPred와 분리해서 순서대로 실행
-  const allPreds   = zones.map(z=>calcPred(z));
-  const allPreds30 = zones.map(z=>calcPred30min(z));
+  // ★ v6.5+ 캐시된 예측값 사용 (selectZone에서 1회 계산)
+  // 캐시 없으면 직접 계산 (render() 등 직접 호출 시)
+  const allPreds   = window._cachedPreds   || {};
+  const allPreds30 = window._cachedPreds30 || {};
 
   // 값 업데이트
   zones.forEach((z,zi)=>{
-    const p=allPreds[zi];
-    const p30=allPreds30[zi];
+    const p   = allPreds[z.id]   || calcPred(z);
+    const p30 = allPreds30[z.id] || calcPred30min(z);
     const card=area.querySelector(`[data-zone="${z.id}"]`);
     if(!card)return;
     
@@ -2183,19 +2183,29 @@ function updateMainStatus(){
   selectedZone=id;
   const z=zones.find(x=>x.id==id);
   if(!z)return;
-  // ★ v6.5 구역 카드 선택 상태 즉시 갱신
-  zoneCards();
-  // ★ v6.5 그래프 헤더 강화 — 구역명 + 서브 정보 큼직하게
+  // ★ v6.5+ 1회 계산 후 캐시 — zoneCards/updateSummary/drawChart 중복 계산 방지
+  // wx 오염 없이 일관된 값 보장
+  window._cachedPreds={};
+  window._cachedPreds30={};
+  const allP=zones.map(z=>calcPred(z));
+  const allP30=zones.map(z=>calcPred30min(z));
+  zones.forEach((z,i)=>{
+    window._cachedPreds[z.id]=allP[i];
+    window._cachedPreds30[z.id]=allP30[i];
+  });
   const t1=document.getElementById('selectedZoneTitle');
   if(t1)t1.textContent=`(${z.name})`;
   const t2=document.getElementById('perfZone');
   if(t2)t2.textContent=`(${z.name})`;
+  zoneCards();
   updateSummary();
   drawChart();
 }function updateSummary(){
   const z=zones.find(x=>x.id==selectedZone);
   if(!z)return;
-  const p=calcPred(z);
+  // ★ 캐시된 값 사용 (없으면 직접 계산)
+  const p  = (window._cachedPreds   && window._cachedPreds[z.id])   || calcPred(z);
+  const p30= (window._cachedPreds30 && window._cachedPreds30[z.id]) || calcPred30min(z);
   const setEl=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=val;};
   // 운영 시간 체크
   const nowHr=new Date().getHours()+new Date().getMinutes()/60;
@@ -2212,10 +2222,7 @@ function updateMainStatus(){
     if(aib)aib.innerHTML=perfRows();
     return;
   }
-  // 운영 시간 — 정상 예측
-  // ★ v6.5 30분 후 예측 — calcPred30min 사용 (구역 카드와 동일 로직)
-  const p30=calcPred30min(z);
-  // ★ v6.5 Math.max 제거 — 30분 후가 떨어질 수도 있음 (오후 흐림 등) 실제 모델 출력 그대로
+  // 운영 시간 — 정상 예측 (캐시된 p30 사용 — 중복 계산 방지)
   const no=p30.final;
   const drop=coolingEffect(z.id,p.final);
   const yes=clamp(no-drop*.72,0,90,no);
@@ -2327,44 +2334,33 @@ function drawChart(){
   if(!openMeteoTried&&new Date().getHours()>OP_START){
     setTimeout(fillDailyFromOpenMeteo,200);
   }
-  // 측정 / 추정 분리 — 운영 시간 안에 있는 것만
-  const estimatedData=dailyTempLog
-    .filter(d=>d.src==='estimated'&&d.hour>=OP_START&&d.hour<=OP_END)
-    .map(d=>({x:d.hour,y:d.temp}));
-  const measuredData=dailyTempLog
-    .filter(d=>d.src==='measured'&&d.hour>=OP_START&&d.hour<=OP_END)
-    .map(d=>({x:d.hour,y:d.temp}));
 
-  // 현재 시점 점 보강 — 실측 데이터 부족 시 현재 wx로 연결점 추가
-  const nowHrCheck=new Date().getHours()+new Date().getMinutes()/60;
-  if(nowHrCheck>=OP_START&&nowHrCheck<=OP_END){
-    const lastMeas=measuredData[measuredData.length-1];
-    if(!lastMeas||Math.abs(lastMeas.x-nowHrCheck)>0.1){
-      // 현재 wx.pave를 현재 시점 측정점으로 추가 (연결성 확보)
-      measuredData.push({x:nowHrCheck,y:wx.pave});
-    }
-  }
-
-  // 미래 예측 (현재~20시) — Open-Meteo Forecast 사용
-  // 두 구간으로 분리: 정확(+3시간) / 참고(그 이후)
-  const futureData=[];      // 정확 예측 (현재~+3시간)
-  const futureRefData=[];   // 참고용 (그 이후)
   const nowHr=new Date().getHours()+new Date().getMinutes()/60;
   const today=new Date().toISOString().slice(0,10);
-  const ACCURATE_HOURS=3;   // 정확 예측 시간 범위
+  const ACCURATE_HOURS=3;
   const accurateEnd=Math.min(OP_END,nowHr+ACCURATE_HOURS);
+
+  // ★ [1] 기상 실측 기반 (06시~현재) — Open-Meteo 과거 데이터로 계산한 값
+  const pastData=dailyTempLog
+    .filter(d=>d.src==='estimated'&&d.hour>=OP_START&&d.hour<=nowHr)
+    .map(d=>({x:d.hour,y:d.temp}));
+
+  // ★ [2] 실측 포인트 — 운영자가 직접 입력한 현장 측정값 (선 없이 포인트만)
+  const measuredPoints=dailyTempLog
+    .filter(d=>d.src==='measured'&&d.hour>=OP_START&&d.hour<=OP_END)
+    .map(d=>({x:d.hour,y:d.temp}));
+  // ★ 가짜 실측 추가 제거 (wx.pave를 실측으로 넣던 코드 삭제)
+
+  // ★ [3] 단기 예측 (현재~+3시간) + [4] 장기 예측 (+3시간~20시)
+  const futureData=[];
+  const futureRefData=[];
 
   if(formulaModel&&nowHr<OP_END){
     const z=zones.find(x=>x.id==selectedZone)||zones[0];
-    const savedWx={...wx};
+    const savedWx=JSON.parse(JSON.stringify(wx));
     const startFh=Math.max(OP_START,Math.ceil(nowHr*2)/2);
     const hasForecast=!!forecastCache[today];
-
-    // 학습 데이터 기준 안전 범위 (외삽 방지)
-    const SAFE_AIR=[15,38];
-    const SAFE_SOLAR=[0.3,3.5];
-    const SAFE_HUM=[20,95];
-    const SAFE_WIND=[0.5,15];
+    const SAFE_AIR=[15,38],SAFE_SOLAR=[0.3,3.5],SAFE_HUM=[20,95],SAFE_WIND=[0.5,15];
 
     for(let fh=startFh;fh<=OP_END;fh+=0.5){
       if(hasForecast){
@@ -2380,67 +2376,93 @@ function drawChart(){
       }
       let pt=calcPred(z).final;
       pt=Math.max(15,Math.min(65,pt));
-      // 정확 구간 vs 참고 구간 분리
-      if(fh<=accurateEnd){
-        futureData.push({x:fh,y:pt});
-      } else {
-        futureRefData.push({x:fh,y:pt});
-      }
+      if(fh<=accurateEnd) futureData.push({x:fh,y:pt});
+      else futureRefData.push({x:fh,y:pt});
     }
     Object.assign(wx,savedWx);
 
-    // ★ Phase 1: 첫 예측 부드러움 — 약하게만 적용 (그래프-가이드 일치 유지)
-    // 10℃ 이상 점프만 살짝 완화, 2개 점만 30%~15% 보정
+    // 부드러운 연결 (10℃ 이상 점프만 완화)
     if(futureData.length>=2){
       const currentVal=wx.pave;
-      const firstPred=futureData[0].y;
-      if(Math.abs(firstPred-currentVal)>10){
-        // 첫 2개 점만 약하게 (1.0→0.5)
+      if(Math.abs(futureData[0].y-currentVal)>10){
         for(let i=0;i<Math.min(2,futureData.length);i++){
-          const blendRatio=0.3*(1-i*0.5);  // 0.30, 0.15
-          futureData[i].y=currentVal*blendRatio+futureData[i].y*(1-blendRatio);
+          const r=0.3*(1-i*0.5);
+          futureData[i].y=currentVal*r+futureData[i].y*(1-r);
         }
       }
     }
 
-    // Phase 2: 데이터 연결
-    if(measuredData.length>0&&futureData.length>0){
-      const lastMeas=measuredData[measuredData.length-1];
-      if(futureData[0].x>lastMeas.x){
-        futureData.unshift({x:lastMeas.x,y:lastMeas.y});
-      }
+    // 과거→예측 연결점
+    if(pastData.length>0&&futureData.length>0){
+      const lastPast=pastData[pastData.length-1];
+      if(futureData[0].x>lastPast.x)
+        futureData.unshift({x:lastPast.x,y:lastPast.y});
     }
-    // 정확~참고 사이 연결점 + 참고 영역도 부드럽게
+    // 단기→장기 연결
     if(futureData.length>0&&futureRefData.length>0){
       const lastAcc=futureData[futureData.length-1];
-      // 참고 영역 첫 점도 정확 영역과 부드럽게 연결
       if(futureRefData[0]){
-        const blendRatio=0.5;
-        futureRefData[0].y=lastAcc.y*blendRatio+futureRefData[0].y*(1-blendRatio);
+        futureRefData[0].y=lastAcc.y*0.5+futureRefData[0].y*0.5;
       }
       futureRefData.unshift({x:lastAcc.x,y:lastAcc.y});
     }
-    // 추정과 실측 연결
-    if(estimatedData.length>0&&measuredData.length>0){
-      const lastEst=estimatedData[estimatedData.length-1];
-      const firstMeas=measuredData[0];
-      if(firstMeas.x>lastEst.x){
-        measuredData.unshift({x:lastEst.x,y:lastEst.y});
-      }
-    }
   }
 
-  // 일출/일몰 정보 (Forecast에서)
+  // 일출/일몰
   const sun=getSun(today);
 
   const datasets=[
-    {label:'추정 (자정~접속전)',data:estimatedData,borderColor:'#9e9e9e',backgroundColor:'rgba(158,158,158,.08)',borderWidth:1.5,borderDash:[4,3],pointRadius:1.5,tension:0.4,fill:true},
-    {label:'실측',data:measuredData,borderColor:'#ff6f00',backgroundColor:'rgba(255,111,0,.12)',borderWidth:2.5,pointRadius:function(ctx){return ctx.dataIndex===ctx.dataset.data.length-1?6:2;},pointBackgroundColor:function(ctx){return ctx.dataIndex===ctx.dataset.data.length-1?'#c62828':'#ff6f00';},tension:0.3,fill:true},
-    {label:'예측 (±3시간 정확)',data:futureData,borderColor:'#6a1b9a',backgroundColor:'rgba(106,27,154,.05)',borderWidth:2,borderDash:[6,4],pointRadius:2,tension:0.4,fill:false},
-    {label:'예측 (참고용)',data:futureRefData,borderColor:'#bdbdbd',backgroundColor:'rgba(189,189,189,.03)',borderWidth:1.5,borderDash:[3,3],pointRadius:1,tension:0.4,fill:false}
+    // [1] 기상 실측 기반 (파랑 실선)
+    {
+      label:'기상 실측 기반',
+      data:pastData,
+      borderColor:'#1565c0',
+      backgroundColor:'rgba(21,101,192,.08)',
+      borderWidth:2,
+      pointRadius:1.5,
+      tension:0.4,
+      fill:true
+    },
+    // [2] 실측 포인트 (주황 원, 선 없음)
+    {
+      label:'실측',
+      data:measuredPoints,
+      borderColor:'#ff6f00',
+      backgroundColor:'#ff6f00',
+      borderWidth:0,
+      pointRadius:7,
+      pointHoverRadius:9,
+      pointStyle:'circle',
+      showLine:false,  // ★ 선 없이 포인트만
+      fill:false
+    },
+    // [3] 단기 예측 (파랑 점선)
+    {
+      label:'단기 예측 (±3h)',
+      data:futureData,
+      borderColor:'#42a5f5',
+      backgroundColor:'rgba(66,165,245,.05)',
+      borderWidth:2,
+      borderDash:[6,4],
+      pointRadius:1.5,
+      tension:0.4,
+      fill:false
+    },
+    // [4] 장기 예측 (회색 점선)
+    {
+      label:'장기 예측 (참고)',
+      data:futureRefData,
+      borderColor:'#bdbdbd',
+      backgroundColor:'rgba(189,189,189,.03)',
+      borderWidth:1.5,
+      borderDash:[3,3],
+      pointRadius:1,
+      tension:0.4,
+      fill:false
+    }
   ];
 
-  // 차트 제목 + 갱신 정보 + 일출/일몰 + 갱신 버튼
+  // 그래프 헤더 갱신
   const headTitle=document.querySelector('.bottom .panel:first-child .panel-head');
   if(headTitle){
     const z=zones.find(x=>x.id==selectedZone);
@@ -2448,10 +2470,16 @@ function drawChart(){
     const nextTime=updTime?new Date(lastForecastUpdate+getRefreshMin()*60*1000):null;
     const fmt2=d=>d?String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'):'--';
     const updStr=updTime?`마지막 갱신: ${fmt2(updTime)} (다음: ${fmt2(nextTime)})`:'갱신 대기 중';
-    headTitle.innerHTML=`<div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:900;color:#00419e;">♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(${z?z.name:'구역 1'})</span> <span style="font-size:11px;font-weight:600;color:#5a6a7e;">· 운영 ${String(OP_START).padStart(2,'0')}~${String(OP_END).padStart(2,'0')}시</span></div><div style="font-size:11px;font-weight:600;color:#5a6a7e;margin-top:2px;">└ ${updStr} · <span style="color:#6a1b9a;">━ 정확 +3시간</span> · <span style="color:#bdbdbd;">┄ 참고용</span></div></div><button class="small-btn" onclick="manualRefreshForecast()" style="flex:none;">🔄 지금 갱신</button>`;
+    headTitle.innerHTML=`<div style="flex:1;min-width:0;">
+      <div style="font-size:15px;font-weight:900;color:#00419e;">♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(${z?z.name:'구역 1'})</span>
+        <span style="font-size:11px;font-weight:600;color:#5a6a7e;">· 운영 ${String(OP_START).padStart(2,'0')}~${String(OP_END).padStart(2,'0')}시</span>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:#5a6a7e;margin-top:2px;">└ ${updStr}</div>
+    </div>
+    <button class="small-btn" onclick="manualRefreshForecast()" style="flex:none;">🔄 지금 갱신</button>`;
   }
 
-  // 갱신 실패 시 빨간 배너
+  // forecast 실패 배너
   const chartPanel=document.querySelector('.bottom .panel:first-child');
   let banner=document.getElementById('forecastBanner');
   if(forecastFailed){
@@ -2470,30 +2498,28 @@ function drawChart(){
     if(banner)banner.remove();
   }
 
-  // ★ v6.5 Y축 동적 범위 계산 — 모든 데이터의 최대/최소를 기반으로
+  // Y축 동적 범위
   function calcYRange(){
     const allVals=[];
-    estimatedData.forEach(d=>{if(d&&isFinite(d.y))allVals.push(d.y);});
-    measuredData.forEach(d=>{if(d&&isFinite(d.y))allVals.push(d.y);});
+    pastData.forEach(d=>{if(d&&isFinite(d.y))allVals.push(d.y);});
+    measuredPoints.forEach(d=>{if(d&&isFinite(d.y))allVals.push(d.y);});
     futureData.forEach(d=>{if(d&&isFinite(d.y))allVals.push(d.y);});
     futureRefData.forEach(d=>{if(d&&isFinite(d.y))allVals.push(d.y);});
     if(allVals.length===0)return{min:20,max:75};
     const dataMin=Math.min(...allVals);
     const dataMax=Math.max(...allVals);
-    // 60℃ 임계선은 항상 보이도록 + 여백
     let yMin=Math.max(0,Math.floor((dataMin-5)/5)*5);
     let yMax=Math.max(65,Math.ceil((dataMax+5)/5)*5);
     return{min:yMin,max:yMax};
   }
   const yRange=calcYRange();
 
-  // ★ 깜박임 방지 — 차트가 이미 있으면 update만
+  // ★ 차트 update (깜빡임 방지)
   if(chart){
-    chart.data.datasets[0].data=estimatedData;
-    chart.data.datasets[1].data=measuredData;
+    chart.data.datasets[0].data=pastData;
+    chart.data.datasets[1].data=measuredPoints;
     chart.data.datasets[2].data=futureData;
     if(chart.data.datasets[3])chart.data.datasets[3].data=futureRefData;
-    // ★ Y축 동적 범위 갱신
     if(chart.options.scales&&chart.options.scales.y){
       chart.options.scales.y.min=yRange.min;
       chart.options.scales.y.max=yRange.max;
@@ -2503,62 +2529,27 @@ function drawChart(){
     return;
   }
 
-  // 일출/일몰 음영 + 수직 점선 (annotation)
+  // annotations (일출/일몰/임계선)
   const annotations={};
   if(sun){
-    // 일출 이전 음영
     if(sun.sunrise>OP_START){
-      annotations.beforeSunrise={
-        type:'box',xMin:OP_START,xMax:sun.sunrise,
-        backgroundColor:'rgba(158,158,158,0.1)',borderWidth:0
-      };
+      annotations.beforeSunrise={type:'box',xMin:OP_START,xMax:sun.sunrise,backgroundColor:'rgba(158,158,158,0.1)',borderWidth:0};
     }
-    // 일몰 이후 음영
     if(sun.sunset<OP_END){
-      annotations.afterSunset={
-        type:'box',xMin:sun.sunset,xMax:OP_END,
-        backgroundColor:'rgba(158,158,158,0.1)',borderWidth:0
-      };
+      annotations.afterSunset={type:'box',xMin:sun.sunset,xMax:OP_END,backgroundColor:'rgba(158,158,158,0.1)',borderWidth:0};
     }
-    // 일출 수직선 (운영 시간 안에 있을 때만)
     if(sun.sunrise>=OP_START&&sun.sunrise<=OP_END){
-      annotations.sunriseLine={
-        type:'line',xMin:sun.sunrise,xMax:sun.sunrise,
-        borderColor:'#ff9800',borderWidth:1.5,borderDash:[3,3],
-        label:{display:true,content:'일출 '+fmtTime(sun.sunrise),position:'start',backgroundColor:'#ff9800',color:'#fff',font:{size:10,weight:'bold'},padding:3}
-      };
+      annotations.sunriseLine={type:'line',xMin:sun.sunrise,xMax:sun.sunrise,borderColor:'#ff9800',borderWidth:1.5,borderDash:[3,3],label:{display:true,content:'일출 '+fmtTime(sun.sunrise),position:'start',backgroundColor:'#ff9800',color:'#fff',font:{size:10,weight:'bold'},padding:3}};
     } else {
-      // 일출이 운영 시간 밖 — 그래프 좌측 상단에 텍스트만
-      annotations.sunriseLabel={
-        type:'label',xValue:OP_START+0.3,yValue:yRange.max-2,
-        content:'일출 '+fmtTime(sun.sunrise),
-        backgroundColor:'rgba(255,152,0,0.85)',color:'#fff',
-        font:{size:10,weight:'bold'},padding:3,borderRadius:3
-      };
+      annotations.sunriseLabel={type:'label',xValue:OP_START+0.3,yValue:yRange.max-2,content:'일출 '+fmtTime(sun.sunrise),backgroundColor:'rgba(255,152,0,0.85)',color:'#fff',font:{size:10,weight:'bold'},padding:3,borderRadius:3};
     }
-    // 일몰 수직선
     if(sun.sunset>=OP_START&&sun.sunset<=OP_END){
-      annotations.sunsetLine={
-        type:'line',xMin:sun.sunset,xMax:sun.sunset,
-        borderColor:'#5e35b1',borderWidth:1.5,borderDash:[3,3],
-        label:{display:true,content:'일몰 '+fmtTime(sun.sunset),position:'start',backgroundColor:'#5e35b1',color:'#fff',font:{size:10,weight:'bold'},padding:3}
-      };
+      annotations.sunsetLine={type:'line',xMin:sun.sunset,xMax:sun.sunset,borderColor:'#5e35b1',borderWidth:1.5,borderDash:[3,3],label:{display:true,content:'일몰 '+fmtTime(sun.sunset),position:'start',backgroundColor:'#5e35b1',color:'#fff',font:{size:10,weight:'bold'},padding:3}};
     } else {
-      // 일몰이 운영 시간 밖 — 그래프 우측 상단에 텍스트만
-      annotations.sunsetLabel={
-        type:'label',xValue:OP_END-0.5,yValue:yRange.max-2,
-        content:'일몰 '+fmtTime(sun.sunset),
-        backgroundColor:'rgba(94,53,177,0.85)',color:'#fff',
-        font:{size:10,weight:'bold'},padding:3,borderRadius:3
-      };
+      annotations.sunsetLabel={type:'label',xValue:OP_END-0.5,yValue:yRange.max-2,content:'일몰 '+fmtTime(sun.sunset),backgroundColor:'rgba(94,53,177,0.85)',color:'#fff',font:{size:10,weight:'bold'},padding:3,borderRadius:3};
     }
   }
-  // 60℃ 임계선
-  annotations.threshold={
-    type:'line',yMin:60,yMax:60,
-    borderColor:'#d71920',borderWidth:1,borderDash:[6,4],
-    label:{display:true,content:'60℃ 임계',position:'end',backgroundColor:'#d71920',color:'#fff',font:{size:9,weight:'bold'},padding:2}
-  };
+  annotations.threshold={type:'line',yMin:60,yMax:60,borderColor:'#d71920',borderWidth:1,borderDash:[6,4],label:{display:true,content:'60℃ 임계',position:'end',backgroundColor:'#d71920',color:'#fff',font:{size:9,weight:'bold'},padding:2}};
 
   chart=new Chart(document.getElementById('trendChart'),{
     type:'line',
@@ -2567,7 +2558,8 @@ function drawChart(){
       responsive:true,maintainAspectRatio:false,
       animation:{duration:600,easing:'easeOutQuart'},
       plugins:{
-        legend:{position:'top',labels:{boxWidth:14,font:{size:11},padding:8}},
+        // ★ Chart.js 기본 범례 비활성 — 커스텀 범례로 대체
+        legend:{display:false},
         annotation:{annotations:annotations}
       },
       scales:{
@@ -2576,6 +2568,24 @@ function drawChart(){
       }
     }
   });
+
+  // ★ 커스텀 범례 — 그래프 내 좌측 상단 overlay
+  const wrap=document.querySelector('.chart-wrap');
+  if(wrap){
+    let leg=document.getElementById('chartCustomLegend');
+    if(!leg){
+      leg=document.createElement('div');
+      leg.id='chartCustomLegend';
+      leg.style.cssText='position:absolute;top:8px;left:48px;background:rgba(255,255,255,0.92);border:1px solid #dce8f5;border-radius:7px;padding:6px 10px;font-size:11px;line-height:1.8;z-index:10;pointer-events:none;';
+      wrap.appendChild(leg);
+    }
+    leg.innerHTML=`
+      <div><span style="display:inline-block;width:20px;height:2px;background:#1565c0;vertical-align:middle;margin-right:5px;"></span>기상 실측 기반 (06시~현재)</div>
+      <div><span style="display:inline-block;width:8px;height:8px;background:#ff6f00;border-radius:50%;vertical-align:middle;margin-right:5px;"></span>실측 포인트 (운영자 입력)</div>
+      <div><span style="display:inline-block;width:20px;border-top:2px dashed #42a5f5;vertical-align:middle;margin-right:5px;"></span>단기 예측 (±3시간)</div>
+      <div><span style="display:inline-block;width:20px;border-top:2px dashed #bdbdbd;vertical-align:middle;margin-right:5px;"></span>장기 예측 (참고용)</div>
+    `;
+  }
 }
 
 function fmtTime(h){
