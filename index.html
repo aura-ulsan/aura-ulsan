@@ -56,16 +56,17 @@
 html,body{
   height:100%;margin:0;
   font-family:'Segoe UI','Apple SD Gothic Neo','Malgun Gothic','맑은 고딕',sans-serif;
-  color:#0b234b;background:#f5f8fc;font-size:14px;overflow:hidden;
+  color:#0b234b;background:#f5f8fc;font-size:14px;overflow:auto;  /* ★ hidden→auto: 스크롤 허용 */
   -webkit-font-smoothing:antialiased;
 }
 button{font-family:inherit;cursor:pointer;}
 
 .app{
   height:100vh;
+  min-height:900px;  /* ★ 최소 높이 보장 */
   min-width:1280px;
   display:grid;
-  grid-template-rows:78px 50px 1fr 32px;
+  grid-template-rows:78px 50px 1fr;  /* ★ footer 제거로 32px 행 삭제 */
   background:#f5f8fc;
 }
 
@@ -193,15 +194,15 @@ button{font-family:inherit;cursor:pointer;}
 }
 
 /* ═══════════ 페인 ═══════════ */
-.pane{display:none;min-height:0;}
+.pane{display:none;min-height:0;overflow-y:auto;}
 .pane.active{display:grid;}
 
 /* ═══════════ 모니터링 메인 그리드 ═══════════ */
 .main{
   padding:14px;
-  gap:12px;
-  grid-template-rows:118px auto 1fr;  /* ★ v6.5+ 295px→auto: 카드 높이에 맞게 자동 */
-  overflow:visible;  /* ★ v6.5+ hidden→visible: 카드/그래프 잘림 방지 */
+  gap:8px;  /* ★ 12→8px */
+  grid-template-rows:118px auto auto auto 1fr;  /* ★ 각 행 auto로 자연스럽게 */
+  overflow:visible;
 }
 
 /* 센서 패널 */
@@ -289,8 +290,8 @@ button{font-family:inherit;cursor:pointer;}
   display:grid;
   grid-template-columns:repeat(6,1fr);
   gap:10px;
-  align-items:start;  /* ★ v6.5+ stretch→start: 컨테이너가 카드 높이에 맞게 늘어남 */
-  margin-bottom:40px;
+  align-items:start;
+  margin-bottom:8px;  /* ★ 40→8px */
 }
 .zone{
   padding:8px 10px;  /* ★ v6.5+ 12px→8px 압축 (위아래 8px 절약) */
@@ -496,7 +497,7 @@ button{font-family:inherit;cursor:pointer;}
 .legend span:nth-child(3){color:#d71920;}
 
 /* ═══════════ 측정 가이드 ═══════════ */
-.measure-guide{margin:24px 0 14px;}  /* ★ v6.5+ 위 마진 강화 (18→24px) */
+.measure-guide{margin:8px 0 10px;}
 .guide-card{
   background:#fff;border:1px solid var(--line);border-radius:9px;
   padding:10px 14px;display:flex;align-items:center;gap:12px;
@@ -532,12 +533,13 @@ button{font-family:inherit;cursor:pointer;}
   display:grid;
   grid-template-columns:1.5fr .9fr 1.1fr;
   gap:12px;
-  min-height:0;
+  min-height:340px;  /* ★ 그래프 패널 최소 높이 보장 */
 }
 .panel{
   padding:12px 14px;
   display:flex;flex-direction:column;
   min-height:0;
+  overflow:visible;  /* ★ 패널 내용 잘리지 않도록 */
 }
 .panel-head{
   display:flex;align-items:center;justify-content:space-between;
@@ -920,7 +922,7 @@ pre{
 <div class="app">
 <header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.5</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div><div style="font-size:10px;color:#8a9ab0;margin-top:1px;">© 2026 AURA. All rights reserved.</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="AURA_logout()">🔒 로그아웃</button></div></header>
 <nav class="tabs"><button class="tab active" data-tab="monitor" onclick="showPane('monitor')">🏠 모니터링</button><button class="tab new" data-tab="ai" onclick="showPane('ai')">🤖 AI 모델</button><button class="tab" data-tab="data" onclick="showPane('data')">📋 데이터 현황</button><button class="tab" data-tab="ana" onclick="showPane('ana')">📊 분석</button><button class="tab" data-tab="coef" onclick="showPane('coef')">📐 회귀 계수</button><button class="tab" data-tab="log" onclick="showPane('log')">📝 운영 로그</button><button class="tab" data-tab="setting" onclick="showPane('setting')">⚙ 설정</button><span class="tab-spacer"></span><div class="mini-stat"><span><i class="dot"></i>Open-Meteo</span><span><i class="dot"></i>AI 모델</span><span><i class="dot"></i>DB 연결</span></div></nav>
-<main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><section class="zones" id="zoneArea"></section><div id="zoneLegendArea"></div><section class="measure-guide" id="measureGuide"></section><section class="bottom"><div class="panel"><div class="selected-zone-display" id="selectedZoneDisplay"><div class="sz-num">1</div><div class="sz-info"><div class="sz-name">구역 1 — 활주로 36방향 회전패드</div></div><div class="sz-hint">💡 키보드 <b>1~6</b> 또는 카드 클릭으로 빠른 전환</div></div><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 최고온도</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div class="model-state"><h4>모델 사용 상태</h4><div>현재 사용 모델</div><div class="model-current" id="currentModelText">AI 보정모델 (TF.js)</div><hr style="border:0;border-top:1px solid var(--line)"><div>선택 기준</div><b class="green" id="selectCriteria">RMSE 기준 자동 선택</b><div style="font-size:12px;color:#667;margin-top:8px">※ 회귀식보다 AI 모델 성능이 나쁠 경우 자동 fallback</div></div></div><div class="panel"><div class="panel-head"><span>최근 살수 이행 기록</span><button class="small-btn" onclick="showPane('log')">더보기</button></div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>살수량</th><th>작업 차량</th><th>작업자</th><th>비고</th></tr></thead><tbody id="recentLogs"></tbody></table></div></section></main>
+<main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><section class="zones" id="zoneArea"></section><div id="zoneLegendArea"></div><section class="measure-guide" id="measureGuide"></section><section class="bottom"><div class="panel"><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 최고온도</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table></div><div class="panel"><div class="panel-head"><span>최근 살수 이행 기록</span><button class="small-btn" onclick="showPane('log')">더보기</button></div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>살수량</th><th>작업 차량</th><th>작업자</th><th>비고</th></tr></thead><tbody id="recentLogs"></tbody></table></div></section></main>
 <main id="pane-ai" class="pane ai-pane"><div class="grid2"><div class="placeholder"><h2>🤖 TensorFlow.js AI 보정모델</h2><p>AI는 최종 온도를 직접 대체하지 않고, <b>상관식 예측 오차</b>를 학습합니다.</p><div class="tool-row"><label class="primary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><span>📂 엑셀 업로드</span><input type="file" accept=".xlsx,.xls" onchange="loadExcel(event)" style="display:none"></label><button class="ghost" onclick="trainTfModel()">🔄 AI 재학습</button><button class="ghost" onclick="if(confirm('학습 데이터와 모델을 모두 삭제할까요?')){state.measurements=[];state.fileInfo=null;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};localStorage.removeItem(METRICS_KEY);saveState();render();toast('초기화 완료');}">🗑️ 모델 삭제</button></div>
 <div style="background:#fff8ed;border:1px solid #ffcc80;border-radius:7px;padding:10px 12px;margin:10px 0;">
 <div style="font-size:13px;font-weight:900;color:#c45d00;margin-bottom:6px;">⚙ 고급 학습 옵션</div>
@@ -2187,17 +2189,6 @@ function updateMainStatus(){
   if(t1)t1.textContent=`(${z.name})`;
   const t2=document.getElementById('perfZone');
   if(t2)t2.textContent=`(${z.name})`;
-  // 새 헤더 디스플레이 갱신
-  const display=document.getElementById('selectedZoneDisplay');
-  if(display){
-    display.innerHTML=`
-      <div class="sz-num">${z.id}</div>
-      <div class="sz-info">
-        <div class="sz-name">${z.name} — ${z.sub}</div>
-      </div>
-      <div class="sz-hint">💡 키보드 <b>1~6</b> 또는 카드 클릭으로 빠른 전환</div>
-    `;
-  }
   updateSummary();
   drawChart();
 }function updateSummary(){
