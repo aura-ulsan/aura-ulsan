@@ -1826,6 +1826,7 @@ function _doBackfill(targets,label){
       // ★ v6.5 enrich (감쇠 변수 등 채움)
       enrichRowForFeatures(r);
       wx.air=Number(r.air);wx.solar=Number(r.solar);wx.hum=Number(r.hum);wx.wind=Number(r.wind);
+      wx.precip=Number(r.precip)||0;wx.wcode=Number(r.wcode)||0;  // ★ 강수/일기 설정
       const z=zones.find(x=>x.id==r.zone)||zones[0];
       // 직접 features 사용 (formulaFeaturesCurrent 대신)
       const xFeat=features(r);
@@ -1941,23 +1942,38 @@ function calcPred(z, futureMin){
   let ai=clamp(formula+predictAiResidual(x),0,90,formula);
   let final=clamp((tfReady?ai:formula)+(state.corr[z.id]||0),0,90,formula);
 
-  // ★ v6.5+ 강수/흐림 안전망
-  // 강수 중(precip>0.5) OR 흐림+저온(solar<0.5+기온<25) → 포장온도 상한 제한
-  // Open-Meteo가 소량 강수를 0으로 반환하는 경우도 커버
+  // ★ v6.5+ 강수 중 안전망
+  // 실제 강수(precip>0.5) 또는 강수 일기코드(wcode 51~99)일 때만 적용
+  // 단순 흐림(solar 낮음)은 제외 — 흐린 날도 포장온도 높을 수 있음
   const isRainy=wx.precip>0.5;
-  const isCloudy=wx.solar<0.5&&wx.air<25;
-  if(isRainy||isCloudy){
-    const rainMax=clamp(wx.air+5,0,90,wx.air);   // 강수: 기온+5℃
-    const cloudMax=clamp(wx.air+8,0,90,wx.air);  // 흐림: 기온+8℃
-    const maxTemp=isRainy?rainMax:cloudMax;
-    if(final>maxTemp){
-      final=maxTemp;
-      ai=Math.min(ai,maxTemp);
-      formula=Math.min(formula,maxTemp);
+  const isRainyWcode=wx.wcode>=51&&wx.wcode<=99;
+  if(isRainy||isRainyWcode){
+    const rainMax=clamp(wx.air+8,0,90,wx.air);  // 강수: 기온+8℃
+    if(final>rainMax){
+      final=rainMax;
+      ai=Math.min(ai,rainMax);
+      formula=Math.min(formula,rainMax);
     }
   }
 
-  let sprinkled=state.sprinkled[z.id];
+  // ★ v6.5+ 오후 하강 구간 보정
+  // 14시 이후 일사가 감소 중이면 포장온도도 하강 중
+  // 모델이 감쇠누적일사 때문에 과대예측하는 문제 보정
+  const _nowForAdj=new Date(window._fixedNow||Date.now());
+  const _hrAdj=_nowForAdj.getHours()+_nowForAdj.getMinutes()/60+(futureMin||0)/60;
+  if(_hrAdj>=14&&_hrAdj<=20){
+    const today2=_nowForAdj.toISOString().slice(0,10);
+    const solarNow=wx.solar;
+    const solarPrev=historyCache[today2]&&historyCache[today2][Math.floor(_hrAdj)-1]?
+      historyCache[today2][Math.floor(_hrAdj)-1].solar:solarNow;
+    const solarTrend=solarNow-solarPrev;  // 음수 = 일사 감소 중
+    if(solarTrend<-0.3){
+      // 일사 감소율에 비례한 하향 보정 (최대 -8℃)
+      const adj=Math.max(-8, solarTrend*3);
+      final=Math.max(0, final+adj);
+      ai=Math.max(0, ai+adj);
+    }
+  }
   if(sprinkled){
     const elapsed=(Date.now()-sprinkled.t)/60000;
     if(elapsed<30){
