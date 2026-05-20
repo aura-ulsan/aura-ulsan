@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>A.U.R.A SYSTEM v6.5 - 울산공항 활주로 살수 자동화</title>
+<title>A.U.R.A SYSTEM v6.2 - 울산공항 활주로 살수 자동화</title>
 <script>
 /* ════════════════════════════════════════════════════════════════
    A.U.R.A 인증 가드 — 다른 어떤 스크립트보다 먼저 실행되어야 함
@@ -1907,14 +1907,19 @@ function calcPred(z, futureMin){
   let ai=clamp(formula+predictAiResidual(x),0,90,formula);
   let final=clamp((tfReady?ai:formula)+(state.corr[z.id]||0),0,90,formula);
 
-  // ★ v6.5+ 강수 중 안전망 — 비 오는 중 포장온도는 기온+5℃ 이하
-  // 회귀식이 강수 데이터 부족으로 비정상값 뱉는 문제 방지
-  if(wx.precip>0.5){
-    const rainMax=clamp(wx.air+5, 0, 90, wx.air);
-    if(final>rainMax){
-      final=rainMax;
-      ai=Math.min(ai, rainMax);
-      formula=Math.min(formula, rainMax);
+  // ★ v6.5+ 강수/흐림 안전망
+  // 강수 중(precip>0.5) OR 흐림+저온(solar<0.5+기온<25) → 포장온도 상한 제한
+  // Open-Meteo가 소량 강수를 0으로 반환하는 경우도 커버
+  const isRainy=wx.precip>0.5;
+  const isCloudy=wx.solar<0.5&&wx.air<25;
+  if(isRainy||isCloudy){
+    const rainMax=clamp(wx.air+5,0,90,wx.air);   // 강수: 기온+5℃
+    const cloudMax=clamp(wx.air+8,0,90,wx.air);  // 흐림: 기온+8℃
+    const maxTemp=isRainy?rainMax:cloudMax;
+    if(final>maxTemp){
+      final=maxTemp;
+      ai=Math.min(ai,maxTemp);
+      formula=Math.min(formula,maxTemp);
     }
   }
 
