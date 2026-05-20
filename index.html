@@ -1587,7 +1587,10 @@ function features(r){
   // 통합 물 효과 (비 + 살수) — 단위: mm 환산
   const precipDecay=isFinite(r.precip_decay)?r.precip_decay:0;
   const sprinkleDecay=isFinite(r.sprinkle_decay)?r.sprinkle_decay:0;
-  const waterDecay=precipDecay+sprinkleDecay;
+  // ★ v6.5+ 물감쇠 상한 클리핑 3.0
+  // 폭우 시 7+ 같은 비정상값이 회귀식을 폭발시키는 문제 방지
+  // 살수 효과 최대치(약 2.5)보다 약간 크게 설정
+  const waterDecay=Math.min(precipDecay+sprinkleDecay, 3.0);
   
   // 비/살수 이후 경과 시간 (둘 중 최근)
   const hoursSinceRain=isFinite(r.hours_since_rain)?r.hours_since_rain:24;
@@ -1903,18 +1906,28 @@ function calcPred(z, futureMin){
   let formula=clamp(predictLR(formulaModel,x)+((z.id-3)*0.12),0,90,wx.pave||45);
   let ai=clamp(formula+predictAiResidual(x),0,90,formula);
   let final=clamp((tfReady?ai:formula)+(state.corr[z.id]||0),0,90,formula);
+
+  // ★ v6.5+ 강수 중 안전망 — 비 오는 중 포장온도는 기온+5℃ 이하
+  // 회귀식이 강수 데이터 부족으로 비정상값 뱉는 문제 방지
+  if(wx.precip>0.5){
+    const rainMax=clamp(wx.air+5, 0, 90, wx.air);
+    if(final>rainMax){
+      final=rainMax;
+      ai=Math.min(ai, rainMax);
+      formula=Math.min(formula, rainMax);
+    }
+  }
+
   let sprinkled=state.sprinkled[z.id];
   if(sprinkled){
     const elapsed=(Date.now()-sprinkled.t)/60000;
-    // ★ v6.5 30분 이내: 실측 살수후 온도 + 단순 보간 (가장 정확)
     if(elapsed<30){
-      const reheatShort=Math.max(0,elapsed)*0.05;  // 분당 0.05℃ (30분에 +1.5℃)
+      const reheatShort=Math.max(0,elapsed)*0.05;
       const after=clamp(sprinkled.after,0,90,final-coolingEffect(z.id,final));
       final=clamp(after+reheatShort,0,90,after);
       ai=clamp(final-0.4,0,90,final);
       formula=clamp(final-0.9,0,90,final);
     }
-    // 30분 이후: water_decay 변수가 살수 효과를 학습 모델에 자동 반영
   }
   return{formula:+formula.toFixed(1),ai:+ai.toFixed(1),final:+final.toFixed(1),sprinkled}
 }
