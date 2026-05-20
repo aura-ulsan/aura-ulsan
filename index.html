@@ -1779,8 +1779,27 @@ function manualBackfill(){
     toast('재계산 가능한 데이터가 없습니다');
     return;
   }
-  if(!confirm(`전체 ${all.length}건의 예측치를 현재 모델로 다시 계산합니다.\n진행하시겠습니까?`))return;
-  _doBackfill(all,'재계산');
+  if(!confirm(`전체 ${all.length}건의 예측치를 현재 모델로 다시 계산합니다.\n(Open-Meteo 과거 기상 자동 보완 포함)\n진행하시겠습니까?`))return;
+
+  // ★ v6.5+ 재계산 전 누락된 날짜의 historyCache 자동 로드
+  const dates=[...new Set(all.map(r=>r.date))].sort();
+  const today=new Date().toISOString().slice(0,10);
+  const needDates=dates.filter(d=>d<today&&(!historyCache[d]||Object.keys(historyCache[d]).length===0));
+
+  if(needDates.length>0){
+    toast(`Open-Meteo 과거 기상 조회 중... (${needDates.length}일)`);
+    const startDate=needDates[0];
+    const endDate=needDates[needDates.length-1];
+    fetchHistoryWeather(startDate,endDate).then(()=>{
+      toast(`기상 데이터 로드 완료 → 재계산 시작`);
+      _doBackfill(all,'재계산');
+    }).catch(()=>{
+      toast('기상 조회 실패 — 기존 값으로 재계산');
+      _doBackfill(all,'재계산');
+    });
+  } else {
+    _doBackfill(all,'재계산');
+  }
 }
 
 /* 공통 보강 실행 함수 */
@@ -1789,6 +1808,21 @@ function _doBackfill(targets,label){
   let count=0;
   targets.forEach(r=>{
     try{
+      // ★ v6.5+ historyCache 값으로 기상 교체 (엑셀 기상값보다 정확)
+      const hr=parseInt((r.time||'12:00').split(':')[0]);
+      const hist=historyCache[r.date]&&historyCache[r.date][hr];
+      if(hist){
+        // historyCache 값이 있으면 우선 사용
+        if(hist.air!=null)r.air=+hist.air.toFixed(1);
+        if(hist.solar!=null)r.solar=+hist.solar.toFixed(2);
+        if(hist.hum!=null)r.hum=+hist.hum.toFixed(1);
+        if(hist.wind!=null)r.wind=+hist.wind.toFixed(2);
+        if(hist.precip!=null)r.precip=hist.precip;
+        if(hist.cloud!=null)r.cloud=hist.cloud;
+        if(hist.wcode!=null)r.wcode=hist.wcode;
+        r.wxSource='open-meteo-historical';
+        r.wxQuality='estimated';
+      }
       // ★ v6.5 enrich (감쇠 변수 등 채움)
       enrichRowForFeatures(r);
       wx.air=Number(r.air);wx.solar=Number(r.solar);wx.hum=Number(r.hum);wx.wind=Number(r.wind);
