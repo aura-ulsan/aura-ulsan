@@ -1939,7 +1939,10 @@ function predictAiResidual(x){
 function calcPred(z, futureMin){
   const x=formulaFeaturesCurrent(z, futureMin);
   let formula=clamp(predictLR(formulaModel,x)+((z.id-3)*0.12),0,90,wx.pave||45);
-  let ai=clamp(formula+predictAiResidual(x),0,90,formula);
+  // ★ v6.5+ 흐린 날 AI 보정 상한 축소
+  // solar 낮을 때 AI가 과도하게 올리는 문제 방지
+  const aiClip=wx.solar<0.5?6:12;
+  ai=clamp(formula+Math.max(-aiClip,Math.min(aiClip,predictAiResidual(x))),0,90,formula);
   let final=clamp((tfReady?ai:formula)+(state.corr[z.id]||0),0,90,formula);
 
   // ★ v6.5+ 강수 중 안전망
@@ -1967,7 +1970,7 @@ function calcPred(z, futureMin){
     const solarPrev=historyCache[today2]&&historyCache[today2][Math.floor(_hrAdj)-1]?
       historyCache[today2][Math.floor(_hrAdj)-1].solar:solarNow;
     const solarTrend=solarNow-solarPrev;  // 음수 = 일사 감소 중
-    if(solarTrend<-0.3){
+    if(solarTrend<-0.1){
       // 일사 감소율에 비례한 하향 보정 (최대 -8℃)
       const adj=Math.max(-8, solarTrend*3);
       final=Math.max(0, final+adj);
