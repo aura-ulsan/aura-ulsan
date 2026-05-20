@@ -1974,6 +1974,7 @@ function calcPred(z, futureMin){
       ai=Math.max(0, ai+adj);
     }
   }
+  let sprinkled=state.sprinkled[z.id];
   if(sprinkled){
     const elapsed=(Date.now()-sprinkled.t)/60000;
     if(elapsed<30){
