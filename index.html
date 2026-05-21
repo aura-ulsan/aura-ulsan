@@ -1737,18 +1737,22 @@ function trainAllModels(runTf=true){
   // ★ v6.5+ 강수/맑은날 별도 모델 학습
   // 강수 데이터(precip>0) vs 맑은날 데이터(precip=0) 분리 학습
   // 예측 시 waterDecay 기반 가중 평균
+  // 안정적인 features만 사용 (인덱스 0~8: 기온,일사,습도,풍속,일사²,풍속×일사,감쇠누적일사,sin,cos)
+  const stableFeats=x=>x.slice(0,9);  // 처음 9개만 (안정적)
   const rainTrain=train.filter(r=>(Number(r.precip)||0)>0);
   const sunnyTrain=train.filter(r=>(Number(r.precip)||0)===0);
   if(rainTrain.length>=50){
-    const Xr=rainTrain.map(features),Yr=rainTrain.map(r=>r.pt);
-    rainModel=fitLR(Xr,Yr,2.0);  // ★ 강수 모델: λ=2.0 (과적합 방지)
+    const Xr=rainTrain.map(r=>stableFeats(features(r))),Yr=rainTrain.map(r=>r.pt);
+    rainModel=fitLR(Xr,Yr,1.0);
+    rainModel._stableOnly=true;
     const fpR=Xr.map(x=>clamp(predictLR(rainModel,x),0,90,30));
     metrics.rain=calcMetrics(Yr,fpR);
     console.log(`[강수 모델] R²=${metrics.rain.r2.toFixed(3)} MAE=${metrics.rain.mae.toFixed(2)}℃ (${rainTrain.length}건)`);
   }
   if(sunnyTrain.length>=50){
-    const Xs=sunnyTrain.map(features),Ys=sunnyTrain.map(r=>r.pt);
-    sunnyModel=fitLR(Xs,Ys,1.0);  // ★ 맑은날 모델: λ=1.0
+    const Xs=sunnyTrain.map(r=>stableFeats(features(r))),Ys=sunnyTrain.map(r=>r.pt);
+    sunnyModel=fitLR(Xs,Ys,1.0);
+    sunnyModel._stableOnly=true;
     const fpS=Xs.map(x=>clamp(predictLR(sunnyModel,x),0,90,wx.pave||45));
     metrics.sunny=calcMetrics(Ys,fpS);
     console.log(`[맑은날 모델] R²=${metrics.sunny.r2.toFixed(3)} MAE=${metrics.sunny.mae.toFixed(2)}℃ (${sunnyTrain.length}건)`);
@@ -1969,9 +1973,9 @@ function calcPred(z, futureMin){
 
   let formula;
   if(rainModel&&sunnyModel&&waterDecayNow>0){
-    const predRain=clamp(predictLR(rainModel,x),0,90,wx.pave||30);
-    const predSunny=clamp(predictLR(sunnyModel,x),0,90,wx.pave||45);
-    // ★ 두 모델 모두 유효한 범위(0~90)인지 확인
+    const xs=x.slice(0,9);  // stableOnly features
+    const predRain=clamp(predictLR(rainModel,xs),0,90,wx.pave||30);
+    const predSunny=clamp(predictLR(sunnyModel,xs),0,90,wx.pave||45);
     if(isFinite(predRain)&&isFinite(predSunny)){
       formula=clamp(w*predRain+(1-w)*predSunny+((z.id-3)*0.12),0,90,wx.pave||45);
     } else {
