@@ -1806,6 +1806,12 @@ function manualBackfill(){
   }
   if(!confirm(`전체 ${all.length}건의 예측치를 현재 모델로 다시 계산합니다.\n(Open-Meteo 과거 기상 자동 보완 포함)\n진행하시겠습니까?`))return;
 
+  // ★ v6.5+ 재계산 전 AI 캐시 강제 초기화
+  // 옛 모델의 캐시된 잔차값이 새 예측에 섞이는 문제 방지
+  _aiCacheModelVer++;
+  for(const k in _aiResidualCache)delete _aiResidualCache[k];
+  console.log('[재계산] AI 캐시 초기화 완료');
+
   // ★ v6.5+ 재계산 전 누락된 날짜의 historyCache 자동 로드
   const dates=[...new Set(all.map(r=>r.date))].sort();
   const today=new Date().toISOString().slice(0,10);
