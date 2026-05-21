@@ -1939,23 +1939,22 @@ function predictAiResidual(x){
 function calcPred(z, futureMin){
   const x=formulaFeaturesCurrent(z, futureMin);
   let formula=clamp(predictLR(formulaModel,x)+((z.id-3)*0.12),0,90,wx.pave||45);
-  // ★ v6.5+ 흐린 날 AI 보정 상한 축소
-  // solar 낮을 때 AI가 과도하게 올리는 문제 방지
-  const aiClip=wx.solar<0.5?6:12;
+  // ★ v6.5+ 흐린 날 AI 보정 상한 축소 (±12 → ±9)
+  const aiClip=wx.solar<0.5?9:12;
   ai=clamp(formula+Math.max(-aiClip,Math.min(aiClip,predictAiResidual(x))),0,90,formula);
   let final=clamp((tfReady?ai:formula)+(state.corr[z.id]||0),0,90,formula);
 
-  // ★ v6.5+ 강수 중 안전망
-  // 1. 실제 강수(precip>0.5) 또는 강수 일기코드(wcode 51~99)
-  // 2. 물감쇠 2.0 이상 (최근 비가 많이 온 상태)
-  // 3. solar<0.3 + 기온<20 (비 오는 날 특징)
-  const isRainy=wx.precip>0.5;
+  // ★ v6.5+ 강수 중 안전망 — 강수량 기반 동적 상한
+  // 실측 데이터 분석 기반:
+  // ~1mm: 기온+20 / 1~3mm: 기온+15 / 3~5mm: 기온+12 / 5mm+: 기온+10
+  const precip=wx.precip||0;
   const isRainyWcode=wx.wcode>=51&&wx.wcode<=99;
-  const waterDecayNow=x[10];  // features 11번째 = 물감쇠
-  const isWet=waterDecayNow>=2.0;
-  const isRainyLowSolar=wx.solar<0.3&&wx.air<20;
-  if(isRainy||isRainyWcode||isWet||isRainyLowSolar){
-    const rainMax=clamp(wx.air+8,0,90,wx.air);
+  if(precip>0||isRainyWcode){
+    let rainOffset=20;
+    if(precip>=5) rainOffset=10;
+    else if(precip>=3) rainOffset=12;
+    else if(precip>=1) rainOffset=15;
+    const rainMax=clamp(wx.air+rainOffset,0,90,wx.air);
     if(final>rainMax){
       final=rainMax;
       ai=Math.min(ai,rainMax);
@@ -1963,24 +1962,6 @@ function calcPred(z, futureMin){
     }
   }
 
-  // ★ v6.5+ 오후 하강 구간 보정
-  // 14시 이후 일사가 감소 중이면 포장온도도 하강 중
-  // 모델이 감쇠누적일사 때문에 과대예측하는 문제 보정
-  const _nowForAdj=new Date(window._fixedNow||Date.now());
-  const _hrAdj=_nowForAdj.getHours()+_nowForAdj.getMinutes()/60+(futureMin||0)/60;
-  if(_hrAdj>=14&&_hrAdj<=20){
-    const today2=_nowForAdj.toISOString().slice(0,10);
-    const solarNow=wx.solar;
-    const solarPrev=historyCache[today2]&&historyCache[today2][Math.floor(_hrAdj)-1]?
-      historyCache[today2][Math.floor(_hrAdj)-1].solar:solarNow;
-    const solarTrend=solarNow-solarPrev;  // 음수 = 일사 감소 중
-    if(solarTrend<-0.1){
-      // 일사 감소율에 비례한 하향 보정 (최대 -8℃)
-      const adj=Math.max(-8, solarTrend*3);
-      final=Math.max(0, final+adj);
-      ai=Math.max(0, ai+adj);
-    }
-  }
   let sprinkled=state.sprinkled[z.id];
   if(sprinkled){
     const elapsed=(Date.now()-sprinkled.t)/60000;
