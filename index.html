@@ -1965,11 +1965,12 @@ function calcPred(z, futureMin){
   const x=formulaFeaturesCurrent(z, futureMin);
 
   // ★ v6.5+ 강수/맑은날 가중 평균
-  // w = waterDecay / (waterDecay + 1)
-  // 비 안 옴: w=0 → 맑은날 모델 100%
-  // 비 많음: w → 1 → 강수 모델 우세
-  const waterDecayNow=x[10];  // features 11번째 = 물감쇠
-  const w=waterDecayNow/(waterDecayNow+1);  // 0~1
+  // w = max(waterDecay, precip×2) / (max(...) + 1)
+  // 비 오는 중이면 강수 모델 비중 더 높임
+  const waterDecayNow=x[10];
+  const precipNow=wx.precip||0;
+  const wBase=Math.max(waterDecayNow, precipNow*2);
+  const w=wBase/(wBase+1);  // 0~1
 
   let formula;
   if(rainModel&&sunnyModel&&waterDecayNow>0){
