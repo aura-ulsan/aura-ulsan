@@ -1734,19 +1734,19 @@ function trainAllModels(runTf=true){
   const fp=X.map(x=>clamp(predictLR(formulaModel,x),0,90,wx.pave));
   metrics.formula=calcMetrics(Y,fp);
 
-  // ★ v6.5+ 강수/맑은날 별도 모델 학습
-  // 강수 데이터(precip>0) vs 맑은날 데이터(precip=0) 분리 학습
-  // 예측 시 waterDecay 기반 가중 평균
-  // 안정적인 features만 사용 (인덱스 0~8: 기온,일사,습도,풍속,일사²,풍속×일사,감쇠누적일사,sin,cos)
   const stableFeats=x=>x.slice(0,9);  // 처음 9개만 (안정적)
   const rainTrain=train.filter(r=>(Number(r.precip)||0)>0);
   const sunnyTrain=train.filter(r=>(Number(r.precip)||0)===0);
   if(rainTrain.length>=50){
-    const Xr=rainTrain.map(r=>stableFeats(features(r))),Yr=rainTrain.map(r=>r.pt);
+    const Xr=rainTrain.map(r=>stableFeats(features(r)));
+    // ★ v6.5+ 강수 모델: 기온차(포장-기온) 예측 방식
+    // T_pave = T_air + f(일사, 강수, 습도) → 기온 낮아도 정확
+    const Yr=rainTrain.map(r=>r.pt - Number(r.air));
     rainModel=fitLR(Xr,Yr,1.0);
     rainModel._stableOnly=true;
-    const fpR=Xr.map(x=>clamp(predictLR(rainModel,x),0,90,30));
-    metrics.rain=calcMetrics(Yr,fpR);
+    rainModel._diffMode=true;  // 기온차 예측 모드 표시
+    const fpR=Xr.map((x,i)=>clamp(Number(rainTrain[i].air)+predictLR(rainModel,x),0,90,30));
+    metrics.rain=calcMetrics(rainTrain.map(r=>r.pt),fpR);
     console.log(`[강수 모델] R²=${metrics.rain.r2.toFixed(3)} MAE=${metrics.rain.mae.toFixed(2)}℃ (${rainTrain.length}건)`);
   }
   if(sunnyTrain.length>=50){
@@ -1965,17 +1965,16 @@ function calcPred(z, futureMin){
   const x=formulaFeaturesCurrent(z, futureMin);
 
   // ★ v6.5+ 강수/맑은날 가중 평균
-  // w = max(waterDecay, precip×2) / (max(...) + 1)
-  // 비 오는 중이면 강수 모델 비중 더 높임
+  // w = waterDecay / (waterDecay + 1) (원래 방식 복원)
   const waterDecayNow=x[10];
-  const precipNow=wx.precip||0;
-  const wBase=Math.max(waterDecayNow, precipNow*2);
-  const w=wBase/(wBase+1);  // 0~1
+  const w=waterDecayNow/(waterDecayNow+1);  // 0~1
 
   let formula;
   if(rainModel&&sunnyModel&&waterDecayNow>0){
     const xs=x.slice(0,9);  // stableOnly features
-    const predRain=clamp(predictLR(rainModel,xs),0,90,wx.pave||30);
+    // ★ 강수 모델: 기온차 예측 후 기온에 더하기
+    const predRainDiff=predictLR(rainModel,xs);
+    const predRain=clamp(wx.air+predRainDiff,0,90,wx.pave||30);
     const predSunny=clamp(predictLR(sunnyModel,xs),0,90,wx.pave||45);
     if(isFinite(predRain)&&isFinite(predSunny)){
       formula=clamp(w*predRain+(1-w)*predSunny+((z.id-3)*0.12),0,90,wx.pave||45);
