@@ -1166,7 +1166,7 @@ pre{
   </div>
 </div></div>
 <script>
-const LS='aura_v62_full_state';let chart=null,analysisChart=null,currentZoneForModal=1,selectedZone=1,tfReady=false;let formulaModel=null,tfModel=null,normInfo=null,metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};let wx={pave:24.5,air:20.0,solar:0,hum:30,wind:7.10,dir:305,dew:8.0,precip:0,cloud:0,wcode:0};const zones=[{id:1,name:'구역 1',sub:'활주로 36방향 회전패드',base:46.1},{id:2,name:'구역 2',sub:'활주로 36방향 목표점표지',base:46.1},{id:3,name:'구역 3',sub:'활주로 진입지점',base:46.1},{id:4,name:'구역 4',sub:'활주로 18방향 목표점표지',base:46.1},{id:5,name:'구역 5',sub:'활주로 18방향 회전패드',base:46.1},{id:6,name:'구역 6',sub:'계류장',base:46.1}];let state={corr:{1:0,2:0,3:0,4:0,5:0,6:0},sprinkled:{},measurements:null,systemLogs:[]};
+const LS='aura_v62_full_state';let chart=null,analysisChart=null,currentZoneForModal=1,selectedZone=1,tfReady=false;let formulaModel=null,rainModel=null,sunnyModel=null,tfModel=null,normInfo=null,metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0},rain:{r2:0,rmse:0,mae:0},sunny:{r2:0,rmse:0,mae:0}};let wx={pave:24.5,air:20.0,solar:0,hum:30,wind:7.10,dir:305,dew:8.0,precip:0,cloud:0,wcode:0};const zones=[{id:1,name:'구역 1',sub:'활주로 36방향 회전패드',base:46.1},{id:2,name:'구역 2',sub:'활주로 36방향 목표점표지',base:46.1},{id:3,name:'구역 3',sub:'활주로 진입지점',base:46.1},{id:4,name:'구역 4',sub:'활주로 18방향 목표점표지',base:46.1},{id:5,name:'구역 5',sub:'활주로 18방향 회전패드',base:46.1},{id:6,name:'구역 6',sub:'계류장',base:46.1}];let state={corr:{1:0,2:0,3:0,4:0,5:0,6:0},sprinkled:{},measurements:null,systemLogs:[]};
 
 // ★ metrics localStorage 저장/복원 — F5 시 즉시 R² 표시
 const METRICS_KEY='aura_v62_metrics';
@@ -1733,6 +1733,27 @@ function trainAllModels(runTf=true){
   formulaModel=fitLR(X,Y);
   const fp=X.map(x=>clamp(predictLR(formulaModel,x),0,90,wx.pave));
   metrics.formula=calcMetrics(Y,fp);
+
+  // ★ v6.5+ 강수/맑은날 별도 모델 학습
+  // 강수 데이터(precip>0) vs 맑은날 데이터(precip=0) 분리 학습
+  // 예측 시 waterDecay 기반 가중 평균
+  const rainTrain=train.filter(r=>(Number(r.precip)||0)>0);
+  const sunnyTrain=train.filter(r=>(Number(r.precip)||0)===0);
+  if(rainTrain.length>=50){
+    const Xr=rainTrain.map(features),Yr=rainTrain.map(r=>r.pt);
+    rainModel=fitLR(Xr,Yr);
+    const fpR=Xr.map(x=>clamp(predictLR(rainModel,x),0,90,30));
+    metrics.rain=calcMetrics(Yr,fpR);
+    console.log(`[강수 모델] R²=${metrics.rain.r2.toFixed(3)} MAE=${metrics.rain.mae.toFixed(2)}℃ (${rainTrain.length}건)`);
+  }
+  if(sunnyTrain.length>=50){
+    const Xs=sunnyTrain.map(features),Ys=sunnyTrain.map(r=>r.pt);
+    sunnyModel=fitLR(Xs,Ys);
+    const fpS=Xs.map(x=>clamp(predictLR(sunnyModel,x),0,90,wx.pave||45));
+    metrics.sunny=calcMetrics(Ys,fpS);
+    console.log(`[맑은날 모델] R²=${metrics.sunny.r2.toFixed(3)} MAE=${metrics.sunny.mae.toFixed(2)}℃ (${sunnyTrain.length}건)`);
+  }
+
   updateCorrections(train,fp);
   saveMetrics();
   if(runTf)trainTfModel(false);
@@ -1938,23 +1959,32 @@ function predictAiResidual(x){
 }function coolingEffect(zid,temp){const rows=state.measurements.filter(r=>r.spk&&r.zone==zid&&r.after!=='');if(rows.length){return rows.reduce((a,r)=>a+(r.pt-r.after),0)/rows.length}const all=state.measurements.filter(r=>r.spk&&r.after!=='');return all.length?all.reduce((a,r)=>a+(r.pt-r.after),0)/all.length:6.0}
 function calcPred(z, futureMin){
   const x=formulaFeaturesCurrent(z, futureMin);
-  let formula=clamp(predictLR(formulaModel,x)+((z.id-3)*0.12),0,90,wx.pave||45);
+
+  // ★ v6.5+ 강수/맑은날 가중 평균
+  // w = waterDecay / (waterDecay + 1)
+  // 비 안 옴: w=0 → 맑은날 모델 100%
+  // 비 많음: w → 1 → 강수 모델 우세
+  const waterDecayNow=x[10];  // features 11번째 = 물감쇠
+  const w=waterDecayNow/(waterDecayNow+1);  // 0~1
+
+  let formula;
+  if(rainModel&&sunnyModel&&waterDecayNow>0){
+    const predRain=clamp(predictLR(rainModel,x),0,90,wx.pave||30);
+    const predSunny=clamp(predictLR(sunnyModel,x),0,90,wx.pave||45);
+    formula=clamp(w*predRain+(1-w)*predSunny+((z.id-3)*0.12),0,90,wx.pave||45);
+  } else {
+    formula=clamp(predictLR(formulaModel,x)+((z.id-3)*0.12),0,90,wx.pave||45);
+  }
   // ★ v6.5+ 흐린 날 AI 보정 상한 축소 (±12 → ±9)
   const aiClip=wx.solar<0.5?9:12;
   ai=clamp(formula+Math.max(-aiClip,Math.min(aiClip,predictAiResidual(x))),0,90,formula);
   let final=clamp((tfReady?ai:formula)+(state.corr[z.id]||0),0,90,formula);
 
-  // ★ v6.5+ 강수 중 안전망 — 강수량 기반 동적 상한
-  // 실측 데이터 분석 기반:
-  // ~1mm: 기온+20 / 1~3mm: 기온+15 / 3~5mm: 기온+12 / 5mm+: 기온+10
+  // ★ v6.5+ 강수 안전망 (가중 평균 외 추가 안전망)
+  // 실제 강수 중 + 매우 강한 비일 때만 적용
   const precip=wx.precip||0;
-  const isRainyWcode=wx.wcode>=51&&wx.wcode<=99;
-  if(precip>0||isRainyWcode){
-    let rainOffset=20;
-    if(precip>=5) rainOffset=10;
-    else if(precip>=3) rainOffset=12;
-    else if(precip>=1) rainOffset=15;
-    const rainMax=clamp(wx.air+rainOffset,0,90,wx.air);
+  if(precip>=3){
+    const rainMax=clamp(wx.air+12,0,90,wx.air);
     if(final>rainMax){
       final=rainMax;
       ai=Math.min(ai,rainMax);
