@@ -1642,7 +1642,7 @@ function formulaFeaturesCurrent(z, futureMin){
   };
   return features(r);
 }
-function fitLR(X,Y){
+function fitLR(X,Y,lambda=0.15){
   if(!X.length){return{intercept:0,coefs:[],means:[],stds:[],ridge:true}}
   const cols=X[0].length;
   const means=Array(cols).fill(0),stds=Array(cols).fill(0);
@@ -1652,7 +1652,7 @@ function fitLR(X,Y){
   for(let i=0;i<cols;i++)stds[i]=Math.sqrt(stds[i]/X.length)||1;
   const Xn=X.map(x=>x.map((v,i)=>((Number(v)||0)-means[i])/stds[i]));
   const Xb=Xn.map(r=>[1,...r]);
-  const Xt=transpose(Xb),XtX=mm(Xt,Xb),lambda=0.15;
+  const Xt=transpose(Xb),XtX=mm(Xt,Xb);
   for(let i=1;i<XtX.length;i++)XtX[i][i]+=lambda;
   const XtY=Xt.map(r=>r.reduce((a,v,i)=>a+v*Y[i],0));
   const beta=solve(XtX,XtY).map(v=>isFinite(v)?v:0);
@@ -1741,14 +1741,14 @@ function trainAllModels(runTf=true){
   const sunnyTrain=train.filter(r=>(Number(r.precip)||0)===0);
   if(rainTrain.length>=50){
     const Xr=rainTrain.map(features),Yr=rainTrain.map(r=>r.pt);
-    rainModel=fitLR(Xr,Yr);
+    rainModel=fitLR(Xr,Yr,2.0);  // ★ 강수 모델: λ=2.0 (과적합 방지)
     const fpR=Xr.map(x=>clamp(predictLR(rainModel,x),0,90,30));
     metrics.rain=calcMetrics(Yr,fpR);
     console.log(`[강수 모델] R²=${metrics.rain.r2.toFixed(3)} MAE=${metrics.rain.mae.toFixed(2)}℃ (${rainTrain.length}건)`);
   }
   if(sunnyTrain.length>=50){
     const Xs=sunnyTrain.map(features),Ys=sunnyTrain.map(r=>r.pt);
-    sunnyModel=fitLR(Xs,Ys);
+    sunnyModel=fitLR(Xs,Ys,1.0);  // ★ 맑은날 모델: λ=1.0
     const fpS=Xs.map(x=>clamp(predictLR(sunnyModel,x),0,90,wx.pave||45));
     metrics.sunny=calcMetrics(Ys,fpS);
     console.log(`[맑은날 모델] R²=${metrics.sunny.r2.toFixed(3)} MAE=${metrics.sunny.mae.toFixed(2)}℃ (${sunnyTrain.length}건)`);
@@ -1971,7 +1971,12 @@ function calcPred(z, futureMin){
   if(rainModel&&sunnyModel&&waterDecayNow>0){
     const predRain=clamp(predictLR(rainModel,x),0,90,wx.pave||30);
     const predSunny=clamp(predictLR(sunnyModel,x),0,90,wx.pave||45);
-    formula=clamp(w*predRain+(1-w)*predSunny+((z.id-3)*0.12),0,90,wx.pave||45);
+    // ★ 두 모델 모두 유효한 범위(0~90)인지 확인
+    if(isFinite(predRain)&&isFinite(predSunny)){
+      formula=clamp(w*predRain+(1-w)*predSunny+((z.id-3)*0.12),0,90,wx.pave||45);
+    } else {
+      formula=clamp(predictLR(formulaModel,x)+((z.id-3)*0.12),0,90,wx.pave||45);
+    }
   } else {
     formula=clamp(predictLR(formulaModel,x)+((z.id-3)*0.12),0,90,wx.pave||45);
   }
