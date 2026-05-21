@@ -1857,8 +1857,9 @@ function _doBackfill(targets,label){
       const xFeat=features(r);
 
       // ★ v6.5+ 강수/맑은날 가중 평균 (calcPred와 동일 로직)
-      const waterDecayNow=xFeat[10];
-      const w=waterDecayNow/(waterDecayNow+1);
+      // _doBackfill에서는 precip_decay가 0이므로 r.precip 직접 사용
+      const precipVal=Number(r.precip)||0;
+      const w=precipVal/(precipVal+1);  // 강수 2.5mm → w=0.71
       let fpV;
       if(rainModel&&sunnyModel&&waterDecayNow>0){
         const xs=xFeat.slice(0,9);
