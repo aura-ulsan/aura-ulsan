@@ -1861,7 +1861,7 @@ function _doBackfill(targets,label){
       const precipVal=Number(r.precip)||0;
       const w=precipVal/(precipVal+1);  // 강수 2.5mm → w=0.71
       let fpV;
-      if(rainModel&&sunnyModel&&waterDecayNow>0){
+      if(rainModel&&sunnyModel&&precipVal>0){
         const xs=xFeat.slice(0,9);
         const predRainDiff=predictLR(rainModel,xs);
         const predRain=clamp(Number(r.air)+predRainDiff,0,90,30);
