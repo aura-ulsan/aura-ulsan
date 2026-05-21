@@ -1855,7 +1855,24 @@ function _doBackfill(targets,label){
       const z=zones.find(x=>x.id==r.zone)||zones[0];
       // 직접 features 사용 (formulaFeaturesCurrent 대신)
       const xFeat=features(r);
-      const fpV=clamp(predictLR(formulaModel,xFeat)+((z.id-3)*0.12),0,90,wx.pave||45);
+
+      // ★ v6.5+ 강수/맑은날 가중 평균 (calcPred와 동일 로직)
+      const waterDecayNow=xFeat[10];
+      const w=waterDecayNow/(waterDecayNow+1);
+      let fpV;
+      if(rainModel&&sunnyModel&&waterDecayNow>0){
+        const xs=xFeat.slice(0,9);
+        const predRainDiff=predictLR(rainModel,xs);
+        const predRain=clamp(Number(r.air)+predRainDiff,0,90,30);
+        const predSunny=clamp(predictLR(sunnyModel,xs),0,90,wx.pave||45);
+        if(isFinite(predRain)&&isFinite(predSunny)){
+          fpV=clamp(w*predRain+(1-w)*predSunny+((z.id-3)*0.12),0,90,wx.pave||45);
+        } else {
+          fpV=clamp(predictLR(formulaModel,xFeat)+((z.id-3)*0.12),0,90,wx.pave||45);
+        }
+      } else {
+        fpV=clamp(predictLR(formulaModel,xFeat)+((z.id-3)*0.12),0,90,wx.pave||45);
+      }
       const aiV=clamp(fpV+predictAiResidual(xFeat),0,90,fpV);
       const finalV=clamp((tfReady?aiV:fpV)+(state.corr[z.id]||0),0,90,fpV);
       if(isFinite(fpV)&&isFinite(finalV)){
