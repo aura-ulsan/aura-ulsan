@@ -1946,12 +1946,16 @@ function calcPred(z, futureMin){
   let final=clamp((tfReady?ai:formula)+(state.corr[z.id]||0),0,90,formula);
 
   // ★ v6.5+ 강수 중 안전망
-  // 실제 강수(precip>0.5) 또는 강수 일기코드(wcode 51~99)일 때만 적용
-  // 단순 흐림(solar 낮음)은 제외 — 흐린 날도 포장온도 높을 수 있음
+  // 1. 실제 강수(precip>0.5) 또는 강수 일기코드(wcode 51~99)
+  // 2. 물감쇠 2.0 이상 (최근 비가 많이 온 상태)
+  // 3. solar<0.3 + 기온<20 (비 오는 날 특징)
   const isRainy=wx.precip>0.5;
   const isRainyWcode=wx.wcode>=51&&wx.wcode<=99;
-  if(isRainy||isRainyWcode){
-    const rainMax=clamp(wx.air+8,0,90,wx.air);  // 강수: 기온+8℃
+  const waterDecayNow=x[10];  // features 11번째 = 물감쇠
+  const isWet=waterDecayNow>=2.0;
+  const isRainyLowSolar=wx.solar<0.3&&wx.air<20;
+  if(isRainy||isRainyWcode||isWet||isRainyLowSolar){
+    const rainMax=clamp(wx.air+8,0,90,wx.air);
     if(final>rainMax){
       final=rainMax;
       ai=Math.min(ai,rainMax);
