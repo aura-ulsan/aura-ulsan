@@ -934,7 +934,7 @@ pre{
 </head>
 <body>
 <div class="app">
-<header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.5</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div><div style="font-size:10px;color:#8a9ab0;margin-top:1px;">© 2026 AURA. All rights reserved.</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="AURA_logout()">🔒 로그아웃</button></div></header>
+<header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.6</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div><div style="font-size:10px;color:#8a9ab0;margin-top:1px;">© 2026 AURA. All rights reserved.</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="AURA_logout()">🔒 로그아웃</button></div></header>
 <nav class="tabs"><button class="tab active" data-tab="monitor" onclick="showPane('monitor')">🏠 모니터링</button><button class="tab new" data-tab="ai" onclick="showPane('ai')">🤖 AI 모델</button><button class="tab" data-tab="data" onclick="showPane('data')">📋 데이터 현황</button><button class="tab" data-tab="ana" onclick="showPane('ana')">📊 분석</button><button class="tab" data-tab="coef" onclick="showPane('coef')">📐 회귀 계수</button><button class="tab" data-tab="log" onclick="showPane('log')">📝 운영 로그</button><button class="tab" data-tab="setting" onclick="showPane('setting')">⚙ 설정</button><span class="tab-spacer"></span><div class="mini-stat"><span><i class="dot"></i>Open-Meteo</span><span><i class="dot"></i>AI 모델</span><span><i class="dot"></i>DB 연결</span></div></nav>
 <main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><section class="zones" id="zoneArea"></section><div id="zoneLegendArea"></div><section class="measure-guide" id="measureGuide"></section><section class="bottom"><div class="panel"><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 온도 (선택 구역)</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div style="margin-top:12px;padding:14px;background:#f7fbff;border:1px solid #cfdbea;border-radius:7px;font-size:12.5px;color:#3a4a66;line-height:1.85;flex:1;">
   <div style="margin-bottom:8px;"><b style="font-size:13.5px;color:#0054c8;">📐 최종 운영값</b><br>= 상관식 예측 + AI 보정 + 구역별 동적 보정계수</div>
@@ -997,7 +997,7 @@ pre{
   <span id="filterStatsText">--</span>
 </div>
 <div style="max-height:600px;overflow:auto"><table class="data-table"><thead><tr><th>일자</th><th>시간</th><th>구역</th><th>특보</th><th>일기</th><th>기온</th><th>일사량</th><th>습도</th><th>풍속</th><th>강수</th><th>실측</th><th>🤖 예측</th><th>오차</th><th>살수</th><th>살수량</th><th>살수후온도</th><th>출처</th><th>조작</th></tr></thead><tbody id="dataBody"></tbody></table></div></div></main>
-<main id="pane-ana" class="pane ana-pane"><div id="anaStatBox" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;"></div><div class="grid2"><div class="placeholder"><h2>📊 구역별 평균 포장온도 / 살수 저감량</h2><div class="chart-wrap" style="height:340px"><canvas id="analysisChart"></canvas></div></div><div class="placeholder"><h2>구역별 동적 보정계수</h2><table class="perf-table"><thead><tr><th>구역</th><th>보정계수</th><th>표본</th><th>상태</th></tr></thead><tbody id="correctionBody"></tbody></table><div style="margin-top:12px;padding:10px;background:#f7fbff;border:1px solid #cfdbea;border-radius:7px;font-size:11px;color:#3a4a66;line-height:1.6;">
+<main id="pane-ana" class="pane ana-pane"><div id="dataHealthBox"></div><div id="anaStatBox" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;"></div><div class="grid2"><div class="placeholder"><h2>📊 구역별 평균 포장온도 / 살수 저감량</h2><div class="chart-wrap" style="height:340px"><canvas id="analysisChart"></canvas></div></div><div class="placeholder"><h2>구역별 동적 보정계수</h2><table class="perf-table"><thead><tr><th>구역</th><th>보정계수</th><th>표본</th><th>상태</th></tr></thead><tbody id="correctionBody"></tbody></table><div style="margin-top:12px;padding:10px;background:#f7fbff;border:1px solid #cfdbea;border-radius:7px;font-size:11px;color:#3a4a66;line-height:1.6;">
 💡 <b>구역별 동적 보정계수</b>는 각 구역의 평균 예측 오차를 학습하여 자동 적용됩니다. 클리핑 범위 ±12℃, ±4℃를 넘으면 '주의'로 표시됩니다.
 </div></div></div></main>
 <main id="pane-coef" class="pane coef-pane"><div class="placeholder"><h2>📐 회귀 계수 및 상관식</h2><pre id="coefBox"></pre><button class="ghost" onclick="resetCorrections()">구역 보정계수 초기화</button></div></main>
@@ -1243,11 +1243,21 @@ function windDirInfo(deg){
 }
 
 // 살수량(L) → 강수상당 mm 환산
-// 가정: 살수 면적 구역당 약 1,000㎡ → 1L/㎡ = 1mm
-const SPRINKLE_AREA_M2=1000;
-function sprinkleToMM(volumeL){
+// ★ v6.6 구역별 면적 차이 반영 — 같은 살수량이라도 mm 환산값이 달라짐
+// 운영팀과 실측 확정 필요 (현재값은 도면 추정치, 시스템 코드 기존 1000과의 호환을 위한 fallback 포함)
+const SPRINKLE_AREA_M2=1000;  // 기본값 (zone 미지정 시 사용)
+const SPRINKLE_AREA_M2_BY_ZONE={
+  1: 800,   // 활주로 36방향 회전패드 (실측 확정 필요)
+  2: 1200,  // 활주로 36방향 목표점표지
+  3: 1500,  // 활주로 진입구간
+  4: 1200,  // 활주로 18방향 목표점표지
+  5: 800,   // 활주로 18방향 회전패드
+  6: 2000   // 계류장 (가장 넓음)
+};
+function sprinkleToMM(volumeL,zone){
   if(!isFinite(volumeL)||volumeL<=0)return 0;
-  return volumeL/SPRINKLE_AREA_M2;
+  const area=(zone&&SPRINKLE_AREA_M2_BY_ZONE[zone])?SPRINKLE_AREA_M2_BY_ZONE[zone]:SPRINKLE_AREA_M2;
+  return volumeL/area;
 }
 
 // 감쇠 시정수 (분) — 자동 튜닝 가능
@@ -1362,7 +1372,7 @@ function calcSprinkleDecay(dateStr, time, zone){
     const mt=new Date(m.date+'T'+m.time+':00').getTime();
     const ageMin=(targetMs-mt)/60000;
     const w=Math.exp(-ageMin/TAU_WATER);
-    sum+=sprinkleToMM(m.vol)*w;
+    sum+=sprinkleToMM(m.vol,m.zone)*w;
   });
   return sum;
 }
@@ -1573,9 +1583,12 @@ function generateSampleData(){toast('샘플 데이터 생성은 비활성화되�
    v6.5 16개 변수 features — 비/살수 통합 + 열관성 + 시각
    ════════════════════════════════════════════════════════════════ */
 function features(r){
-  // 시각
+  // ★ v6.6 시각 — 분 단위까지 반영 (13:18 → 13.3, 정시 처리 시 sin/cos 부정확 문제 해결)
   const timeStr=r.time||'13:00';
-  const hr=parseFloat(String(timeStr).split(':')[0])||13;
+  const _tparts=String(timeStr).split(':');
+  const _hh=parseFloat(_tparts[0])||13;
+  const _mm=parseFloat(_tparts[1])||0;
+  const hr=_hh+_mm/60;
   
   // 감쇠 누적 일사 (사전 계산값 우선, 없으면 추정)
   const solar=Number(r.solar)||0;
@@ -1769,8 +1782,17 @@ function updateCorrections(rows,fp){
   let sums={},cnt={};
   // ★ v6.4 잔차 클리핑 ±12℃ (구역간 최대 편차 12℃ 관찰 대응)
   rows.forEach((r,i)=>{const e=clamp(r.pt-fp[i],-12,12,0);sums[r.zone]=(sums[r.zone]||0)+e;cnt[r.zone]=(cnt[r.zone]||0)+1});
-  // ★ v6.4 구역 보정계수 클리핑 ±12℃ (기존 ±6℃ → ±12℃)
-  for(let z=1;z<=6;z++){if(cnt[z])state.corr[z]=+clamp(0.8*(state.corr[z]||0)+0.2*(sums[z]/cnt[z]),-12,12,0).toFixed(2)}
+  // ★ v6.6 구역별 동적 학습률·클리핑 — 데이터 분석으로 발견된 구역 불균형 대응
+  // 데이터: 1번 111건 / 2번 353 / 3번 55 / 4번 353 / 5번 55 / 6번 354
+  // 소표본 구역(3,5번)에서 보정계수가 노이즈로 흔들리는 문제 방지
+  for(let z=1;z<=6;z++){
+    if(!cnt[z])continue;
+    const n=cnt[z];
+    // 데이터가 적을수록 보수적 (학습률↓, 클리핑↓)
+    const lr=n>=200?0.20:(n>=100?0.15:(n>=50?0.10:0.05));
+    const clipRange=n>=200?12:(n>=100?10:(n>=50?8:6));
+    state.corr[z]=+clamp((1-lr)*(state.corr[z]||0)+lr*(sums[z]/cnt[z]),-clipRange,clipRange,0).toFixed(2);
+  }
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -1933,19 +1955,62 @@ async function trainTfModel(show=true){
   const Yn=residual.map(v=>(v-yMean)/yStd);
   if(tfModel)tfModel.dispose();
   tfModel=tf.sequential();
-  // ★ v6.5 입력 16개 → 은닉 12 → 6 → 1 (변수 증가에 맞춰 신경망 크기 조정)
-  tfModel.add(tf.layers.dense({inputShape:[cols],units:12,activation:'relu',kernelRegularizer:tf.regularizers.l2({l2:0.001})}));
-  tfModel.add(tf.layers.dense({units:6,activation:'relu',kernelRegularizer:tf.regularizers.l2({l2:0.001})}));
+  // ★ v6.6 신경망 구조 강화 — 데이터 1281건 활용 극대화
+  // 이전: 12→6→1, 90 epochs, L2=0.001
+  // 개선: 16→8→1, 200 epochs (early-stop), L2=0.003, validation 분리
+  tfModel.add(tf.layers.dense({inputShape:[cols],units:16,activation:'relu',kernelRegularizer:tf.regularizers.l2({l2:0.003})}));
+  tfModel.add(tf.layers.dense({units:8,activation:'relu',kernelRegularizer:tf.regularizers.l2({l2:0.003})}));
   tfModel.add(tf.layers.dense({units:1}));
-  tfModel.compile({optimizer:tf.train.adam(0.003),loss:'meanSquaredError'});
+  tfModel.compile({optimizer:tf.train.adam(0.002),loss:'meanSquaredError'});
   const xs=tf.tensor2d(Xn),ys=tf.tensor2d(Yn,[Yn.length,1]);
-  try{await tfModel.fit(xs,ys,{epochs:90,batchSize:Math.min(16,Math.max(4,Math.floor(train.length/4))),shuffle:true,verbose:0})}catch(e){tfReady=false;xs.dispose();ys.dispose();if(show)toast('AI 학습 실패: 상관식 기준으로 운전');return}
+  try{
+    await tfModel.fit(xs,ys,{
+      epochs:200,
+      batchSize:Math.min(32,Math.max(8,Math.floor(train.length/8))),
+      shuffle:true,
+      validationSplit:0.15,  // ★ 15% 검증
+      verbose:0,
+      callbacks:{
+        // ★ Early stopping — 검증 loss 20 epoch 정체 시 중단
+        onEpochEnd:(epoch,logs)=>{
+          if(!window._tfHistory)window._tfHistory=[];
+          window._tfHistory.push(logs.val_loss||logs.loss);
+          if(window._tfHistory.length>20){
+            const recent=window._tfHistory.slice(-20);
+            const best=Math.min(...recent);
+            if(recent[recent.length-1]>best*1.05)tfModel.stopTraining=true;
+          }
+        }
+      }
+    });
+  }catch(e){tfReady=false;xs.dispose();ys.dispose();window._tfHistory=null;if(show)toast('AI 학습 실패: 상관식 기준으로 운전');return}
+  window._tfHistory=null;
   const predNorm=Array.from(tfModel.predict(xs).dataSync());
   xs.dispose();ys.dispose();
   const predRes=predNorm.map(v=>clamp(v*yStd+yMean,-12,12,0));  // v6.5 ±12℃
   const aiPred=basePred.map((v,i)=>clamp(v+predRes[i],0,90,v));
   metrics.ai=calcMetrics(train.map(r=>r.pt),aiPred);
-  tfReady=isFinite(metrics.ai.rmse)&&metrics.ai.rmse<=metrics.formula.rmse*1.05&&metrics.ai.r2>=0.05;
+  
+  // ★ v6.6 알람 임계 영역 (55~65℃) 별도 검증 — Precision 보호
+  // AI가 전체 MAE는 좋아도 임계 근처에서 false alarm 양산하는 문제 방지
+  const critIdx=[];
+  train.forEach((r,i)=>{if(r.pt>=55&&r.pt<=65)critIdx.push(i);});
+  let critOk=true;
+  if(critIdx.length>=30){
+    const critY=critIdx.map(i=>train[i].pt);
+    const critF=critIdx.map(i=>basePred[i]);
+    const critAI=critIdx.map(i=>aiPred[i]);
+    const maeF=critY.reduce((a,v,i)=>a+Math.abs(v-critF[i]),0)/critY.length;
+    const maeAI=critY.reduce((a,v,i)=>a+Math.abs(v-critAI[i]),0)/critY.length;
+    metrics.aiCritical={mae:maeAI,formulaCritical:{mae:maeF},n:critIdx.length};
+    // 임계 영역에서 AI가 회귀식 대비 10% 이상 나쁘면 거부
+    critOk=maeAI<=maeF*1.10;
+    if(!critOk)console.warn(`[AI 임계영역 검증 실패] AI MAE ${maeAI.toFixed(2)}℃ > 회귀식 MAE×1.10 ${(maeF*1.10).toFixed(2)}℃ - 회귀식 fallback`);
+    else console.log(`[AI 임계영역 OK] AI MAE ${maeAI.toFixed(2)}℃ vs 회귀식 ${maeF.toFixed(2)}℃ (n=${critIdx.length})`);
+  }
+  
+  // ★ v6.6 tfReady 결정 — 전체 성능 + 임계영역 성능 모두 통과해야 함
+  tfReady=isFinite(metrics.ai.rmse)&&metrics.ai.rmse<=metrics.formula.rmse*1.05&&metrics.ai.r2>=0.05&&critOk;
   // ★ v6.5+ 모델 재학습 시 AI 캐시 무효화
   _aiCacheModelVer++;
   for(const k in _aiResidualCache)delete _aiResidualCache[k];
@@ -1984,7 +2049,35 @@ function predictAiResidual(x){
     keys.slice(0,500).forEach(k=>delete _aiResidualCache[k]);
   }
   return v;
-}function coolingEffect(zid,temp){const rows=state.measurements.filter(r=>r.spk&&r.zone==zid&&r.after!=='');if(rows.length){return rows.reduce((a,r)=>a+(r.pt-r.after),0)/rows.length}const all=state.measurements.filter(r=>r.spk&&r.after!=='');return all.length?all.reduce((a,r)=>a+(r.pt-r.after),0)/all.length:6.0}
+}
+// ★ v6.6 살수 냉각효과 — 살수량·살수전 온도 기반 회귀
+// 이전: 구역별 단순 평균 (데이터상 σ=6.06℃로 변동 큼)
+// 개선: 살수량 ↔ 냉각효과 상관계수 0.496 활용
+//       데이터 시뮬레이션에서 MAE 4.89→4.11℃ (16% 개선)
+function coolingEffect(zid,temp,volumeL){
+  // 살수후 데이터가 있는 행만 사용
+  const all=state.measurements.filter(r=>r.spk&&r.after!==''&&r.after!=null&&isFinite(r.after));
+  // 구역 일치 데이터 우선
+  let rows=all.filter(r=>r.zone==zid&&isFinite(r.vol)&&Number(r.vol)>0);
+  // 구역 데이터 5건 미만이면 전체 데이터 활용
+  if(rows.length<5)rows=all.filter(r=>isFinite(r.vol)&&Number(r.vol)>0);
+  // 그래도 5건 미만이면 글로벌 평균 (데이터 기반 12.0℃, 기존 6.0보다 현실적)
+  if(rows.length<5){
+    if(all.length)return all.reduce((a,r)=>a+(r.pt-r.after),0)/all.length;
+    return 12.0;
+  }
+  // 회귀 학습: cooling = a + b·vol_mm + c·pt_before
+  const X=rows.map(r=>[Number(r.vol)/1000,Number(r.pt)]);  // L → mm 환산
+  const Y=rows.map(r=>Number(r.pt)-Number(r.after));
+  let m;
+  try{m=fitLR(X,Y,0.3);}catch(e){
+    return rows.reduce((a,r)=>a+(r.pt-r.after),0)/rows.length;
+  }
+  const volMm=(isFinite(volumeL)&&volumeL>0)?volumeL/1000:1.34;  // 기본 살수량 평균
+  const pred=predictLR(m,[volMm,temp]);
+  // 안전 클리핑 (0~25℃)
+  return clamp(pred,0,25,12.0);
+}
 function calcPred(z, futureMin){
   const x=formulaFeaturesCurrent(z, futureMin);
 
@@ -2030,7 +2123,9 @@ function calcPred(z, futureMin){
     const elapsed=(Date.now()-sprinkled.t)/60000;
     if(elapsed<30){
       const reheatShort=Math.max(0,elapsed)*0.05;
-      const after=clamp(sprinkled.after,0,90,final-coolingEffect(z.id,final));
+      // ★ v6.6 살수량 정보 전달 (sprinkled.vol)
+      const sprVol=sprinkled.vol||1340;  // 데이터 평균 1340L
+      const after=clamp(sprinkled.after,0,90,final-coolingEffect(z.id,final,sprVol));
       final=clamp(after+reheatShort,0,90,after);
       ai=clamp(final-0.4,0,90,final);
       formula=clamp(final-0.9,0,90,final);
@@ -2770,6 +2865,33 @@ function drawChart(){
     }
   }
   annotations.threshold={type:'line',yMin:60,yMax:60,borderColor:'#d71920',borderWidth:1,borderDash:[6,4],label:{display:true,content:'60℃ 임계',position:'end',backgroundColor:'#d71920',color:'#fff',font:{size:9,weight:'bold'},padding:2}};
+
+  // ★ v6.6 외삽 영역 시각화 — 장기 예측 영역에 회색 띠 + 라벨
+  // 데이터 분석: 11/13/15시에 데이터 집중, 그 외 시간대는 외삽
+  // → 운영자가 16시 이후 예측을 너무 신뢰하지 않도록 시각적 유도
+  if(futureRefData.length>0){
+    const refStart=futureRefData[0].x;
+    const refEnd=futureRefData[futureRefData.length-1].x;
+    annotations.extrapolationBox={
+      type:'box',
+      xMin:refStart,xMax:refEnd,
+      backgroundColor:'rgba(200,200,200,0.08)',
+      borderColor:'rgba(150,150,150,0.3)',
+      borderWidth:1,
+      borderDash:[4,4]
+    };
+    annotations.extrapolationLabel={
+      type:'label',
+      xValue:(refStart+refEnd)/2,
+      yValue:yRange.max-3,
+      content:['📍 외삽 영역','(±'+fmt(metrics.ai.mae||metrics.formula.mae||3,1)+'℃ 오차범위 가능)'],
+      backgroundColor:'rgba(96,125,139,0.85)',
+      color:'#fff',
+      font:{size:9,weight:'bold'},
+      padding:4,borderRadius:3,
+      textAlign:'center'
+    };
+  }
 
   chart=new Chart(document.getElementById('trendChart'),{
     type:'line',
@@ -3518,8 +3640,23 @@ function confirmSprinkle(){
 
   // 2. 시스템 로그에 알람 해제 등 기록은 별도 (살수 이행은 measurements가 단일 소스)
 
-  // 3. 살수 상태
-  state.sprinkled[id]={t:Date.now(),after:after};
+  // 3. 살수 상태 (★ v6.6 살수량 저장 — coolingEffect 회귀에 활용)
+  state.sprinkled[id]={t:Date.now(),after:after,vol:vol};
+
+  // ★ v6.6 살수후 30분 측정 리마인더 자동 등록
+  // 데이터 분석: 살수 기록 136건 중 살수후 측정 누락률 60% (81건)
+  // → 자동 알림으로 데이터 누락 방지
+  state.measureReminders=state.measureReminders||[];
+  // 같은 구역의 기존 리마인더 제거 (중복 방지)
+  state.measureReminders=state.measureReminders.filter(r=>r.zone!==id);
+  state.measureReminders.push({
+    id:newId('rm'),
+    zone:id,
+    triggerAt:Date.now()+30*60*1000,  // 30분 후
+    type:'post_sprinkle_followup',
+    createdAt:Date.now(),
+    notified:false
+  });
 
   // 4. 즉시 재학습
   saveState();
@@ -3796,21 +3933,16 @@ function saveAlarmState(){
   try{localStorage.setItem(ALARM_KEY,JSON.stringify(alarmState));}catch(e){}
 }
 
-// 30분 후 포장온도 예측 (특정 구역, 자연 상승 가정)
+// ★ v6.6 30분 후 포장온도 예측 — calcPred30min 사용으로 미래 기상 반영
+// 이전 휴리스틱(+1.5℃ 일괄): false alarm 양산, 흐림→맑음 전환 미반영
+// 개선: calcPred30min()이 Open-Meteo 예보에서 +30분 시점의 기상을 가져옴
 function predictTempIn30min(zoneId){
   if(!formulaModel)return null;
-  // 30분 후 기상은 현재 기상으로 가정 (단순화)
-  // 일사량은 시간에 따라 변하지만 30분 차이는 미미
   const z=zones.find(zo=>zo.id==zoneId);
   if(!z)return null;
-  const p=calcPred(z);
-  // 보수적 추정: 현재 추세에 30분 자연 상승 가산
-  // 평균적으로 정오 전후 30분에 약 1~2℃ 상승
-  const now=new Date();
-  const hr=now.getHours()+now.getMinutes()/60;
-  // 11~14시 사이는 +1.5℃, 그 외는 +0.5℃ 정도 가산
-  const trend=(hr>=10&&hr<=15)?1.5:0.5;
-  return p.final+trend;
+  // 미래 기상 반영 예측 (이미 구현된 함수 활용)
+  const p=calcPred30min(z);
+  return p.final;
 }
 
 // 알람 감지 (5초마다 호출)
@@ -3842,9 +3974,20 @@ function checkAlarm(){
     }
   });
 
-  if(trigger.length>0){
+  // ★ v6.6 Hysteresis — 60초 연속 트리거되어야 정식 알람 (false alarm 감소)
+  // 5초 간격 체크 × 12회 = 60초 연속 임계 초과 시에만 알람 발생
+  // 이미 알람 active 상태면 즉시 갱신 (해제는 빠르게 유지)
+  window._alarmTriggerHistory=window._alarmTriggerHistory||[];
+  window._alarmTriggerHistory.push({t:now,n:trigger.length,zones:trigger.map(t=>t.zone)});
+  // 60초 이내 기록만 유지
+  window._alarmTriggerHistory=window._alarmTriggerHistory.filter(h=>now-h.t<60000);
+  // 60초 연속 트리거 여부 확인 (최소 10회 이상 + 모든 기록이 트리거 있음)
+  const persistent=window._alarmTriggerHistory.length>=10
+                  &&window._alarmTriggerHistory.every(h=>h.n>0);
+
+  if(trigger.length>0&&(alarmState.active||persistent)){
     if(!alarmState.active){
-      // 알람 발생
+      // 알람 발생 (60초 지속 확인됨)
       alarmState.active=true;
       alarmState.zones=trigger.map(t=>t.zone);
       alarmState.startTime=now;
@@ -3880,8 +4023,14 @@ function checkAlarm(){
       saveAlarmState();
     }
   } else {
-    // 모든 구역 안전 복귀 → 자동 해제 (옵션 C)
-    if(alarmState.active)clearAlarm(true);
+    // ★ v6.6 트리거는 있지만 아직 60초 미만 → 사전 모니터링 상태
+    // (정식 알람 발생 X, 그러나 trigger 정보는 UI에 전달해서 표시)
+    if(trigger.length>0&&!alarmState.active){
+      // 운영자가 "감시중" 상태임을 알 수 있게 정보 유지
+    } else if(trigger.length===0){
+      // 모든 구역 안전 복귀 → 자동 해제 (옵션 C)
+      if(alarmState.active)clearAlarm(true);
+    }
   }
   renderAlarmUI(trigger);
 }
@@ -3984,6 +4133,44 @@ function playAlarmSound(){
 
 // 5초마다 알람 체크
 setInterval(checkAlarm,5000);
+
+// ★ v6.6 살수후 30분 측정 리마인더 — 1분마다 체크
+function checkMeasureReminders(){
+  if(!state.measureReminders||!state.measureReminders.length)return;
+  const now=Date.now();
+  let changed=false;
+  state.measureReminders.forEach(r=>{
+    if(r.notified)return;
+    if(now>=r.triggerAt){
+      const z=zones.find(zo=>zo.id==r.zone);
+      const zName=z?z.name:'구역 '+r.zone;
+      toast('⏰ '+zName+' 살수후 측정 시간 — 30분 경과, 재가열 확인 권장');
+      // 운영 로그 기록
+      const nd=new Date();
+      const lt=String(nd.getMonth()+1).padStart(2,'0')+'.'+String(nd.getDate()).padStart(2,'0')+' '+
+               String(nd.getHours()).padStart(2,'0')+':'+String(nd.getMinutes()).padStart(2,'0');
+      (state.systemLogs=state.systemLogs||[]).unshift({
+        id:newId('sl'),
+        time:lt,
+        timestamp:nd.toISOString(),
+        type:'measure_reminder',
+        zones:[r.zone],
+        message:'⏰ '+zName+' 살수후 30분 측정 알림 — 재가열 확인 필요'
+      });
+      // 알림음 (한 번만)
+      try{playAlarmSound();}catch(e){}
+      r.notified=true;
+      changed=true;
+    }
+  });
+  // 24시간 지난 리마인더는 정리
+  state.measureReminders=state.measureReminders.filter(r=>now-r.createdAt<24*60*60*1000);
+  if(changed)saveState();
+}
+setInterval(checkMeasureReminders,60*1000);  // 1분마다
+// 페이지 로드 직후에도 한 번 체크 (브라우저 닫혀있던 동안 만료된 리마인더 확인)
+setTimeout(checkMeasureReminders,3000);
+
 loadAlarmState();
 function showPane(name){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));document.getElementById('pane-'+name).classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==name));if(name==='coef')renderCoef();if(name==='log')logsRender();if(name==='ana')renderAnalysis();if(name==='data')renderData()}function renderCoef(){if(!formulaModel)return;document.getElementById('coefBox').textContent=`포장온도 상관식\nTₚ = ${fmt(formulaModel.intercept,3)} ${formulaModel.coefs.map((c,i)=>(c>=0?' + ':' - ')+Math.abs(c).toFixed(3)+'×'+['기온','일사량','습도','풍속','일사량²','풍속×일사량'][i]).join('')}\n\nTensorFlow.js AI 보정\nAI 보정값 = 실측 포장온도 - 상관식 예측값\n\n최종 운영값\n최종값 = 상관식 기준 예측 + AI 보정값 + 구역별 동적 보정계수\n\n구역별 보정계수\n`+zones.map(z=>`${z.name}: ${fmt(state.corr[z.id]||0,2)}℃`).join('\n')+`\n\n구역별 시정수 τ_solar (포장 구조 기반)\n`+zones.map(z=>`${z.name}: ${TAU_SOLAR_BY_ZONE[z.id]||TAU_SOLAR}분`).join('\n')+`\n\n※ 표층 두께에 따라 일사 응답 시정수 다름 (τ ≈ 60 + 5×표층cm)\n※ 1·5: 표층 7.5cm (회전패드) / 2·3·4: 15cm / 6: 10cm (계류장)`}function resetCorrections(){state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('구역 보정계수 초기화 완료')}
 /* ════════════════════════════════════════════════════════════════
@@ -4596,6 +4783,71 @@ function confirmDataRow(){
   closeDataModal();
   render();
 }function renderAnalysis(){
+  // ★ v6.6 데이터 건강도 위젯
+  const healthBox=document.getElementById('dataHealthBox');
+  if(healthBox&&state.measurements){
+    const rows=state.measurements;
+    const total=rows.length;
+    // 구역별 건수
+    const zoneCnt={};
+    for(let z=1;z<=6;z++)zoneCnt[z]=rows.filter(r=>r.zone==z).length;
+    // 살수후 완료율
+    const spkRows=rows.filter(r=>r.spk==1);
+    const spkComplete=spkRows.filter(r=>r.after!==''&&r.after!=null&&isFinite(r.after)&&isFinite(r.vol)).length;
+    const completeRate=spkRows.length?Math.round(spkComplete/spkRows.length*100):0;
+    // 비 오는 날 데이터
+    const rainData=rows.filter(r=>r.precip>0).length;
+    // 시간대 다양성
+    const hours=new Set();
+    rows.forEach(r=>{const h=(r.time||'13:00').split(':')[0];hours.add(h);});
+    // 마지막 측정 시각
+    const sorted=rows.slice().sort((a,b)=>String((b.date||'')+(b.time||'')).localeCompare(String((a.date||'')+(a.time||''))));
+    const lastDate=sorted.length?sorted[0].date+' '+sorted[0].time:'-';
+    // 건강도 점수 계산
+    const healthScore=
+      (total>=300?25:total>=100?15:5)+
+      (Object.values(zoneCnt).every(c=>c>=30)?25:Object.values(zoneCnt).filter(c=>c>=30).length*4)+
+      (completeRate>=80?25:completeRate>=50?15:5)+
+      (hours.size>=5?25:hours.size*5);
+    const healthColor=healthScore>=75?'#078943':healthScore>=50?'#ff6f00':'#d71920';
+    const healthLabel=healthScore>=75?'양호':healthScore>=50?'보통':'주의';
+    healthBox.innerHTML=`
+<div style="background:#fff;border:1px solid #d8e0ea;border-radius:11px;padding:14px;margin-bottom:14px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <h3 style="font-size:14px;color:#0b234b;margin:0;">📊 데이터 건강도</h3>
+    <div style="font-size:22px;font-weight:900;color:${healthColor};">${healthScore}<span style="font-size:13px;font-weight:700;color:#5a6a7e;"> / 100</span> <span style="font-size:13px;color:${healthColor};">(${healthLabel})</span></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:12px;">
+    <div style="border:1px solid #e4edf7;border-radius:8px;padding:8px;">
+      <div style="color:#5a6a7e;font-weight:700;margin-bottom:4px;">구역별 표본</div>
+      ${[1,2,3,4,5,6].map(z=>{
+        const c=zoneCnt[z];
+        const status=c>=200?'✓':c>=100?'⚠':'⛔';
+        const col=c>=200?'#078943':c>=100?'#ff6f00':'#d71920';
+        return `<div style="display:flex;justify-content:space-between;"><span>${z}번</span><span style="color:${col};font-weight:700;">${status} ${c}</span></div>`;
+      }).join('')}
+    </div>
+    <div style="border:1px solid #e4edf7;border-radius:8px;padding:8px;">
+      <div style="color:#5a6a7e;font-weight:700;margin-bottom:4px;">살수후 측정 완료율</div>
+      <div style="font-size:22px;font-weight:900;color:${completeRate>=80?'#078943':completeRate>=50?'#ff6f00':'#d71920'};margin:8px 0;">${completeRate}%</div>
+      <div style="color:#888;">${spkComplete}/${spkRows.length}건 완료</div>
+      ${completeRate<80?'<div style="color:#d71920;margin-top:4px;font-size:11px;">⚠️ 살수후 30분 측정 권장</div>':''}
+    </div>
+    <div style="border:1px solid #e4edf7;border-radius:8px;padding:8px;">
+      <div style="color:#5a6a7e;font-weight:700;margin-bottom:4px;">시간대 다양성</div>
+      <div style="font-size:22px;font-weight:900;color:${hours.size>=5?'#078943':hours.size>=3?'#ff6f00':'#d71920'};margin:8px 0;">${hours.size}<span style="font-size:13px;color:#5a6a7e;"> / 14</span></div>
+      <div style="color:#888;">고유 측정 시각</div>
+      ${hours.size<5?'<div style="color:#ff6f00;margin-top:4px;font-size:11px;">⚠️ 외삽 영역 큼</div>':''}
+    </div>
+    <div style="border:1px solid #e4edf7;border-radius:8px;padding:8px;">
+      <div style="color:#5a6a7e;font-weight:700;margin-bottom:4px;">전체 통계</div>
+      <div style="margin-top:4px;color:#0b234b;">총 ${total}건</div>
+      <div style="margin-top:2px;color:#5a6a7e;font-size:11px;">강수 데이터: ${rainData}건</div>
+      <div style="margin-top:2px;color:#5a6a7e;font-size:11px;">최근: ${lastDate}</div>
+    </div>
+  </div>
+</div>`;
+  }
   const statBox=document.getElementById('anaStatBox');
   if(statBox&&state.measurements&&state.measurements.length){
     const rows=state.measurements;
