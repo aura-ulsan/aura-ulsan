@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>A.U.R.A SYSTEM v6.7 - 울산공항 활주로 살수 자동화</title>
+<title>A.U.R.A SYSTEM v6.7.1 - 울산공항 활주로 살수 자동화</title>
 <script>
 /* ════════════════════════════════════════════════════════════════
    A.U.R.A 인증 가드 — 다른 어떤 스크립트보다 먼저 실행되어야 함
@@ -934,7 +934,7 @@ pre{
 </head>
 <body>
 <div class="app">
-<header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.7</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div><div style="font-size:10px;color:#8a9ab0;margin-top:1px;">© 2026 AURA. All rights reserved.</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="AURA_logout()">🔒 로그아웃</button></div></header>
+<header class="header"><div class="brand"><div class="logo">A.U<br>.R.A</div><div><div class="brand-title">A.U.R.A SYSTEM <span class="version">v6.7.1</span></div><div class="brand-sub">울산공항 RKPU · 활주로 살수 자동화 시스템</div><div style="font-size:10px;color:#8a9ab0;margin-top:1px;">© 2026 AURA. All rights reserved.</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="AURA_logout()">🔒 로그아웃</button></div></header>
 <nav class="tabs"><button class="tab active" data-tab="monitor" onclick="showPane('monitor')">🏠 모니터링</button><button class="tab new" data-tab="ai" onclick="showPane('ai')">🤖 AI 모델</button><button class="tab" data-tab="data" onclick="showPane('data')">📋 데이터 현황</button><button class="tab" data-tab="ana" onclick="showPane('ana')">📊 분석</button><button class="tab" data-tab="coef" onclick="showPane('coef')">📐 회귀 계수</button><button class="tab" data-tab="log" onclick="showPane('log')">📝 운영 로그</button><button class="tab" data-tab="setting" onclick="showPane('setting')">⚙ 설정</button><span class="tab-spacer"></span><div class="mini-stat"><span><i class="dot"></i>Open-Meteo</span><span><i class="dot"></i>AI 모델</span><span><i class="dot"></i>DB 연결</span></div></nav>
 <main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><section class="zones" id="zoneArea"></section><div id="zoneLegendArea"></div><section class="measure-guide" id="measureGuide"></section><section class="bottom"><div class="panel"><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 온도 (선택 구역)</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div style="margin-top:12px;padding:14px;background:#f7fbff;border:1px solid #cfdbea;border-radius:7px;font-size:12.5px;color:#3a4a66;line-height:1.85;flex:1;">
   <div style="margin-bottom:8px;"><b style="font-size:13.5px;color:#0054c8;">📐 최종 운영값</b><br>= 상관식 예측 + AI 보정 + 구역별 동적 보정계수</div>
@@ -1638,6 +1638,10 @@ function features(r){
   // 해결: cloud 수치를 직접 일사에 곱해 두 케이스를 구분하는 변수 추가
   const cloud=Number(r.cloud_cover)||0;
   const effSolar=solar*(1-cloud/200);      // 운량 100% → 일사 ×0.5 감쇠 추정
+  // ★ v6.7.1 cloud×solar 교호항 제거
+  // 문제: 이슬비(운량80%, 일사2MJ) → cloud×solar=1.6 / 맑음(운량5%)→0.15 → 이슬비에서 9배 큰 값
+  //       AI 학습 시 계수가 양수로 잡히면 이슬비 예측이 크게 상승 → bias -3.17℃ 악화 원인
+  // effSolar 단독으로 운량 효과를 충분히 포착함 (cloud×solar 중복 불필요)
   
   return [
     Number(r.air)||0,                       // 1. 기온
@@ -1656,8 +1660,8 @@ function features(r){
     (Number(r.air)||0)*solar,               // 14. 기온×일사
     (Number(r.wind)||0)*(Number(r.hum)||0)*0.01,  // 15. 풍속×습도 (증발)
     cloud,                                   // 16. 구름량 (%) ★
-    effSolar,                                // 17. ★ v6.7 유효 일사 (운량 반영) — 흐림 양극화 해결
-    cloud*solar*0.01                         // 18. ★ v6.7 운량×일사 교호항 — 흐림+강일사 구분
+    effSolar                                 // 17. ★ v6.7 유효 일사 (운량 반영) — 흐림 양극화 해결
+    // 18번 cloud×solar 교호항 제거 (v6.7.1) — 이슬비 과대예측 원인
   ];
 }
 
@@ -2195,7 +2199,19 @@ function calcPred(z, futureMin){
     formula=clamp(predictLR(formulaModel,x)+((z.id-3)*0.12),0,90,wx.pave||45);
   }
   // ★ v6.5+ 흐린 날 AI 보정 상한 축소 (±12 → ±9)
-  const aiClip=wx.solar<0.5?9:12;
+  // ★ v6.7.1 이슬비+저일사 AI 보정 추가 제한
+  // 문제: 이슬비(운량80%)+일사 1MJ 이하에서 AI가 +3.5℃ 과보정 → 저온 케이스 bias 폭발
+  // 해결: 약한 강수+낮은 일사에서 AI 보정 상한을 더 좁게 제한
+  let aiClip;
+  if(solarNow<0.5){
+    aiClip=6;   // 야간/극흐림: ±6℃ (기존 ±9)
+  } else if(precipNow>0&&precipNow<1.0&&solarNow<1.5){
+    aiClip=6;   // 이슬비+저일사: ±6℃ — AI 과보정 차단
+  } else if(wx.solar<1.5){
+    aiClip=9;   // 일반 흐림: ±9℃ (기존)
+  } else {
+    aiClip=12;  // 맑음/강일사: ±12℃ (기존)
+  }
   ai=clamp(formula+Math.max(-aiClip,Math.min(aiClip,predictAiResidual(x))),0,90,formula);
   let final=clamp((tfReady?ai:formula)+(state.corr[z.id]||0),0,90,formula);
 
@@ -4268,7 +4284,7 @@ setInterval(checkMeasureReminders,60*1000);  // 1분마다
 setTimeout(checkMeasureReminders,3000);
 
 loadAlarmState();
-function showPane(name){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));document.getElementById('pane-'+name).classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==name));if(name==='coef')renderCoef();if(name==='log')logsRender();if(name==='ana')renderAnalysis();if(name==='data')renderData()}function renderCoef(){if(!formulaModel)return;document.getElementById('coefBox').textContent=`포장온도 상관식 (v6.7 — features 18개)\nTₚ = ${fmt(formulaModel.intercept,3)} ${formulaModel.coefs.map((c,i)=>(c>=0?' + ':' - ')+Math.abs(c).toFixed(3)+'×'+['기온','일사량','습도','풍속','일사량²','풍속×일사량','감쇠누적일사','일사변화율','sin(시각)','cos(시각)','water감쇠','물경과시간','일사×젖음','기온×일사','풍속×습도','구름량','★유효일사','★운량×일사'][i]).join('')}\n\nTensorFlow.js AI 보정\nAI 보정값 = 실측 포장온도 - 상관식 예측값 (중심화 잔차 학습)\n\n최종 운영값\n최종값 = 상관식 기준 예측 + AI 보정값 + 구역별 동적 보정계수\n\n구역별 보정계수\n`+zones.map(z=>`${z.name}: ${fmt(state.corr[z.id]||0,2)}℃`).join('\n')+`\n\n구역별 시정수 τ_solar (포장 구조 기반)\n`+zones.map(z=>`${z.name}: ${TAU_SOLAR_BY_ZONE[z.id]||TAU_SOLAR}분`).join('\n')+`\n\n※ v6.7 변경: features 16→18 (유효일사+운량×일사 추가), AI 잔차 중심화, τ 튜닝 결과 영속화\n※ 표층 두께에 따라 일사 응답 시정수 다름 (τ ≈ 60 + 5×표층cm)\n※ 1·5: 표층 7.5cm (회전패드) / 2·3·4: 15cm / 6: 10cm (계류장)`}function resetCorrections(){state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('구역 보정계수 초기화 완료')}
+function showPane(name){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));document.getElementById('pane-'+name).classList.add('active');document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==name));if(name==='coef')renderCoef();if(name==='log')logsRender();if(name==='ana')renderAnalysis();if(name==='data')renderData()}function renderCoef(){if(!formulaModel)return;document.getElementById('coefBox').textContent=`포장온도 상관식 (v6.7.1 — features 17개)\nTₚ = ${fmt(formulaModel.intercept,3)} ${formulaModel.coefs.map((c,i)=>(c>=0?' + ':' - ')+Math.abs(c).toFixed(3)+'×'+['기온','일사량','습도','풍속','일사량²','풍속×일사량','감쇠누적일사','일사변화율','sin(시각)','cos(시각)','water감쇠','물경과시간','일사×젖음','기온×일사','풍속×습도','구름량','★유효일사'][i]).join('')}\n\nTensorFlow.js AI 보정\nAI 보정값 = 실측 포장온도 - 상관식 예측값 (중심화 잔차 학습)\n\n최종 운영값\n최종값 = 상관식 기준 예측 + AI 보정값 + 구역별 동적 보정계수\n\n구역별 보정계수\n`+zones.map(z=>`${z.name}: ${fmt(state.corr[z.id]||0,2)}℃`).join('\n')+`\n\n구역별 시정수 τ_solar (포장 구조 기반)\n`+zones.map(z=>`${z.name}: ${TAU_SOLAR_BY_ZONE[z.id]||TAU_SOLAR}분`).join('\n')+`\n\n※ v6.7.1 변경: cloud×solar 교호항 제거(이슬비 과대예측 원인), 이슬비+저일사 AI 상한 ±6℃\n※ 표층 두께에 따라 일사 응답 시정수 다름 (τ ≈ 60 + 5×표층cm)\n※ 1·5: 표층 7.5cm (회전패드) / 2·3·4: 15cm / 6: 10cm (계류장)`}function resetCorrections(){state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('구역 보정계수 초기화 완료')}
 /* ════════════════════════════════════════════════════════════════
    v6.5 데이터 현황 필터 시스템
    ════════════════════════════════════════════════════════════════ */
