@@ -2054,23 +2054,29 @@ async function trainTfModel(show=true){
   window._tfHistory=null;window._tfBestLoss=Infinity;window._tfBestEpoch=0;
   const predNorm=Array.from(tfModel.predict(xs).dataSync());
   xs.dispose();ys.dispose();
-  const predRes=predNorm.map(v=>clamp(v*yStd+yMean,-12,12,0));  // v6.5 ±12℃
+
+  // ★ v6.7 버그 수정: trainShuffled 기준으로 전체 계산을 통일
+  // 기존 버그: predNorm/basePred는 trainShuffled 순서, metrics는 train(원래 순서).pt와 비교
+  // → 완전히 다른 샘플끼리 페어링 → RMSE 15℃ 폭발 (데이터 std와 비슷한 값)
+  // 수정: trainShuffled.pt를 정답으로 사용해 순서 일치 보장
+
+  // ★ residualMean 역변환 복원 (잔차 중심화 대응)
+  const predRes=predNorm.map(v=>clamp(v*yStd+residualMean,-12,12,0));
   const aiPred=basePred.map((v,i)=>clamp(v+predRes[i],0,90,v));
-  metrics.ai=calcMetrics(train.map(r=>r.pt),aiPred);
-  
-  // ★ v6.6 알람 임계 영역 (55~65℃) 별도 검증 — Precision 보호
-  // AI가 전체 MAE는 좋아도 임계 근처에서 false alarm 양산하는 문제 방지
+  // trainShuffled의 실측값을 정답으로 사용 (basePred도 trainShuffled 기반)
+  metrics.ai=calcMetrics(trainShuffled.map(r=>r.pt),aiPred);
+
+  // ★ v6.6 알람 임계 영역 (55~65℃) 별도 검증 — trainShuffled 기준으로 통일
   const critIdx=[];
-  train.forEach((r,i)=>{if(r.pt>=55&&r.pt<=65)critIdx.push(i);});
+  trainShuffled.forEach((r,i)=>{if(r.pt>=55&&r.pt<=65)critIdx.push(i);});
   let critOk=true;
   if(critIdx.length>=30){
-    const critY=critIdx.map(i=>train[i].pt);
+    const critY=critIdx.map(i=>trainShuffled[i].pt);
     const critF=critIdx.map(i=>basePred[i]);
     const critAI=critIdx.map(i=>aiPred[i]);
     const maeF=critY.reduce((a,v,i)=>a+Math.abs(v-critF[i]),0)/critY.length;
     const maeAI=critY.reduce((a,v,i)=>a+Math.abs(v-critAI[i]),0)/critY.length;
     metrics.aiCritical={mae:maeAI,formulaCritical:{mae:maeF},n:critIdx.length};
-    // 임계 영역에서 AI가 회귀식 대비 10% 이상 나쁘면 거부
     critOk=maeAI<=maeF*1.10;
     if(!critOk)console.warn(`[AI 임계영역 검증 실패] AI MAE ${maeAI.toFixed(2)}℃ > 회귀식 MAE×1.10 ${(maeF*1.10).toFixed(2)}℃ - 회귀식 fallback`);
     else console.log(`[AI 임계영역 OK] AI MAE ${maeAI.toFixed(2)}℃ vs 회귀식 ${maeF.toFixed(2)}℃ (n=${critIdx.length})`);
