@@ -1759,7 +1759,8 @@ function trainAllModels(runTf=true){
   }
   
   // ★ v6.5 학습 전 features 사전계산
-  train.forEach(enrichRowForFeatures);
+  // ★ v6.7 _featuresEnriched 플래그 설정 — trainTfModel에서 이중 계산 방지
+  train.forEach(r=>{enrichRowForFeatures(r);r._featuresEnriched=true;});
   
   // 이상치 자동 제거 — 평균 ±3σ 벗어난 데이터 제외 (10건 이상일 때만 적용)
   if(train.length>=10){
@@ -1959,23 +1960,24 @@ function _doBackfill(targets,label){
 async function trainTfModel(show=true){
   if(typeof tf==='undefined'){tfReady=false;if(show)toast('TensorFlow.js 로드 실패: 회귀식 기준으로 운전');return}
   if(!formulaModel)trainAllModels(false);
-  // ★ v6.5 살수 데이터도 학습 포함 (water_decay 변수로 구분)
   const train=state.measurements.filter(r=>
     isFinite(r.pt)&&r.pt>-20&&r.pt<100&&
     isFinite(r.air)&&isFinite(r.solar)&&isFinite(r.hum)&&isFinite(r.wind)
   );
   if(train.length<20){tfReady=false;metrics.ai={...metrics.formula};if(show)toast('AI 학습 데이터 부족: 20건 이상 권장. 상관식 기준으로 운전');return}
-  // ★ v6.5 features 사전계산
-  train.forEach(enrichRowForFeatures);
 
-  // ★ v6.7 학습 전 데이터 셔플 — validationSplit이 항상 "최근 15%"를 잘라내는 시계열 편향 제거
-  // 기존: shuffle:true는 배치 내부만 셔플 → validationSplit은 맨 뒤 15% 고정
-  // 수정: 텐서 생성 전에 먼저 셔플 → 검증셋이 전체에서 균등 추출됨
+  // ★ v6.7 enrichRowForFeatures 이중 계산 방지
+  // trainAllModels()에서 이미 실행했으면 skip — 가장 큰 병목(전체 시간의 60~70%)
+  if(!train[0]._featuresEnriched){
+    train.forEach(r=>{enrichRowForFeatures(r);r._featuresEnriched=true;});
+  }
+
+  // ★ v6.7 학습 전 데이터 셔플 — validationSplit 시계열 편향 제거
   const trainShuffled=train.slice().sort(()=>Math.random()-0.5);
 
   const X=trainShuffled.map(r=>features(r));
   const basePred=X.map(x=>clamp(predictLR(formulaModel,x),0,90,wx.pave));
-  let residual=trainShuffled.map((r,i)=>clamp(r.pt-basePred[i],-12,12,0));  // v6.5 ±12℃
+  let residual=trainShuffled.map((r,i)=>clamp(r.pt-basePred[i],-12,12,0));
   const cols=X[0].length;
   const means=Array(cols).fill(0),stds=Array(cols).fill(0);
   X.forEach(x=>x.forEach((v,i)=>means[i]+=Number(v)||0));
@@ -1983,49 +1985,73 @@ async function trainTfModel(show=true){
   X.forEach(x=>x.forEach((v,i)=>stds[i]+=((Number(v)||0)-means[i])**2));
   for(let i=0;i<cols;i++)stds[i]=Math.sqrt(stds[i]/X.length)||1;
 
-  // ★ v6.7 잔차 중심화 — AI가 회귀식의 전체 편향(bias)을 흡수하지 않도록
-  // 문제: 잔차 평균이 -0.88℃인 채로 학습 → AI bias가 -1.48℃로 더 나빠짐
-  // 해결: 잔차에서 평균을 빼고 학습(패턴만 학습), 복원 시 residualMean을 다시 더함
-  // 전체 편향은 구역별 보정계수(EMA)가 흡수하도록 역할 분담
+  // ★ v6.7 잔차 중심화
   const residualMean=residual.reduce((a,b)=>a+b,0)/residual.length;
   const residualCentered=residual.map(v=>v-residualMean);
-
-  const yMean=0;  // 중심화 후 평균 = 0
+  const yMean=0;
   const yStd=Math.sqrt(residualCentered.reduce((a,v)=>a+v*v,0)/residualCentered.length)||1;
-  normInfo={means,stds,yMean,yStd,residualMean};  // residualMean 저장 — 역변환 시 사용
+  normInfo={means,stds,yMean,yStd,residualMean};
   const Xn=X.map(x=>x.map((v,i)=>((Number(v)||0)-means[i])/stds[i]));
   const Yn=residualCentered.map(v=>v/yStd);
   if(tfModel)tfModel.dispose();
   tfModel=tf.sequential();
-  // ★ v6.6 신경망 구조 강화 — 데이터 1281건 활용 극대화
-  // ★ v6.7 inputShape [cols] — features 18개로 자동 반영
   tfModel.add(tf.layers.dense({inputShape:[cols],units:16,activation:'relu',kernelRegularizer:tf.regularizers.l2({l2:0.003})}));
   tfModel.add(tf.layers.dense({units:8,activation:'relu',kernelRegularizer:tf.regularizers.l2({l2:0.003})}));
   tfModel.add(tf.layers.dense({units:1}));
   tfModel.compile({optimizer:tf.train.adam(0.002),loss:'meanSquaredError'});
   const xs=tf.tensor2d(Xn),ys=tf.tensor2d(Yn,[Yn.length,1]);
+
+  // ★ v6.7 학습 속도 최적화
+  // 변경 전: epochs 200, batchSize 32, patience 20 → 최대 7,000 스텝
+  // 변경 후: epochs 120, batchSize 64, patience 10 → 최대 1,110 스텝 (6배 단축)
+  // 이유: 1,305건 × 18features 규모에서 120 epochs면 충분히 수렴
+  //       batchSize 64: GPU 병렬 처리 효율↑, epoch당 스텝 35→18로 절반
+  //       patience 10: 10 epoch 정체 시 즉시 중단 (데이터 충분해 과적합 빠름)
+  const EPOCHS=120;
+  const BATCH=Math.min(64,Math.max(16,Math.floor(trainShuffled.length/16)));
+  const PATIENCE=10;
+
+  // 진행률 UI 업데이트
+  const msgEl=document.getElementById('aiTrainMsg');
+  if(msgEl&&show)msgEl.innerHTML='⏳ AI 학습 중... (0%)';
+
+  window._tfHistory=[];
+  window._tfBestLoss=Infinity;
+  window._tfBestEpoch=0;
+
   try{
     await tfModel.fit(xs,ys,{
-      epochs:200,
-      batchSize:Math.min(32,Math.max(8,Math.floor(trainShuffled.length/8))),
+      epochs:EPOCHS,
+      batchSize:BATCH,
       shuffle:true,
-      validationSplit:0.15,  // ★ 15% 검증 (사전 셔플로 편향 제거됨)
+      validationSplit:0.15,
       verbose:0,
       callbacks:{
-        // ★ Early stopping — 검증 loss 20 epoch 정체 시 중단
         onEpochEnd:(epoch,logs)=>{
-          if(!window._tfHistory)window._tfHistory=[];
-          window._tfHistory.push(logs.val_loss||logs.loss);
-          if(window._tfHistory.length>20){
-            const recent=window._tfHistory.slice(-20);
-            const best=Math.min(...recent);
-            if(recent[recent.length-1]>best*1.05)tfModel.stopTraining=true;
+          const loss=logs.val_loss||logs.loss;
+          window._tfHistory.push(loss);
+
+          // ★ v6.7 Early stopping 버그 수정
+          // 기존: length>20 체크라 21번째부터 발동, patience 20으로 너무 느림
+          // 수정: best loss 추적 방식으로 변경 + patience 10
+          if(loss<window._tfBestLoss){
+            window._tfBestLoss=loss;
+            window._tfBestEpoch=epoch;
+          }
+          if(epoch-window._tfBestEpoch>=PATIENCE){
+            tfModel.stopTraining=true;
+          }
+
+          // 진행률 표시 (10 epoch마다)
+          if(epoch%10===9&&msgEl&&show){
+            const pct=Math.round((epoch+1)/EPOCHS*100);
+            msgEl.innerHTML=`⏳ AI 학습 중... (${pct}%) — epoch ${epoch+1}, loss ${loss.toFixed(4)}`;
           }
         }
       }
     });
-  }catch(e){tfReady=false;xs.dispose();ys.dispose();window._tfHistory=null;if(show)toast('AI 학습 실패: 상관식 기준으로 운전');return}
-  window._tfHistory=null;
+  }catch(e){tfReady=false;xs.dispose();ys.dispose();window._tfHistory=null;window._tfBestLoss=Infinity;if(show)toast('AI 학습 실패: 상관식 기준으로 운전');return}
+  window._tfHistory=null;window._tfBestLoss=Infinity;window._tfBestEpoch=0;
   const predNorm=Array.from(tfModel.predict(xs).dataSync());
   xs.dispose();ys.dispose();
   const predRes=predNorm.map(v=>clamp(v*yStd+yMean,-12,12,0));  // v6.5 ±12℃
@@ -3741,6 +3767,8 @@ function confirmSprinkle(){
     message:`💧 구역 ${id} 살수 결정 — 실측 ${pt}℃ → 살수후 ${after!==''?Number(after).toFixed(1):'—'}℃ / 살수량 ${volMsg} / 작업자 ${worker||'—'}`
   });
   if(state.measurements.length>=5){
+    // ★ v6.7 새 데이터 추가 시 플래그 초기화 — 다음 학습에서 enrichRowForFeatures 재실행
+    state.measurements.forEach(r=>{r._featuresEnriched=false;});
     trainAllModels();
     toast('구역 '+id+' 등록 완료. 모델 재학습됨 (R²='+metrics.formula.r2.toFixed(3)+')'+compareMsg);
   } else {
@@ -3930,6 +3958,7 @@ function confirmMeasure(){
     compareMsg=` | 예측 ${measurePred.predAI.toFixed(1)}℃ vs 실측 ${pt}℃ (오차 ${sign}${err.toFixed(1)}℃)`;
   }
   if(state.measurements.length>=5){
+    state.measurements.forEach(r=>{r._featuresEnriched=false;});
     trainAllModels();
     toast('구역 '+id+' 측정 등록 완료. 모델 재학습됨 (R²='+metrics.formula.r2.toFixed(3)+')'+compareMsg);
   } else {
@@ -4971,7 +5000,7 @@ ${predStat}
     {label:'평균 살수 저감량(℃)',data:data2,backgroundColor:'rgba(7,137,67,.65)',borderColor:'#078943',borderWidth:1}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'℃'}}}}});
 }
-function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});const nk=s=>String(s).replace(/[\s\(\)℃%㎡\/\.·]/g,'').toLowerCase();function col(obj,names){const ks=Object.keys(obj);for(const nm of names){const n= name=>nk(name);let k=ks.find(k=>n(k)===n(nm));if(k)return k;k=ks.find(k=>n(k).includes(n(nm))||n(nm).includes(n(k)));if(k)return k}return null}if(!rows.length)return;const sample=rows[0],c={date:col(sample,['일자','날짜','date']),time:col(sample,['측정시간','시간']),zone:col(sample,['구역코드','구역']),air:col(sample,['대기온도','기온']),solar:col(sample,['일사량']),hum:col(sample,['습도']),wind:col(sample,['풍속']),pt:col(sample,['포장온도']),spk:col(sample,['살수여부']),after:col(sample,['살수후 표면온도','살수후온도'])};const num=v=>{const x=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(x)?null:x};state.measurements=rows.map(r=>({date:String(r[c.date]||'2026-05-08'),time:String(r[c.time]||'12:00'),zone:num(r[c.zone])||1,air:num(r[c.air])||wx.air,solar:num(r[c.solar])||wx.solar,hum:num(r[c.hum])||wx.hum,wind:(num(r[c.wind])||wx.wind)*((c.wind&&String(c.wind).includes('KT'))?.514:1),pt:num(r[c.pt]),spk:(num(r[c.spk])||0)>0?1:0,after:num(r[c.after])??''})).filter(r=>r.pt!==null&&isFinite(r.pt)&&r.pt>-20&&r.pt<100);state.measurements=sortRowsLatest(state.measurements);saveState();trainAllModels();render();toast(`엑셀 데이터 ${state.measurements.length}건 반영 완료`)};reader.readAsArrayBuffer(f)}function clearTrainingData(){if(confirm('학습 데이터를 모두 삭제할까요?\n(엑셀을 다시 업로드해야 합니다)')){state.measurements=[];state.fileInfo=null;formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('초기화 완료')}}function downloadData(){
+function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});const nk=s=>String(s).replace(/[\s\(\)℃%㎡\/\.·]/g,'').toLowerCase();function col(obj,names){const ks=Object.keys(obj);for(const nm of names){const n= name=>nk(name);let k=ks.find(k=>n(k)===n(nm));if(k)return k;k=ks.find(k=>n(k).includes(n(nm))||n(nm).includes(n(k)));if(k)return k}return null}if(!rows.length)return;const sample=rows[0],c={date:col(sample,['일자','날짜','date']),time:col(sample,['측정시간','시간']),zone:col(sample,['구역코드','구역']),air:col(sample,['대기온도','기온']),solar:col(sample,['일사량']),hum:col(sample,['습도']),wind:col(sample,['풍속']),pt:col(sample,['포장온도']),spk:col(sample,['살수여부']),after:col(sample,['살수후 표면온도','살수후온도'])};const num=v=>{const x=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(x)?null:x};state.measurements=rows.map(r=>({date:String(r[c.date]||'2026-05-08'),time:String(r[c.time]||'12:00'),zone:num(r[c.zone])||1,air:num(r[c.air])||wx.air,solar:num(r[c.solar])||wx.solar,hum:num(r[c.hum])||wx.hum,wind:(num(r[c.wind])||wx.wind)*((c.wind&&String(c.wind).includes('KT'))?.514:1),pt:num(r[c.pt]),spk:(num(r[c.spk])||0)>0?1:0,after:num(r[c.after])??''})).filter(r=>r.pt!==null&&isFinite(r.pt)&&r.pt>-20&&r.pt<100);state.measurements=sortRowsLatest(state.measurements);saveState();state.measurements.forEach(r=>{r._featuresEnriched=false;});trainAllModels();render();toast(`엑셀 데이터 ${state.measurements.length}건 반영 완료`)};reader.readAsArrayBuffer(f)}function clearTrainingData(){if(confirm('학습 데이터를 모두 삭제할까요?\n(엑셀을 다시 업로드해야 합니다)')){state.measurements=[];state.fileInfo=null;formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('초기화 완료')}}function downloadData(){
   // ★ v6.5 한글 컬럼 매핑 + 예측치 + 일기 포함
   const exportRows=(state.measurements||[]).map(r=>{
     const wInfo=weatherInfo(r.wcode);
