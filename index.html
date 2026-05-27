@@ -80,15 +80,7 @@ button{font-family:inherit;cursor:pointer;}
   background:#fff;
   border-bottom:1px solid #d8e0ea;
 }
-.brand{display:flex;align-items:center;gap:14px;}
-.logo{
-  width:54px;height:54px;border-radius:8px;
-  background:linear-gradient(135deg,#1a73d6,#0a4ba0);
-  color:#fff;font-weight:900;font-size:14px;
-  display:flex;align-items:center;justify-content:center;
-  line-height:1.1;letter-spacing:.3px;
-  box-shadow:0 3px 10px rgba(11,99,206,.3);
-}
+.brand{display:flex;align-items:center;gap:0;}
 .brand-title{
   font-size:24px;font-weight:900;color:#0b234b;
   letter-spacing:-.3px;line-height:1;
@@ -934,7 +926,7 @@ pre{
 </head>
 <body>
 <div class="app">
-<header class="header"><div class="brand"><div class="logo">R.A<br>.I.N<br>.S</div><div><div class="brand-title">R.A.I.N.S <span class="version">v6.7.2</span></div><div class="brand-sub">활주로 포장온도 AI 안전경보 시스템 · 울산공항 RKPU</div><div style="font-size:10px;color:#8a9ab0;margin-top:1px;">Real-time Airfield Intelligent Notification System for Pavement Safety</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="AURA_logout()">🔒 로그아웃</button></div></header>
+<header class="header"><div class="brand"><div><div class="brand-title">R.A.I.N.S <span class="version">v6.7.2</span></div><div class="brand-sub">활주로 포장온도 AI 안전경보 시스템 · 울산공항 RKPU</div><div style="font-size:10px;color:#8a9ab0;margin-top:1px;">Real-time Airfield Intelligent Notification System for Pavement Safety</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="AURA_logout()">🔒 로그아웃</button></div></header>
 <nav class="tabs"><button class="tab active" data-tab="monitor" onclick="showPane('monitor')">🏠 모니터링</button><button class="tab new" data-tab="ai" onclick="showPane('ai')">🤖 AI 모델</button><button class="tab" data-tab="data" onclick="showPane('data')">📋 데이터 현황</button><button class="tab" data-tab="ana" onclick="showPane('ana')">📊 분석</button><button class="tab" data-tab="coef" onclick="showPane('coef')">📐 회귀 계수</button><button class="tab" data-tab="log" onclick="showPane('log')">📝 운영 로그</button><button class="tab" data-tab="setting" onclick="showPane('setting')">⚙ 설정</button><span class="tab-spacer"></span><div class="mini-stat"><span><i class="dot"></i>Open-Meteo</span><span><i class="dot"></i>AI 모델</span><span><i class="dot"></i>DB 연결</span></div></nav>
 <main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><div id="monitorAiStatus" style="display:flex;align-items:center;gap:8px;padding:5px 14px;background:#f0f6ff;border-top:1px solid #dce8f5;border-bottom:1px solid #dce8f5;font-size:12px;color:#3a4a66;min-height:28px;"><span id="monitorAiIcon">⏳</span><span id="monitorAiText" style="font-weight:600;">AI 모델 대기 중...</span></div><section class="zones" id="zoneArea"></section><div id="zoneLegendArea"></div><section class="measure-guide" id="measureGuide"></section><section class="bottom"><div class="panel"><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 온도 (선택 구역)</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div style="margin-top:12px;padding:14px;background:#f7fbff;border:1px solid #cfdbea;border-radius:7px;font-size:12.5px;color:#3a4a66;line-height:1.85;flex:1;">
   <div style="margin-bottom:8px;"><b style="font-size:13.5px;color:#0054c8;">📐 최종 운영값</b><br>= 상관식 예측 + AI 보정 + 구역별 동적 보정계수</div>

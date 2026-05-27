@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A.U.R.A - 로그인</title>
+<title>R.A.I.N.S - 로그인</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{
@@ -13,13 +13,7 @@ body{
   display:flex;align-items:center;justify-content:center;
 }
 .wrap{text-align:center;width:320px;max-width:90vw;padding:20px;}
-.logo{
-  background:#fff;color:#1F4E79;font-weight:900;font-size:1.4rem;
-  width:68px;height:68px;border-radius:14px;
-  display:flex;align-items:center;justify-content:center;
-  margin:0 auto 16px;letter-spacing:-1px;line-height:1.2;
-}
-.title{color:#fff;font-size:1.15rem;font-weight:800;letter-spacing:1px;margin-bottom:4px;}
+.title{color:#fff;font-size:1.4rem;font-weight:900;letter-spacing:2px;margin-bottom:6px;}
 .sub{color:rgba(255,255,255,.65);font-size:.75rem;margin-bottom:28px;line-height:1.6;}
 .card{
   background:rgba(255,255,255,.12);
@@ -52,11 +46,10 @@ button:disabled{background:#ccc;cursor:not-allowed;}
 </head>
 <body>
 <div class="wrap">
-  <div class="logo">A.U<br>.R.A</div>
-  <div class="title">A.U.R.A SYSTEM</div>
+  <div class="title">R.A.I.N.S</div>
   <div class="sub">
-    Automated Utility for Runway Aspersion<br>
-    울산공항 활주로 살수 자동화 시스템
+    Real-time Airfield Intelligent Notification System for Pavement Safety<br>
+    활주로 포장온도 AI 안전경보 시스템
   </div>
   <div class="card">
     <div class="hint">🔒 접근 비밀번호를 입력하세요</div>
@@ -66,13 +59,13 @@ button:disabled{background:#ccc;cursor:not-allowed;}
     <button id="loginBtn" onclick="doLogin()">🔓 확인</button>
   </div>
   <div class="footer">
-    울산공항 이동지역 살수 자동화 시스템<br>
+    울산공항 RKPU · 활주로 포장온도 AI 안전경보 시스템<br>
     관계자 외 접근 금지
   </div>
 </div>
 <script>
 /* ════════════════════════════════════════════════════════════════
-   A.U.R.A 인증 모듈 v1.1 (Lv.1 보안 패치)
+   R.A.I.N.S 인증 모듈 v1.1 (Lv.1 보안 패치)
    ─ 변경점 ─
    1) 비밀번호 평문 → SHA-256 해시 비교
    2) 세션 토큰 = 시간기반 무작위값 (단순 비번 저장 X)
