@@ -65,22 +65,22 @@ button:disabled{background:#ccc;cursor:not-allowed;}
 </div>
 <script>
 /* ════════════════════════════════════════════════════════════════
-   R.A.I.N.S 인증 모듈 v1.1 (Lv.1 보안 패치)
+   R.A.I.N.S 인증 모듈 v1.0
    ─ 변경점 ─
    1) 비밀번호 평문 → SHA-256 해시 비교
    2) 세션 토큰 = 시간기반 무작위값 (단순 비번 저장 X)
    3) 토큰 만료시간 도입 (8시간)
    4) 5회 오입력 시 5분 잠금
-   5) sessionStorage 키 통일 (aura_session)
+   5) sessionStorage 키 통일 (rains_session)
    ════════════════════════════════════════════════════════════════ */
 
 // 비밀번호 'aura6332'의 SHA-256 해시 (사전계산값)
 // 원문이 코드에 보이지 않으므로 F12로 즉시 노출되지 않음
 var PW_HASH = '6876e409df5838670671db7ca603f378f0470a757a7fd41a8c4870b938142d74';
 
-var SESSION_KEY = 'aura_session';
-var LOCK_KEY = 'aura_lock';
-var FAIL_KEY = 'aura_fail_count';
+var SESSION_KEY = 'rains_session';
+var LOCK_KEY = 'rains_lock';
+var FAIL_KEY = 'rains_fail_count';
 var MAX_FAIL = 5;
 var LOCK_MS = 5 * 60 * 1000;        // 5분 잠금
 var SESSION_MS = 8 * 60 * 60 * 1000; // 8시간 세션 만료
