@@ -1545,10 +1545,12 @@ function autoTuneTau(){
 }
 
 function loadState(){try{const raw=localStorage.getItem(LS);if(raw){const obj=JSON.parse(raw);state={...state,...obj};
-// ★ v6.7 τ 값 복원 — autoTuneTau 결과가 새로고침 후에도 유지
-if(obj._TAU_SOLAR&&isFinite(obj._TAU_SOLAR))TAU_SOLAR=obj._TAU_SOLAR;
-if(obj._TAU_WATER&&isFinite(obj._TAU_WATER))TAU_WATER=obj._TAU_WATER;
-if(obj._TAU_SOLAR_BY_ZONE&&typeof obj._TAU_SOLAR_BY_ZONE==='object'){Object.assign(TAU_SOLAR_BY_ZONE,obj._TAU_SOLAR_BY_ZONE);}
+// ★ Fix v1.1: TAU를 localStorage에서 복원하지 않음
+// 기존 버그: 컴퓨터마다 autoTuneTau 결과가 다른 TAU를 localStorage에 저장
+//           → 같은 엑셀 데이터 입력해도 32℃ vs 53℃ 같은 큰 차이 발생
+// 수정: TAU는 엑셀 파일의 TAU_solar/TAU_water 컬럼으로만 동기화
+//       (loadExcel에서 복원). localStorage TAU 제거로 컴퓨터 간 재현성 보장.
+// 구 저장값(_TAU_SOLAR 등)은 무시하고 기본값(90/120) 유지
 }}catch(e){}
 // v6.3 마이그레이션 — state.rows → state.measurements
 migrateToV63();
@@ -1579,10 +1581,12 @@ if(state.measurements&&state.measurements.length>=5){
 }
 }
 function saveState(){
-  // ★ v6.7 τ 값을 state에 포함해 저장 — 새로고침 후 autoTune 결과 유지
-  state._TAU_SOLAR=TAU_SOLAR;
-  state._TAU_WATER=TAU_WATER;
-  state._TAU_SOLAR_BY_ZONE={...TAU_SOLAR_BY_ZONE};
+  // ★ Fix v1.1: TAU를 state에 저장하지 않음 — 엑셀 파일로만 동기화
+  // 저장하면 컴퓨터마다 다른 TAU가 고착되어 재현성 파괴
+  // (구 키 _TAU_SOLAR/_TAU_WATER/_TAU_SOLAR_BY_ZONE 자동 소멸)
+  delete state._TAU_SOLAR;
+  delete state._TAU_WATER;
+  delete state._TAU_SOLAR_BY_ZONE;
   localStorage.setItem(LS,JSON.stringify(state));
 }
 
@@ -5201,10 +5205,75 @@ ${predStat}
     {label:'평균 살수 저감량(℃)',data:data2,backgroundColor:'rgba(7,137,67,.65)',borderColor:'#078943',borderWidth:1}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'℃'}}}}});
 }
-function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});const nk=s=>String(s).replace(/[\s\(\)℃%㎡\/\.·]/g,'').toLowerCase();function col(obj,names){const ks=Object.keys(obj);for(const nm of names){const n= name=>nk(name);let k=ks.find(k=>n(k)===n(nm));if(k)return k;k=ks.find(k=>n(k).includes(n(nm))||n(nm).includes(n(k)));if(k)return k}return null}if(!rows.length)return;const sample=rows[0],c={date:col(sample,['일자','날짜','date']),time:col(sample,['측정시간','시간']),zone:col(sample,['구역코드','구역']),air:col(sample,['대기온도','기온']),solar:col(sample,['일사량']),hum:col(sample,['습도']),wind:col(sample,['풍속']),pt:col(sample,['포장온도']),spk:col(sample,['살수여부']),after:col(sample,['살수후 표면온도','살수후온도'])};const num=v=>{const x=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(x)?null:x};state.measurements=rows.map(r=>({date:String(r[c.date]||'2026-05-08'),time:String(r[c.time]||'12:00'),zone:num(r[c.zone])||1,air:num(r[c.air])??wx.air,solar:num(r[c.solar])??wx.solar,hum:num(r[c.hum])??wx.hum,wind:((num(r[c.wind])??wx.wind))*((c.wind&&String(c.wind).includes('KT'))?.514:1),pt:num(r[c.pt]),spk:(num(r[c.spk])||0)>0?1:0,after:num(r[c.after])??''})).filter(r=>r.pt!==null&&isFinite(r.pt)&&r.pt>-20&&r.pt<100&&!isFutureDate(r.date));state.measurements=sortRowsLatest(state.measurements);saveState();state.measurements.forEach(r=>{r._featuresEnriched=false;});trainAllModels();render();toast(`엑셀 데이터 ${state.measurements.length}건 반영 완료`)};reader.readAsArrayBuffer(f)}function clearTrainingData(){if(confirm('학습 데이터를 모두 삭제할까요?\n(엑셀을 다시 업로드해야 합니다)')){state.measurements=[];state.fileInfo=null;formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('초기화 완료')}}function downloadData(){
+function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});const nk=s=>String(s).replace(/[\s\(\)℃%㎡\/\.·]/g,'').toLowerCase();function col(obj,names){const ks=Object.keys(obj);for(const nm of names){const n= name=>nk(name);let k=ks.find(k=>n(k)===n(nm));if(k)return k;k=ks.find(k=>n(k).includes(n(nm))||n(nm).includes(n(k)));if(k)return k}return null}if(!rows.length)return;
+    const sample=rows[0],c={
+      date:col(sample,['일자','날짜','date']),
+      time:col(sample,['측정시간','시간']),
+      zone:col(sample,['구역코드','구역']),
+      air:col(sample,['대기온도','기온']),
+      solar:col(sample,['일사량']),
+      hum:col(sample,['습도']),
+      wind:col(sample,['풍속']),
+      pt:col(sample,['포장온도']),
+      spk:col(sample,['살수여부']),
+      after:col(sample,['살수후 표면온도','살수후온도']),
+      // ★ Fix v1.1: decay 컬럼 매핑 추가
+      solar_decay:col(sample,['감쇠누적일사']),
+      precip_decay:col(sample,['감쇠누적강수']),
+      hours_since_rain:col(sample,['비후경과시간']),
+      sprinkle_decay:col(sample,['살수감쇠']),
+      tau_solar:col(sample,['TAU_solar']),
+      tau_water:col(sample,['TAU_water'])
+    };
+    // ★ Fix v1.1: 파일에 TAU 메타가 있으면 복원 (배포 컴퓨터 TAU 동기화)
+    // TAU를 localStorage에 저장하지 않으므로, 파일이 TAU 동기화 수단이 됨
+    const firstRow=rows[0];
+    if(c.tau_solar&&firstRow[c.tau_solar]){
+      const ts=parseFloat(firstRow[c.tau_solar]);
+      const tw=c.tau_water?parseFloat(firstRow[c.tau_water]):NaN;
+      if(isFinite(ts)&&ts>=30&&ts<=300){
+        TAU_SOLAR=ts;
+        // TAU_SOLAR_BY_ZONE도 비례 갱신
+        const ratio=ts/90;
+        for(const zid in TAU_SOLAR_BY_ZONE)TAU_SOLAR_BY_ZONE[zid]=Math.round(TAU_SOLAR_BY_ZONE[zid]*ratio);
+        console.log(`[TAU 동기화] 파일에서 TAU_SOLAR=${ts} 복원`);
+      }
+      if(isFinite(tw)&&tw>=30&&tw<=480){
+        TAU_WATER=tw;
+        console.log(`[TAU 동기화] 파일에서 TAU_WATER=${tw} 복원`);
+      }
+    }const num=v=>{const x=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(x)?null:x};state.measurements=rows.map(r=>({
+      date:String(r[c.date]||'2026-05-08'),
+      time:String(r[c.time]||'12:00'),
+      zone:num(r[c.zone])||1,
+      air:num(r[c.air])??wx.air,
+      solar:num(r[c.solar])??wx.solar,
+      hum:num(r[c.hum])??wx.hum,
+      wind:((num(r[c.wind])??wx.wind))*((c.wind&&String(c.wind).includes('KT'))?.514:1),
+      pt:num(r[c.pt]),
+      spk:(num(r[c.spk])||0)>0?1:0,
+      after:num(r[c.after])??'',
+      // ★ Fix v1.1: decay 컬럼 읽기 — 있으면 직접 사용, 없으면 enrichRowForFeatures가 추정
+      solar_decay:c.solar_decay?num(r[c.solar_decay])??NaN:NaN,
+      precip_decay:c.precip_decay?num(r[c.precip_decay])??NaN:NaN,
+      hours_since_rain:c.hours_since_rain?num(r[c.hours_since_rain])??NaN:NaN,
+      sprinkle_decay:c.sprinkle_decay?num(r[c.sprinkle_decay])??NaN:NaN,
+      _featuresEnriched:false
+    })).filter(r=>r.pt!==null&&isFinite(r.pt)&&r.pt>-20&&r.pt<100&&!isFutureDate(r.date));state.measurements=sortRowsLatest(state.measurements);saveState();state.measurements.forEach(r=>{r._featuresEnriched=false;});trainAllModels();render();toast(`엑셀 데이터 ${state.measurements.length}건 반영 완료`)};reader.readAsArrayBuffer(f)}function clearTrainingData(){if(confirm('학습 데이터를 모두 삭제할까요?\n(엑셀을 다시 업로드해야 합니다)')){state.measurements=[];state.fileInfo=null;formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('초기화 완료')}}function downloadData(){
   // ★ v6.5 한글 컬럼 매핑 + 예측치 + 일기 포함
+  // ★ Fix v1.1: decay 컬럼 추가 — 현재 세션 TAU로 계산
+  // 목적: 다른 컴퓨터가 이 파일을 업로드하면 historyCache 없이도
+  //       동일한 decay 값을 읽어 TAU 튜닝 결과가 동기화됨.
+  //       "엑셀 파일 = 모델 상태 운반체" 구조 완성.
   const exportRows=(state.measurements||[]).map(r=>{
     const wInfo=weatherInfo(r.wcode);
+    // decay 값: enrichRowForFeatures가 이미 계산해 r에 저장한 값 우선,
+    // 없으면 현재 TAU로 즉시 계산 (다운로드 시점 보장)
+    const sDecay=isFinite(r.solar_decay)?+Number(r.solar_decay).toFixed(4)
+      :+((Number(r.solar)||0)*2.5).toFixed(4);
+    const pDecay=isFinite(r.precip_decay)?+Number(r.precip_decay).toFixed(4):0;
+    const hRain=isFinite(r.hours_since_rain)?+Number(r.hours_since_rain).toFixed(2):24;
+    const spkDecay=isFinite(r.sprinkle_decay)?+Number(r.sprinkle_decay).toFixed(4):0;
     return {
       '일자':r.date||'',
       '요일':r.day||'',
@@ -5220,6 +5289,14 @@ function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new Fi
       '강수량(mm)':r.precip!=null?+Number(r.precip).toFixed(2):0,
       '운량(%)':r.cloud!=null?+Number(r.cloud).toFixed(0):'',
       '포장온도(℃)':r.pt!=null?+Number(r.pt).toFixed(1):'',
+      // ★ Fix v1.1: decay 컬럼 4개 — TAU 동기화 핵심
+      '감쇠누적일사(MJ)':sDecay,
+      '감쇠누적강수(mm)':pDecay,
+      '비후경과시간(h)':hRain,
+      '살수감쇠(mm)':spkDecay,
+      // ★ TAU 메타정보 — 이 파일이 어떤 TAU로 계산됐는지 기록
+      'TAU_solar(min)':TAU_SOLAR,
+      'TAU_water(min)':TAU_WATER,
       '예측_회귀식(℃)':r.predFormula!=null?+Number(r.predFormula).toFixed(2):'',
       '예측_AI보정(℃)':r.predAI!=null?+Number(r.predAI).toFixed(2):'',
       '예측_운영값구분':r.predUsed||'',
