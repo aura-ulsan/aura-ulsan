@@ -5438,7 +5438,13 @@ function updateWxFromForecast(){
   if(!fwx){
     // ★ v6.5+ forecast 없는 시간대 = 야간 또는 데이터 없음
     // → solar 0으로 강제 (낮 값이 잔류하지 않도록)
+    // ★ Fix v1.1: precip/cloud/wcode도 중립값으로 리셋
+    //    기존: solar만 0으로 밀고 나머지는 이전 stale 값 유지
+    //    → 야간 이후 첫 갱신 때 precip/wcode가 전날 낮값으로 오표시
     wx.solar=0;
+    wx.precip=0;
+    wx.cloud=null;
+    // wcode는 리셋하지 않음 — 마지막 유효 일기 코드 유지가 UX상 낫다
     return;
   }
   wx.air=+fwx.air.toFixed(1);
@@ -5466,12 +5472,26 @@ function getForecastAt(date,hr){
   if(!cache[lo])return cache[hi];
   const t=hr-lo;  // 0~1 사이 보간 계수
   const a=cache[lo],b=cache[hi];
+  // ★ Fix v1.1: precip/cloud/wcode 보간 추가
+  // 기존 버그: getForecastAt()이 air/solar/hum/wind/dir만 반환 →
+  //            updateWxFromForecast()의 if(fwx.precip!=null) 체크가
+  //            undefined!=null → false 로 평가돼 wx.precip/cloud/wcode
+  //            가 초기값(0/'맑음')에서 절대 갱신되지 않는 문제.
+  // 수정:      세 필드를 보간해 반환. wcode는 범주형이므로 선형보간 불가 →
+  //            더 가까운 시각(t<0.5=lo, t>=0.5=hi)의 코드를 그대로 사용.
+  const precipA=a.precip!=null?a.precip:0;
+  const precipB=b.precip!=null?b.precip:0;
+  const cloudA=a.cloud!=null?a.cloud:null;
+  const cloudB=b.cloud!=null?b.cloud:null;
   return {
     air:a.air*(1-t)+b.air*t,
     solar:a.solar*(1-t)+b.solar*t,
     hum:a.hum*(1-t)+b.hum*t,
     wind:a.wind*(1-t)+b.wind*t,
-    dir:(a.dir!=null&&b.dir!=null)?(a.dir*(1-t)+b.dir*t):(a.dir||b.dir||null)
+    dir:(a.dir!=null&&b.dir!=null)?(a.dir*(1-t)+b.dir*t):(a.dir||b.dir||null),
+    precip:+(precipA*(1-t)+precipB*t).toFixed(2),
+    cloud:(cloudA!=null&&cloudB!=null)?Math.round(cloudA*(1-t)+cloudB*t):(cloudA!=null?cloudA:cloudB),
+    wcode:t<0.5?(a.wcode!=null?a.wcode:b.wcode):(b.wcode!=null?b.wcode:a.wcode)
   };
 }
 
