@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>R.A.I.N.S v1.0 - 활주로 포장온도 AI 안전경보 시스템</title>
+<title>R.A.I.N.S v1.1 - 활주로 포장온도 AI 안전경보 시스템</title>
 <script>
 /* ════════════════════════════════════════════════════════════════
    A.U.R.A 인증 가드 — 다른 어떤 스크립트보다 먼저 실행되어야 함
@@ -954,7 +954,7 @@ pre{
 </head>
 <body>
 <div class="app">
-<header class="header"><div class="brand"><div><div class="brand-title">R.A.I.N.S <span class="version">v1.0</span></div><div class="brand-sub">활주로 포장온도 AI 안전경보 시스템 · 울산공항 RKPU</div><div style="font-size:10px;color:#8a9ab0;margin-top:1px;">Real-time Airfield Intelligent Notification System for Pavement Safety</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="rains_logout()">🔒 로그아웃</button></div></header>
+<header class="header"><div class="brand"><div><div class="brand-title">R.A.I.N.S <span class="version">v1.1</span></div><div class="brand-sub">활주로 포장온도 AI 안전경보 시스템 · 울산공항 RKPU</div><div style="font-size:10px;color:#8a9ab0;margin-top:1px;">Real-time Airfield Intelligent Notification System for Pavement Safety</div></div></div><div class="status-main"><span class="check">✓</span><span id="mainStatusText">정상 — 모든 구역이 임계값 이하입니다.</span></div><div class="header-actions"><div class="clock" id="clock">--</div><button class="hbtn" onclick="openApi()">⚙ API 설정</button><button class="hbtn" onclick="rains_logout()">🔒 로그아웃</button></div></header>
 <nav class="tabs"><button class="tab active" data-tab="monitor" onclick="showPane('monitor')">🏠 모니터링</button><button class="tab new" data-tab="ai" onclick="showPane('ai')">🤖 AI 모델</button><button class="tab" data-tab="data" onclick="showPane('data')">📋 데이터 현황</button><button class="tab" data-tab="ana" onclick="showPane('ana')">📊 분석</button><button class="tab" data-tab="coef" onclick="showPane('coef')">📐 회귀 계수</button><button class="tab" data-tab="log" onclick="showPane('log')">📝 운영 로그</button><button class="tab" data-tab="setting" onclick="showPane('setting')">⚙ 설정</button><span class="tab-spacer"></span><div class="mini-stat"><span><i class="dot"></i>Open-Meteo</span><span><i class="dot"></i>AI 모델</span><span><i class="dot"></i>DB 연결</span></div></nav>
 <main id="pane-monitor" class="pane main active"><section class="sensors" id="sensorArea"></section><div id="monitorAiStatus" style="display:flex;align-items:center;gap:8px;padding:5px 14px;background:#f0f6ff;border-top:1px solid #dce8f5;border-bottom:1px solid #dce8f5;font-size:12px;color:#3a4a66;min-height:28px;"><span id="monitorAiIcon">⏳</span><span id="monitorAiText" style="font-weight:600;">AI 모델 대기 중...</span></div><section class="zones" id="zoneArea"></section><div id="zoneLegendArea"></div><section class="measure-guide" id="measureGuide"></section><section class="bottom"><div class="panel"><div class="panel-head"><span>♔ 포장온도 예측 추이 <span id="selectedZoneTitle">(구역 1)</span></span></div><div class="summary4"><div class="summary-card"><div class="summary-lbl">현재 온도 (선택 구역)</div><div class="summary-val red" id="sumNow">--</div><div class="summary-sub green" id="sumRange">정상 범위</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (미살수)</div><div class="summary-val red" id="sumNo">--</div><div class="summary-sub">자연상승 예측</div></div><div class="summary-card"><div class="summary-lbl">30분 후 예측 (살수시)</div><div class="summary-val blue" id="sumYes">--</div><div class="summary-sub">예상 저감 ▼<span id="sumDrop">0.2</span>℃</div></div><div class="summary-card"><div class="summary-lbl">60℃ 이하 복귀 예상</div><div class="summary-val green" id="sumReturn">--</div><div class="summary-sub">살수 필요성 낮음</div></div></div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div><div class="panel"><div class="panel-head"><span>⚙ AI 모델 성능 <span id="perfZone">(구역 1)</span></span><button class="small-btn" onclick="trainTfModel()">재학습</button></div><table class="perf-table"><thead><tr><th>모델</th><th>R²</th><th>RMSE</th><th>MAE</th></tr></thead><tbody id="perfBody"></tbody></table><div style="margin-top:12px;padding:14px;background:#f7fbff;border:1px solid #cfdbea;border-radius:7px;font-size:12.5px;color:#3a4a66;line-height:1.85;flex:1;">
   <div style="margin-bottom:8px;"><b style="font-size:13.5px;color:#0054c8;">📐 최종 운영값</b><br>= 상관식 예측 + AI 보정 + 구역별 동적 보정계수</div>
@@ -1622,6 +1622,23 @@ function generateSampleData(){toast('샘플 데이터 생성은 비활성화되�
 /* ════════════════════════════════════════════════════════════════
    v6.5 16개 변수 features — 비/살수 통합 + 열관성 + 시각
    ════════════════════════════════════════════════════════════════ */
+// ★ Fix v1.1 #9: 미래날짜(내일 이후) 학습 행 자동 제외
+// 기존 문제: 오입력/테스트 잔여물(예: 2026-06-30 6건)이 학습에 섞여
+//           회귀계수를 오염. 오늘 데이터는 시각이 미래여도 정상 입력일 수
+//           있으므로 "날짜 기준 오늘까지 허용"(today-inclusive)으로 판정.
+function _todayStr(){
+  const n=new Date(window._fixedNow||Date.now());
+  return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+}
+function isFutureDate(dateStr){
+  if(!dateStr)return false;
+  const d=String(dateStr).slice(0,10);
+  return d>_todayStr();  // ISO 날짜는 문자열 비교로 대소 판정 가능
+}
+// ★ Fix v1.1 #3: stableFeats 인덱스 (앞9개 + cloud(15) + effSolar(16))
+// rain/sunny 모델 학습·예측 양쪽에서 동일하게 사용 — 인덱스 어긋남 방지
+const STABLE_IDX=[0,1,2,3,4,5,6,7,8,15,16];
+function stableFeats(x){return STABLE_IDX.map(i=>x[i]);}
 function features(r){
   // ★ v6.6 시각 — 분 단위까지 반영 (13:18 → 13.3, 정시 처리 시 sin/cos 부정확 문제 해결)
   const timeStr=r.time||'13:00';
@@ -1772,6 +1789,7 @@ function trainAllModels(runTf=true){
   let train=state.measurements.filter(r=>{
     if(!isFinite(r.pt)||r.pt<=-20||r.pt>=100)return false;
     if(!isFinite(r.air)||!isFinite(r.solar)||!isFinite(r.hum)||!isFinite(r.wind))return false;
+    if(isFutureDate(r.date))return false;  // ★ Fix v1.1 #9: 미래날짜 행 제외(기존 저장분 포함)
     return true;
   });
   if(train.length<5){toast('학습 데이터 부족: 회귀식/AI 학습 보류');return}
@@ -1800,7 +1818,9 @@ function trainAllModels(runTf=true){
   const fp=X.map(x=>clamp(predictLR(formulaModel,x),0,90,wx.pave));
   metrics.formula=calcMetrics(Y,fp);
 
-  const stableFeats=x=>x.slice(0,9);  // 처음 9개만 (안정적)
+  // ★ Fix v1.1 #3: stableFeats는 전역 정의 사용 (앞9 + cloud + effSolar = 11개)
+  // 기존 버그: slice(0,9)로 cloud·effSolar를 버려 흐림/비 과대예측(절편 51.6℃).
+  //           실측 일사 없는 환경에서 흐림 판별 단서를 잃던 핵심 원인.
   const rainTrain=train.filter(r=>(Number(r.precip)||0)>0);
   const sunnyTrain=train.filter(r=>(Number(r.precip)||0)===0);
   if(rainTrain.length>=50){
@@ -1824,12 +1844,41 @@ function trainAllModels(runTf=true){
     console.log(`[맑은날 모델] R²=${metrics.sunny.r2.toFixed(3)} MAE=${metrics.sunny.mae.toFixed(2)}℃ (${sunnyTrain.length}건)`);
   }
 
-  updateCorrections(train,fp);
+  updateCorrections(train,fpForCorr(train));
   saveMetrics();
   if(runTf)trainTfModel(false);
   // ★ v6.4 학습 직후 누락된 예측치 일괄 보강
   setTimeout(backfillPredictions,100);
   renderData();renderAnalysis();renderCoef()
+}
+// ★ Fix v1.1 #7: corr 학습용 예측 = 운영(calcPred) 혼합 로직과 동일하게 산출
+// 기존 버그: corr을 순수 formulaModel 예측(fp)으로 학습했는데, 운영 예측은
+//           rain/sunny 혼합 모델을 씀 → 비오는 데이터에서 corr이 잘못된
+//           baseline 잔차를 학습 → 보정이 헛돔. 구역차 흡수도 부정확.
+// 수정: 각 행의 자체 강수/일사로 혼합 예측을 재현해 corr 잔차를 정렬.
+//       (corr 항·zone 램프는 제외 — corr이 흡수할 잔차 자체를 구하는 단계)
+function fpForCorr(rows){
+  return rows.map(r=>{
+    const x=features(r);
+    const precipV=Number(r.precip)||0;
+    const solarV=Number(r.solar)||0;
+    const waterV=x[10];
+    if(rainModel&&sunnyModel&&(waterV>0||precipV>0)){
+      const xs=stableFeats(x);
+      const predRain=clamp(Number(r.air)+predictLR(rainModel,xs),0,90,30);
+      const predSunny=clamp(predictLR(sunnyModel,xs),0,90,45);
+      if(isFinite(predRain)&&isFinite(predSunny)){
+        const wD=waterV/(waterV+1), wI=precipV/(precipV+0.7);
+        let w=Math.max(wD,wI);
+        if(precipV<1.0){
+          if(solarV>=2.5)w=Math.min(w,0.3);else if(solarV>=2.0)w=Math.min(w,0.5);
+          if(precipV>0&&solarV<1.5)w=Math.max(w,0.5);else if(precipV>0&&solarV<2.0)w=Math.max(w,0.3);
+        }
+        return clamp(w*predRain+(1-w)*predSunny,0,90,45);
+      }
+    }
+    return clamp(predictLR(formulaModel,x),0,90,45);
+  });
 }
 function updateCorrections(rows,fp){
   let sums={},cnt={};
@@ -1940,20 +1989,22 @@ function _doBackfill(targets,label){
       // ★ v6.5+ 강수/맑은날 가중 평균 (calcPred와 동일 로직)
       // _doBackfill에서는 precip_decay가 0이므로 r.precip 직접 사용
       const precipVal=Number(r.precip)||0;
-      const w=precipVal/(precipVal+1);  // 강수 2.5mm → w=0.71
+      // ★ Fix v1.1 #4: 실시간 강수 기반 가중치 (calcPred와 동일 합성)
+      const w=precipVal/(precipVal+0.7);  // 강수 1mm→0.59, 2.7mm→0.79
       let fpV;
       if(rainModel&&sunnyModel&&precipVal>0){
-        const xs=xFeat.slice(0,9);
+        const xs=stableFeats(xFeat);  // ★ Fix v1.1 #3: cloud·effSolar 포함
         const predRainDiff=predictLR(rainModel,xs);
         const predRain=clamp(Number(r.air)+predRainDiff,0,90,30);
         const predSunny=clamp(predictLR(sunnyModel,xs),0,90,wx.pave||45);
         if(isFinite(predRain)&&isFinite(predSunny)){
-          fpV=clamp(w*predRain+(1-w)*predSunny+((z.id-3)*0.12),0,90,wx.pave||45);
+          // ★ Fix v1.1 #6: (z.id-3)*0.12 하드코딩 램프 제거 → 구역차는 corr이 학습
+          fpV=clamp(w*predRain+(1-w)*predSunny,0,90,wx.pave||45);
         } else {
-          fpV=clamp(predictLR(formulaModel,xFeat)+((z.id-3)*0.12),0,90,wx.pave||45);
+          fpV=clamp(predictLR(formulaModel,xFeat),0,90,wx.pave||45);
         }
       } else {
-        fpV=clamp(predictLR(formulaModel,xFeat)+((z.id-3)*0.12),0,90,wx.pave||45);
+        fpV=clamp(predictLR(formulaModel,xFeat),0,90,wx.pave||45);
       }
       const aiV=clamp(fpV+predictAiResidual(xFeat),0,90,fpV);
       const finalV=clamp((tfReady?aiV:fpV)+(state.corr[z.id]||0),0,90,fpV);
@@ -2192,12 +2243,21 @@ function calcPred(z, futureMin){
 
   // ★ v6.5+ 강수/맑은날 가중 평균
   const waterDecayNow=x[10];
-  let w=waterDecayNow/(waterDecayNow+1);  // 0~1
+  const solarNow=wx.solar||0;
+  const precipNow=wx.precip||0;
+  // ★ Fix v1.1 #4: 혼합 가중치에 "실시간 강수" 반영
+  // 기존 버그: w = waterDecay/(waterDecay+1) 만 사용 → waterDecay는 8시간
+  //           감쇠누적이라 비가 막 시작된 순간엔 0에 가까움.
+  //           → 비가 2.7mm 쏟아져도 w≈0.05 → 과대예측하는 맑은날 모델이
+  //             90% 지배 → 비오는 21℃에 60℃ 오알람. 비 시작 순간이 최악.
+  // 수정: 누적 기반 w와 실시간 강수 기반 w를 합성해 둘 중 큰 쪽 채택.
+  //       강수 1mm에서 w≈0.6, 2.7mm면 w≈0.8 → 강수모델이 즉시 지배.
+  const wDecay=waterDecayNow/(waterDecayNow+1);    // 누적 기반 (감쇠)
+  const wInstant=precipNow/(precipNow+0.7);        // 실시간 강수 기반
+  let w=Math.max(wDecay, wInstant);
 
   // ★ v6.7 이슬비+강일사 알람 누락 방지 — 강수 가중치 상한 적용
   // 데이터: 알람 놓침 37건 중 16건이 이슬비+일사≥2.4MJ
-  const solarNow=wx.solar||0;
-  const precipNow=wx.precip||0;
   if(precipNow<1.0){
     if(solarNow>=2.5){
       w=Math.min(w,0.3);
@@ -2216,22 +2276,25 @@ function calcPred(z, futureMin){
       w=Math.max(w,0.3);  // 이슬비+중간일사: 강수 가중치 최소 30%
     }
   }
-  // 강한 비(≥1mm): w 제한 없음 (원래대로)
+  // 강한 비(≥1mm): wInstant가 이미 0.6+ 확보 (Fix v1.1 #4)
 
   let formula;
-  if(rainModel&&sunnyModel&&waterDecayNow>0){
-    const xs=x.slice(0,9);  // stableOnly features
+  // ★ Fix v1.1 #4: 혼합 진입 조건에 precipNow>0 추가
+  //   기존: waterDecayNow>0 만 검사 → 비 시작 순간 누적=0이라 혼합 미진입
+  if(rainModel&&sunnyModel&&(waterDecayNow>0||precipNow>0)){
+    const xs=stableFeats(x);  // ★ Fix v1.1 #3: cloud·effSolar 포함
     // ★ 강수 모델: 기온차 예측 후 기온에 더하기
     const predRainDiff=predictLR(rainModel,xs);
     const predRain=clamp(wx.air+predRainDiff,0,90,wx.pave||30);
     const predSunny=clamp(predictLR(sunnyModel,xs),0,90,wx.pave||45);
     if(isFinite(predRain)&&isFinite(predSunny)){
-      formula=clamp(w*predRain+(1-w)*predSunny+((z.id-3)*0.12),0,90,wx.pave||45);
+      // ★ Fix v1.1 #6: (z.id-3)*0.12 하드코딩 램프 제거 → 구역차는 corr이 학습
+      formula=clamp(w*predRain+(1-w)*predSunny,0,90,wx.pave||45);
     } else {
-      formula=clamp(predictLR(formulaModel,x)+((z.id-3)*0.12),0,90,wx.pave||45);
+      formula=clamp(predictLR(formulaModel,x),0,90,wx.pave||45);
     }
   } else {
-    formula=clamp(predictLR(formulaModel,x)+((z.id-3)*0.12),0,90,wx.pave||45);
+    formula=clamp(predictLR(formulaModel,x),0,90,wx.pave||45);
   }
   // ★ v6.5+ 흐린 날 AI 보정 상한 축소 (±12 → ±9)
   // ★ v6.7.1 이슬비+저일사 AI 보정 추가 제한
@@ -2251,10 +2314,15 @@ function calcPred(z, futureMin){
   let final=clamp((tfReady?ai:formula)+(state.corr[z.id]||0),0,90,formula);
 
   // ★ v6.5+ 강수 안전망 (가중 평균 외 추가 안전망)
-  // 실제 강수 중 + 매우 강한 비일 때만 적용
+  // ★ Fix v1.1 #5: 임계 3.0mm → 1.0mm 하향
+  // 기존 버그: 강수 2.7mm가 와도 threshold 3.0에 0.3mm 부족해 안전망 미발동
+  //           → 과대예측(60℃)을 마지막에 잡아줄 장치가 작동 안 함.
+  // 수정: 1.0mm부터 발동. 강수 강도에 따라 상한을 차등(약한 비는 +14℃,
+  //       강한 비는 +12℃)해 약한 비에서 과도 클리핑 방지.
   const precip=wx.precip||0;
-  if(precip>=3){
-    const rainMax=clamp(wx.air+12,0,90,wx.air);
+  if(precip>=1.0){
+    const cap=precip>=3?12:14;  // 강한 비일수록 타이트
+    const rainMax=clamp(wx.air+cap,0,90,wx.air);
     if(final>rainMax){
       final=rainMax;
       ai=Math.min(ai,rainMax);
@@ -5099,7 +5167,7 @@ ${predStat}
     {label:'평균 살수 저감량(℃)',data:data2,backgroundColor:'rgba(7,137,67,.65)',borderColor:'#078943',borderWidth:1}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,title:{display:true,text:'℃'}}}}});
 }
-function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});const nk=s=>String(s).replace(/[\s\(\)℃%㎡\/\.·]/g,'').toLowerCase();function col(obj,names){const ks=Object.keys(obj);for(const nm of names){const n= name=>nk(name);let k=ks.find(k=>n(k)===n(nm));if(k)return k;k=ks.find(k=>n(k).includes(n(nm))||n(nm).includes(n(k)));if(k)return k}return null}if(!rows.length)return;const sample=rows[0],c={date:col(sample,['일자','날짜','date']),time:col(sample,['측정시간','시간']),zone:col(sample,['구역코드','구역']),air:col(sample,['대기온도','기온']),solar:col(sample,['일사량']),hum:col(sample,['습도']),wind:col(sample,['풍속']),pt:col(sample,['포장온도']),spk:col(sample,['살수여부']),after:col(sample,['살수후 표면온도','살수후온도'])};const num=v=>{const x=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(x)?null:x};state.measurements=rows.map(r=>({date:String(r[c.date]||'2026-05-08'),time:String(r[c.time]||'12:00'),zone:num(r[c.zone])||1,air:num(r[c.air])||wx.air,solar:num(r[c.solar])||wx.solar,hum:num(r[c.hum])||wx.hum,wind:(num(r[c.wind])||wx.wind)*((c.wind&&String(c.wind).includes('KT'))?.514:1),pt:num(r[c.pt]),spk:(num(r[c.spk])||0)>0?1:0,after:num(r[c.after])??''})).filter(r=>r.pt!==null&&isFinite(r.pt)&&r.pt>-20&&r.pt<100);state.measurements=sortRowsLatest(state.measurements);saveState();state.measurements.forEach(r=>{r._featuresEnriched=false;});trainAllModels();render();toast(`엑셀 데이터 ${state.measurements.length}건 반영 완료`)};reader.readAsArrayBuffer(f)}function clearTrainingData(){if(confirm('학습 데이터를 모두 삭제할까요?\n(엑셀을 다시 업로드해야 합니다)')){state.measurements=[];state.fileInfo=null;formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('초기화 완료')}}function downloadData(){
+function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>{const wb=XLSX.read(ev.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});const nk=s=>String(s).replace(/[\s\(\)℃%㎡\/\.·]/g,'').toLowerCase();function col(obj,names){const ks=Object.keys(obj);for(const nm of names){const n= name=>nk(name);let k=ks.find(k=>n(k)===n(nm));if(k)return k;k=ks.find(k=>n(k).includes(n(nm))||n(nm).includes(n(k)));if(k)return k}return null}if(!rows.length)return;const sample=rows[0],c={date:col(sample,['일자','날짜','date']),time:col(sample,['측정시간','시간']),zone:col(sample,['구역코드','구역']),air:col(sample,['대기온도','기온']),solar:col(sample,['일사량']),hum:col(sample,['습도']),wind:col(sample,['풍속']),pt:col(sample,['포장온도']),spk:col(sample,['살수여부']),after:col(sample,['살수후 표면온도','살수후온도'])};const num=v=>{const x=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(x)?null:x};state.measurements=rows.map(r=>({date:String(r[c.date]||'2026-05-08'),time:String(r[c.time]||'12:00'),zone:num(r[c.zone])||1,air:num(r[c.air])??wx.air,solar:num(r[c.solar])??wx.solar,hum:num(r[c.hum])??wx.hum,wind:((num(r[c.wind])??wx.wind))*((c.wind&&String(c.wind).includes('KT'))?.514:1),pt:num(r[c.pt]),spk:(num(r[c.spk])||0)>0?1:0,after:num(r[c.after])??''})).filter(r=>r.pt!==null&&isFinite(r.pt)&&r.pt>-20&&r.pt<100&&!isFutureDate(r.date));state.measurements=sortRowsLatest(state.measurements);saveState();state.measurements.forEach(r=>{r._featuresEnriched=false;});trainAllModels();render();toast(`엑셀 데이터 ${state.measurements.length}건 반영 완료`)};reader.readAsArrayBuffer(f)}function clearTrainingData(){if(confirm('학습 데이터를 모두 삭제할까요?\n(엑셀을 다시 업로드해야 합니다)')){state.measurements=[];state.fileInfo=null;formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('초기화 완료')}}function downloadData(){
   // ★ v6.5 한글 컬럼 매핑 + 예측치 + 일기 포함
   const exportRows=(state.measurements||[]).map(r=>{
     const wInfo=weatherInfo(r.wcode);
