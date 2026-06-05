@@ -2167,21 +2167,40 @@ async function trainTfModel(show=true){
   tfModel.add(tf.layers.dense({inputShape:[cols],units:16,activation:'relu',kernelRegularizer:tf.regularizers.l2({l2:0.003})}));
   tfModel.add(tf.layers.dense({units:8,activation:'relu',kernelRegularizer:tf.regularizers.l2({l2:0.003})}));
   tfModel.add(tf.layers.dense({units:1}));
-  // ★ Fix v1.1: meanSquaredError 유지 + sampleWeight로 고온 강조
-  // 기존 시도: weightedMSE 커스텀 손실함수 → batchSize vs n shape 불일치로 학습 실패
-  // 수정: model.fit의 sampleWeight 옵션 사용 (TF.js 공식 지원)
-  //       sampleWeight는 model.fit 내부에서 배치 단위로 자동 슬라이싱됨
   tfModel.compile({optimizer:tf.train.adam(0.002),loss:'meanSquaredError'});
-  const tfWeights=trainShuffled.map(r=>{
-    const pt=Number(r.pt);
-    if(pt>=60&&pt<65) return 4.0;
-    if(pt>=55&&pt<60) return 3.0;
-    if(pt>=65)        return 3.0;
-    if(pt>=50&&pt<55) return 1.5;
-    return 1.0;
+
+  // ★ Fix v1.1: 고온 구간 가중치 = 오버샘플링 방식
+  // 기존 시도1: 커스텀 weightedMSE → batchSize/n shape 불일치로 실패
+  // 기존 시도2: model.fit sampleWeight 옵션 → TF.js 4.20에서 validationSplit과
+  //            동시 사용 시 실패 → tfReady=false (AI 학습 안 됨의 직접 원인)
+  // 최종: 고온 행을 정수 가중치만큼 복제(오버샘플링) → 기본 fit() API만 사용
+  //       검증셋 누수 방지를 위해 분할을 수동 처리(복제 전 원본 행 단위로 분할)
+  function critWeightInt(pt){
+    if(pt>=60&&pt<65) return 4;
+    if(pt>=55&&pt<60) return 3;
+    if(pt>=65)        return 3;
+    if(pt>=50&&pt<55) return 2;  // 정수 오버샘플이라 1.5→2
+    return 1;
+  }
+  // 원본 인덱스를 셔플 후 15% 검증셋 분리 (복제 전 → 누수 없음)
+  const idx=Xn.map((_,i)=>i);
+  for(let i=idx.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
+  const valCount=Math.max(1,Math.floor(idx.length*0.15));
+  const valIdx=idx.slice(0,valCount);
+  const trIdx=idx.slice(valCount);
+  // 학습셋: 가중치만큼 복제
+  const trXarr=[],trYarr=[];
+  trIdx.forEach(i=>{
+    const w=critWeightInt(Number(trainShuffled[i].pt));
+    for(let k=0;k<w;k++){trXarr.push(Xn[i]);trYarr.push(Yn[i]);}
   });
-  const sampleWeightTensor=tf.tensor1d(tfWeights);
-  const xs=tf.tensor2d(Xn),ys=tf.tensor2d(Yn,[Yn.length,1]);
+  // 검증셋: 복제 없이 원본 (가중치는 학습에만)
+  const valXarr=valIdx.map(i=>Xn[i]);
+  const valYarr=valIdx.map(i=>Yn[i]);
+  const xs=tf.tensor2d(trXarr),ys=tf.tensor2d(trYarr,[trYarr.length,1]);
+  const xsVal=tf.tensor2d(valXarr),ysVal=tf.tensor2d(valYarr,[valYarr.length,1]);
+  // 예측·메트릭용 전체 텐서 (원본 순서, 복제 없음)
+  const xsAll=tf.tensor2d(Xn);
 
   // ★ v6.7 학습 속도 최적화
   // 변경 전: epochs 200, batchSize 32, patience 20 → 최대 7,000 스텝
@@ -2207,8 +2226,7 @@ async function trainTfModel(show=true){
       epochs:EPOCHS,
       batchSize:BATCH,
       shuffle:true,
-      validationSplit:0.15,
-      sampleWeight:sampleWeightTensor,  // ★ Fix v1.1: 고온 구간 가중치 (TF.js 공식 방법)
+      validationData:[xsVal,ysVal],  // ★ Fix v1.1: 수동 분할 검증셋 (오버샘플 누수 없음)
       verbose:0,
       callbacks:{
         onEpochEnd:(epoch,logs)=>{
@@ -2235,10 +2253,10 @@ async function trainTfModel(show=true){
         }
       }
     });
-  }catch(e){tfReady=false;xs.dispose();ys.dispose();sampleWeightTensor.dispose();window._tfHistory=null;window._tfBestLoss=Infinity;updateMonitorAiStatus('done_fallback');if(show)toast('AI 학습 실패: 상관식 기준으로 운전');return}
+  }catch(e){tfReady=false;xs.dispose();ys.dispose();xsVal.dispose();ysVal.dispose();xsAll.dispose();window._tfHistory=null;window._tfBestLoss=Infinity;updateMonitorAiStatus('done_fallback');if(show)toast('AI 학습 실패: 상관식 기준으로 운전');console.error('[AI 학습 오류]',e);return}
   window._tfHistory=null;window._tfBestLoss=Infinity;window._tfBestEpoch=0;
-  const predNorm=Array.from(tfModel.predict(xs).dataSync());
-  xs.dispose();ys.dispose();sampleWeightTensor.dispose();
+  const predNorm=Array.from(tfModel.predict(xsAll).dataSync());
+  xs.dispose();ys.dispose();xsVal.dispose();ysVal.dispose();xsAll.dispose();
 
   // ★ v6.7 버그 수정: trainShuffled 기준으로 전체 계산을 통일
   // 기존 버그: predNorm/basePred는 trainShuffled 순서, metrics는 train(원래 순서).pt와 비교
