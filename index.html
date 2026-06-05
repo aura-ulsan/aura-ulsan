@@ -1757,20 +1757,40 @@ function formulaFeaturesCurrent(z, futureMin){
   };
   return features(r);
 }
-function fitLR(X,Y,lambda=0.15){
+function fitLR(X,Y,lambda=0.15,W=null){
+  // ★ Fix v1.1: WLS(가중최소제곱) 지원 추가
+  // W: 행별 가중치 배열 (null이면 균등 가중치 = 기존 OLS)
+  // 고온 구간(55℃↑)에 높은 가중치 → 알람 임계 구간 예측 정확도 개선
   if(!X.length){return{intercept:0,coefs:[],means:[],stds:[],ridge:true}}
   const cols=X[0].length;
+  const n=X.length;
+  const w=W||(new Array(n).fill(1));  // 가중치 없으면 균등
+  const wSum=w.reduce((a,b)=>a+b,0);
+
+  // 가중 평균·표준편차로 정규화 (WLS에서 표준화는 가중 기준)
   const means=Array(cols).fill(0),stds=Array(cols).fill(0);
-  X.forEach(x=>x.forEach((v,i)=>{means[i]+=Number(v)||0}));
-  for(let i=0;i<cols;i++)means[i]/=X.length;
-  X.forEach(x=>x.forEach((v,i)=>{stds[i]+=((Number(v)||0)-means[i])**2}));
-  for(let i=0;i<cols;i++)stds[i]=Math.sqrt(stds[i]/X.length)||1;
+  X.forEach((x,ri)=>x.forEach((v,i)=>{means[i]+=(Number(v)||0)*w[ri]}));
+  for(let i=0;i<cols;i++)means[i]/=wSum;
+  X.forEach((x,ri)=>x.forEach((v,i)=>{stds[i]+=w[ri]*((Number(v)||0)-means[i])**2}));
+  for(let i=0;i<cols;i++)stds[i]=Math.sqrt(stds[i]/wSum)||1;
+
   const Xn=X.map(x=>x.map((v,i)=>((Number(v)||0)-means[i])/stds[i]));
   const Xb=Xn.map(r=>[1,...r]);
-  const Xt=transpose(Xb),XtX=mm(Xt,Xb);
-  for(let i=1;i<XtX.length;i++)XtX[i][i]+=lambda;
-  const XtY=Xt.map(r=>r.reduce((a,v,i)=>a+v*Y[i],0));
-  const beta=solve(XtX,XtY).map(v=>isFinite(v)?v:0);
+
+  // WLS: XᵀWX 와 XᵀWY 계산
+  const cols1=cols+1;
+  const XtWX=Array.from({length:cols1},()=>Array(cols1).fill(0));
+  const XtWY=Array(cols1).fill(0);
+  for(let ri=0;ri<n;ri++){
+    const xi=Xb[ri], wi=w[ri], yi=Y[ri];
+    for(let j=0;j<cols1;j++){
+      XtWY[j]+=wi*xi[j]*yi;
+      for(let k=0;k<cols1;k++) XtWX[j][k]+=wi*xi[j]*xi[k];
+    }
+  }
+  // Ridge 정규화 (절편 제외)
+  for(let i=1;i<cols1;i++) XtWX[i][i]+=lambda;
+  const beta=solve(XtWX,XtWY).map(v=>isFinite(v)?v:0);
   return{intercept:beta[0],coefs:beta.slice(1),means,stds,ridge:true}
 }
 function predictLR(m,x){
@@ -1860,29 +1880,46 @@ function trainAllModels(runTf=true){
     if(before-train.length>0)console.log(`이상치 ${before-train.length}건 제외 (±3σ)`);
   }
   const X=train.map(features),Y=train.map(r=>r.pt);
-  formulaModel=fitLR(X,Y);
+
+  // ★ Fix v1.1: 고온 구간 가중치 부여 학습 (WLS)
+  // 문제: 데이터의 42%가 40~55℃에 몰려 모델이 이 구간에 최적화됨
+  //       → 알람 임계(55~65℃)에서 RMSE 7.6℃, 알람 누락 69%
+  // 해결: 포장온도 구간별 가중치 차등 적용
+  //   55~60℃: ×3 (알람 경계 직전 — 가장 중요)
+  //   60~65℃: ×4 (알람 구간)
+  //   65℃↑:   ×3 (고온 한계 구간 — 너무 높으면 과적합 위험)
+  //   50~55℃: ×1.5 (임계 접근 구간)
+  //   나머지:  ×1.0 (기본)
+  // 가중치 상한 4: 그 이상이면 고온 구간이 전체를 지배해 저온 정확도 급감
+  function critWeight(pt){
+    if(pt>=60&&pt<65) return 4.0;
+    if(pt>=55&&pt<60) return 3.0;
+    if(pt>=65)        return 3.0;
+    if(pt>=50&&pt<55) return 1.5;
+    return 1.0;
+  }
+  const W=Y.map(critWeight);
+  formulaModel=fitLR(X,Y,0.15,W);
   const fp=X.map(x=>clamp(predictLR(formulaModel,x),0,90,wx.pave));
 
   // ★ Fix v1.1 #3: stableFeats는 전역 정의 사용 (앞9 + cloud + effSolar = 11개)
-  // 기존 버그: slice(0,9)로 cloud·effSolar를 버려 흐림/비 과대예측(절편 51.6℃).
-  //           실측 일사 없는 환경에서 흐림 판별 단서를 잃던 핵심 원인.
   const rainTrain=train.filter(r=>(Number(r.precip)||0)>0);
   const sunnyTrain=train.filter(r=>(Number(r.precip)||0)===0);
   if(rainTrain.length>=50){
     const Xr=rainTrain.map(r=>stableFeats(features(r)));
-    // ★ v6.5+ 강수 모델: 기온차(포장-기온) 예측 방식
-    // T_pave = T_air + f(일사, 강수, 습도) → 기온 낮아도 정확
     const Yr=rainTrain.map(r=>r.pt - Number(r.air));
-    rainModel=fitLR(Xr,Yr,1.0);
+    const Wr=rainTrain.map(r=>critWeight(r.pt));
+    rainModel=fitLR(Xr,Yr,1.0,Wr);
     rainModel._stableOnly=true;
-    rainModel._diffMode=true;  // 기온차 예측 모드 표시
+    rainModel._diffMode=true;
     const fpR=Xr.map((x,i)=>clamp(Number(rainTrain[i].air)+predictLR(rainModel,x),0,90,30));
     metrics.rain=calcMetrics(rainTrain.map(r=>r.pt),fpR);
     console.log(`[강수 모델] R²=${metrics.rain.r2.toFixed(3)} MAE=${metrics.rain.mae.toFixed(2)}℃ (${rainTrain.length}건)`);
   }
   if(sunnyTrain.length>=50){
     const Xs=sunnyTrain.map(r=>stableFeats(features(r))),Ys=sunnyTrain.map(r=>r.pt);
-    sunnyModel=fitLR(Xs,Ys,1.0);
+    const Ws=sunnyTrain.map(r=>critWeight(r.pt));
+    sunnyModel=fitLR(Xs,Ys,1.0,Ws);
     sunnyModel._stableOnly=true;
     const fpS=Xs.map(x=>clamp(predictLR(sunnyModel,x),0,90,wx.pave||45));
     metrics.sunny=calcMetrics(Ys,fpS);
@@ -2130,7 +2167,33 @@ async function trainTfModel(show=true){
   tfModel.add(tf.layers.dense({inputShape:[cols],units:16,activation:'relu',kernelRegularizer:tf.regularizers.l2({l2:0.003})}));
   tfModel.add(tf.layers.dense({units:8,activation:'relu',kernelRegularizer:tf.regularizers.l2({l2:0.003})}));
   tfModel.add(tf.layers.dense({units:1}));
-  tfModel.compile({optimizer:tf.train.adam(0.002),loss:'meanSquaredError'});
+
+  // ★ Fix v1.1: TF.js 가중 손실함수 (고온 구간 강조)
+  // 기존: meanSquaredError → 모든 구간 균등 → 50℃ 천장 편향
+  // 수정: 샘플별 가중치를 손실에 곱해 임계 구간(55~65℃) 오차를 더 크게 처벌
+  // 가중치는 선형회귀와 동일한 critWeight 기준 (일관성 유지)
+  const tfWeights=trainShuffled.map(r=>{
+    const pt=Number(r.pt);
+    if(pt>=60&&pt<65) return 4.0;
+    if(pt>=55&&pt<60) return 3.0;
+    if(pt>=65)        return 3.0;
+    if(pt>=50&&pt<55) return 1.5;
+    return 1.0;
+  });
+  // 가중치를 잔차 중심화 후 yStd로 정규화된 스케일에 맞게 텐서로 변환
+  const wMax=Math.max(...tfWeights);
+  const wNorm=tfWeights.map(w=>w/wMax);  // 0~1 정규화 (학습률 스케일 유지)
+  const sampleWeightTensor=tf.tensor1d(wNorm);
+
+  function weightedMSE(yTrue,yPred){
+    return tf.tidy(()=>{
+      const sq=tf.square(tf.sub(yTrue,yPred));   // (n,1)
+      const sqFlat=sq.flatten();                   // (n,)
+      const weighted=tf.mul(sqFlat,sampleWeightTensor);
+      return tf.mean(weighted);
+    });
+  }
+  tfModel.compile({optimizer:tf.train.adam(0.002),loss:weightedMSE});
   const xs=tf.tensor2d(Xn),ys=tf.tensor2d(Yn,[Yn.length,1]);
 
   // ★ v6.7 학습 속도 최적화
@@ -2184,10 +2247,10 @@ async function trainTfModel(show=true){
         }
       }
     });
-  }catch(e){tfReady=false;xs.dispose();ys.dispose();window._tfHistory=null;window._tfBestLoss=Infinity;updateMonitorAiStatus('done_fallback');if(show)toast('AI 학습 실패: 상관식 기준으로 운전');return}
+  }catch(e){tfReady=false;xs.dispose();ys.dispose();sampleWeightTensor.dispose();window._tfHistory=null;window._tfBestLoss=Infinity;updateMonitorAiStatus('done_fallback');if(show)toast('AI 학습 실패: 상관식 기준으로 운전');return}
   window._tfHistory=null;window._tfBestLoss=Infinity;window._tfBestEpoch=0;
   const predNorm=Array.from(tfModel.predict(xs).dataSync());
-  xs.dispose();ys.dispose();
+  xs.dispose();ys.dispose();sampleWeightTensor.dispose();
 
   // ★ v6.7 버그 수정: trainShuffled 기준으로 전체 계산을 통일
   // 기존 버그: predNorm/basePred는 trainShuffled 순서, metrics는 train(원래 순서).pt와 비교
