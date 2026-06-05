@@ -1815,7 +1815,21 @@ function enrichRowForFeatures(r){
   //           historyCache가 있는 컴퓨터는 재계산으로 덮어씀
   //           → 같은 엑셀 업로드해도 컴퓨터마다 다른 decay → 10℃+ 차이
   // 수정: isFinite(r.solar_decay) 이면 엑셀값 그대로 사용, 없을 때만 캐시/추정
-  const hasExcelDecay=isFinite(r.solar_decay)&&r.solar_decay>0;
+  //
+  // ★ Fix v1.1 (성능저하 원인): decay 물리 타당성 검증 추가
+  // 발견된 문제: 측정시각이 13:07처럼 분단위인데 정수 hour로 계산 + historyCache
+  //   과거 4시간 결손 → decaySum 가중치 배분 붕괴 → 정오 맑은날(일사3.5)인데
+  //   감쇠누적일사=1.225 같은 비물리적 값 → 모델 학습 오염 → 성능 급락
+  // 검증식: 맑은 고일사(solar≥2.5)인데 누적일사가 solar보다도 작으면(결손 징후)
+  //   엑셀값을 거부하고 재계산/추정. 정상값(누적≥solar)만 신뢰.
+  const solarNow=Number(r.solar)||0;
+  let excelDecay=isFinite(r.solar_decay)?Number(r.solar_decay):NaN;
+  const decayLooksBroken=isFinite(excelDecay)&&solarNow>=2.5&&excelDecay<solarNow;
+  if(decayLooksBroken){
+    console.warn(`[decay 이상치] ${r.date} ${r.time} 일사=${solarNow.toFixed(1)} 누적=${excelDecay.toFixed(2)} → 재추정`);
+    excelDecay=NaN;  // 엑셀값 무효화 → 아래 재계산 경로로
+  }
+  const hasExcelDecay=isFinite(excelDecay)&&excelDecay>0;
 
   if(hasExcelDecay){
     // 엑셀에 미리 계산된 decay 값 사용 — 컴퓨터 간 완전 동기화
@@ -1833,12 +1847,20 @@ function enrichRowForFeatures(r){
       const c=historyCache[dateStr][hr];
       r.cloud_cover=c&&c.cloud!=null?c.cloud:0;
     }else{
-      // 추정값 (Open-Meteo 캐시 없음)
-      r.solar_decay=Number(r.solar)*2.5;
+      // ★ Fix v1.1: 추정값 개선 — 시간대 반영 (Open-Meteo 캐시 없음)
+      // 기존: solar*2.5 고정 → 오전/오후 누적 차이 무시, 결손 시 붕괴
+      // 수정: 측정 시각이 늦을수록 누적 일사가 큼을 반영 (일출~측정시각 적분 근사)
+      // 정오 이후면 누적 계수 증가, 이른 오전이면 감소
+      const hrFull=parseFloat(String(timeStr).split(':')[0])+
+                   (parseFloat(String(timeStr).split(':')[1])||0)/60;
+      // 일출(약6시)~측정시각 경과시간 기반 누적 계수 (정오 13시 부근 최대 ~2.5)
+      const sinceDawn=Math.max(0,hrFull-6);
+      const accFactor=Math.min(2.5,0.4+sinceDawn*0.22);  // 6시:0.4 → 13시:1.94 → 17시:2.5
+      r.solar_decay=Number(r.solar)*accFactor;
       r.solar_trend=0;
       r.precip_decay=0;
       r.hours_since_rain=24;
-      r.cloud_cover=0;
+      r.cloud_cover=Number(r.cloud)||0;
     }
   }
 
@@ -2269,24 +2291,56 @@ async function trainTfModel(show=true){
   // trainShuffled의 실측값을 정답으로 사용 (basePred도 trainShuffled 기반)
   metrics.ai=calcMetrics(trainShuffled.map(r=>r.pt),aiPred);
 
-  // ★ v6.6 알람 임계 영역 (55~65℃) 별도 검증 — trainShuffled 기준으로 통일
+  // ★ v6.6 알람 임계 영역 (55~65℃) 별도 검증
+  // ★ Fix v1.1: 검증셋 임계표본이 충분하면 검증셋 기준, 부족하면 전체 기준(보조)
   const critIdx=[];
   trainShuffled.forEach((r,i)=>{if(r.pt>=55&&r.pt<=65)critIdx.push(i);});
+  const valSet=new Set(valIdx);
+  const critValIdx=critIdx.filter(i=>valSet.has(i));
   let critOk=true;
-  if(critIdx.length>=30){
-    const critY=critIdx.map(i=>trainShuffled[i].pt);
-    const critF=critIdx.map(i=>basePred[i]);
-    const critAI=critIdx.map(i=>aiPred[i]);
+  // 검증셋 임계표본 15건 이상이면 그걸로, 아니면 전체 critIdx로 (표본 확보 우선)
+  const useCrit = critValIdx.length>=15 ? critValIdx : critIdx;
+  const critScope = critValIdx.length>=15 ? '검증셋' : '전체';
+  if(useCrit.length>=30 || (critScope==='검증셋'&&useCrit.length>=15)){
+    const critY=useCrit.map(i=>trainShuffled[i].pt);
+    const critF=useCrit.map(i=>basePred[i]);
+    const critAI=useCrit.map(i=>aiPred[i]);
     const maeF=critY.reduce((a,v,i)=>a+Math.abs(v-critF[i]),0)/critY.length;
     const maeAI=critY.reduce((a,v,i)=>a+Math.abs(v-critAI[i]),0)/critY.length;
-    metrics.aiCritical={mae:maeAI,formulaCritical:{mae:maeF},n:critIdx.length};
+    metrics.aiCritical={mae:maeAI,formulaCritical:{mae:maeF},n:useCrit.length};
     critOk=maeAI<=maeF*1.10;
-    if(!critOk)console.warn(`[AI 임계영역 검증 실패] AI MAE ${maeAI.toFixed(2)}℃ > 회귀식 MAE×1.10 ${(maeF*1.10).toFixed(2)}℃ - 회귀식 fallback`);
-    else console.log(`[AI 임계영역 OK] AI MAE ${maeAI.toFixed(2)}℃ vs 회귀식 ${maeF.toFixed(2)}℃ (n=${critIdx.length})`);
+    if(!critOk)console.warn(`[AI 임계영역 검증 실패/${critScope}] AI MAE ${maeAI.toFixed(2)}℃ > 회귀식 MAE×1.10 ${(maeF*1.10).toFixed(2)}℃ - fallback`);
+    else console.log(`[AI 임계영역 OK/${critScope}] AI MAE ${maeAI.toFixed(2)}℃ vs 회귀식 ${maeF.toFixed(2)}℃ (n=${useCrit.length})`);
   }
   
   // ★ v6.6 tfReady 결정 — 전체 성능 + 임계영역 성능 모두 통과해야 함
-  tfReady=isFinite(metrics.ai.rmse)&&metrics.ai.rmse<=metrics.formula.rmse*1.05&&metrics.ai.r2>=0.05&&critOk;
+  // ★ Fix v1.1 (폴백 핵심 수정): 검증셋(out-of-sample) 기준으로 게이트 판정
+  // 기존 버그: metrics.ai가 학습셋(xsAll, 오버샘플 포함) 기준 → 과적합 AI도
+  //           학습셋에선 좋아 보여 tfReady=true 통과 → 노이즈 AI가 상관식 자리 차지
+  //           (실측 검증: AI보정 vs 실제잔차 상관 -0.05, 베이스보다 나은 행 46.6%)
+  // 수정: 학습에 쓰지 않은 valIdx(검증셋)로 AI vs 상관식을 비교.
+  //       검증셋에서 AI가 진짜 일반화 성능이 나을 때만 tfReady=true.
+  //       데이터가 더러우면 자동 fallback, 깨끗해져 신호가 생기면 자동 활성화.
+  let valGateOk=true, valInfo='';
+  if(valIdx.length>=10){
+    // 검증셋 예측: aiPred/basePred는 trainShuffled 순서 = Xn/Yn 순서 = idx 순서
+    const vY=valIdx.map(i=>trainShuffled[i].pt);
+    const vBase=valIdx.map(i=>basePred[i]);
+    const vAI=valIdx.map(i=>aiPred[i]);
+    const rmseBaseV=Math.sqrt(vY.reduce((a,v,i)=>a+(v-vBase[i])**2,0)/vY.length);
+    const rmseAIV=Math.sqrt(vY.reduce((a,v,i)=>a+(v-vAI[i])**2,0)/vY.length);
+    // 검증셋에서 AI가 상관식보다 나아야(약간의 여유 1.0배 = 더 나아야) 통과
+    valGateOk=rmseAIV<=rmseBaseV;
+    valInfo=`검증셋 RMSE: AI ${rmseAIV.toFixed(2)} vs 상관식 ${rmseBaseV.toFixed(2)}`;
+    if(valGateOk)console.log(`[AI 검증셋 통과] ${valInfo} (n=${valIdx.length})`);
+    else console.warn(`[AI 검증셋 미달 → 상관식 fallback] ${valInfo} (n=${valIdx.length})`);
+  } else {
+    // 검증셋이 너무 작으면(데이터 부족) 보수적으로 fallback
+    valGateOk=false;
+    console.warn(`[AI 검증셋 부족 → 상관식 fallback] valIdx=${valIdx.length}건 (<10)`);
+  }
+  // 최종 게이트: 검증셋 통과 + 임계영역 + 기본 건전성
+  tfReady=isFinite(metrics.ai.rmse)&&metrics.ai.r2>=0.05&&critOk&&valGateOk;
   // ★ v6.5+ 모델 재학습 시 AI 캐시 무효화
   _aiCacheModelVer++;
   for(const k in _aiResidualCache)delete _aiResidualCache[k];
