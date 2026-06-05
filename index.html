@@ -1313,6 +1313,33 @@ let TAU_SOLAR_BY_ZONE = {
 let USE_ZONE_TAU = true;
 
 // 감쇠 누적 계산
+// ★ Fix v1.1 #17: 실시간 예측 시 결정론적 캐시 읽기
+// liveMode=true → forecastCache만 사용 (모든 컴퓨터 동일한 Open-Meteo 예보)
+//                 historyCache는 컴퓨터마다 채워진 상태가 달라 재현성을 깨므로 무시
+// liveMode=false → 기존대로 history 우선 (학습/백필 — 정확도 우선, 재현성 불필요)
+// 폴백: 둘 다 없으면 null 반환 (호출부에서 추정값 처리)
+function readCacheSolar(dateStr,h,liveMode){
+  if(h<0)return null;
+  if(liveMode){
+    if(forecastCache[dateStr]&&forecastCache[dateStr][h]&&forecastCache[dateStr][h].solar!=null)
+      return forecastCache[dateStr][h].solar;
+    return null;
+  }
+  if(historyCache[dateStr]&&historyCache[dateStr][h])return historyCache[dateStr][h].solar;
+  if(forecastCache[dateStr]&&forecastCache[dateStr][h])return forecastCache[dateStr][h].solar;
+  return null;
+}
+function readCachePrecip(dateStr,h,liveMode){
+  if(h<0)return 0;
+  if(liveMode){
+    if(forecastCache[dateStr]&&forecastCache[dateStr][h]&&forecastCache[dateStr][h].precip!=null)
+      return forecastCache[dateStr][h].precip||0;
+    return 0;
+  }
+  if(historyCache[dateStr]&&historyCache[dateStr][h])return historyCache[dateStr][h].precip||0;
+  if(forecastCache[dateStr]&&forecastCache[dateStr][h])return forecastCache[dateStr][h].precip||0;
+  return 0;
+}
 function decaySum(values, tauMinutes, intervalMinutes){
   // values: [t-N, ..., t-1, t-0] 순서 (오래된 → 최근)
   // intervalMinutes: 각 값 사이 시간 간격 (분)
@@ -1328,59 +1355,47 @@ function decaySum(values, tauMinutes, intervalMinutes){
 
 // 감쇠 누적 일사량 계산 (특정 시점 기준, 과거 N시간)
 // ★ v6.5+ zone 인자 추가 — 구역별 τ_solar 적용 (포장 구조 반영)
-function calcSolarDecay(dateStr, hour, hoursBack, zone){
+function calcSolarDecay(dateStr, hour, hoursBack, zone, liveMode){
   if(!hoursBack)hoursBack=4;
-  // historyCache 또는 forecastCache에서 값 조회
   const values=[];
+  let anyData=false;
   for(let h=hour-hoursBack;h<=hour;h++){
-    let v=null;
-    if(h>=0){
-      if(historyCache[dateStr]&&historyCache[dateStr][h])v=historyCache[dateStr][h].solar;
-      else if(forecastCache[dateStr]&&forecastCache[dateStr][h])v=forecastCache[dateStr][h].solar;
-    }
+    const v=readCacheSolar(dateStr,h,liveMode);
+    if(v!=null)anyData=true;
     values.push(v!=null?v:0);
   }
-  // 구역별 τ 사용 (USE_ZONE_TAU=true && zone 지정 시)
+  // ★ Fix v1.1 #17: 실시간인데 forecast 캐시가 비었으면 추정 폴백
+  if(liveMode&&!anyData){
+    const cur=values[values.length-1]||(wx.solar||0);
+    console.warn('[재현성] forecast 캐시 없음 → solar_decay 추정 폴백');
+    return (Number(wx.solar)||cur)*2.5;
+  }
   const tau = (USE_ZONE_TAU && zone && TAU_SOLAR_BY_ZONE[zone]) ? TAU_SOLAR_BY_ZONE[zone] : TAU_SOLAR;
   return decaySum(values, tau, 60);
 }
 
 // 감쇠 누적 강수량 계산
-function calcPrecipDecay(dateStr, hour, hoursBack){
+function calcPrecipDecay(dateStr, hour, hoursBack, liveMode){
   if(!hoursBack)hoursBack=8;
   const values=[];
   for(let h=hour-hoursBack;h<=hour;h++){
-    let v=0;
-    if(h>=0){
-      if(historyCache[dateStr]&&historyCache[dateStr][h])v=historyCache[dateStr][h].precip||0;
-      else if(forecastCache[dateStr]&&forecastCache[dateStr][h])v=forecastCache[dateStr][h].precip||0;
-    }
-    values.push(v);
+    values.push(readCachePrecip(dateStr,h,liveMode));
   }
   return decaySum(values, TAU_WATER, 60);
 }
 
-// 일사 변화율 (직전 1시간 대비)
-function calcSolarTrend(dateStr, hour){
-  let curr=0, prev=0;
-  if(historyCache[dateStr]&&historyCache[dateStr][hour])curr=historyCache[dateStr][hour].solar||0;
-  else if(forecastCache[dateStr]&&forecastCache[dateStr][hour])curr=forecastCache[dateStr][hour].solar||0;
-  const phr=hour-1;
-  if(phr>=0){
-    if(historyCache[dateStr]&&historyCache[dateStr][phr])prev=historyCache[dateStr][phr].solar||0;
-    else if(forecastCache[dateStr]&&forecastCache[dateStr][phr])prev=forecastCache[dateStr][phr].solar||0;
-  }
-  return curr-prev;
+function calcSolarTrend(dateStr, hour, liveMode){
+  const c=readCacheSolar(dateStr,hour,liveMode);
+  const p=readCacheSolar(dateStr,hour-1,liveMode);
+  return (c!=null?c:0)-(p!=null?p:0);
 }
 
 // 비 이후 경과 시간 계산
-function calcHoursSinceRain(dateStr, hour, maxBack){
+function calcHoursSinceRain(dateStr, hour, maxBack, liveMode){
   if(!maxBack)maxBack=24;
   for(let h=hour;h>=hour-maxBack;h--){
     if(h>=0){
-      let p=0;
-      if(historyCache[dateStr]&&historyCache[dateStr][h])p=historyCache[dateStr][h].precip||0;
-      else if(forecastCache[dateStr]&&forecastCache[dateStr][h])p=forecastCache[dateStr][h].precip||0;
+      const p=readCachePrecip(dateStr,h,liveMode);
       if(p>=0.5)return hour-h;  // 0.5mm 이상이면 "비"로 판단
     }
   }
@@ -1719,20 +1734,28 @@ function features(r){
 
 function formulaFeaturesCurrent(z, futureMin){
   // ★ v6.5+ window._fixedNow 사용 — refreshPredCache에서 고정된 시각으로 계산
-  // 매번 Date.now() 호출 시 밀리초 차이로 sin/cos, 누적일사 등이 달라지는 문제 해결
-  const target=new Date((window._fixedNow||Date.now())+(futureMin||0)*60*1000);
+  // ★ Fix v1.1 #17: 예측 계산 시각을 30분 버킷으로 양자화 (재현성)
+  // 절대시각 경계(매시 0/30분)에 맞춰 모든 컴퓨터가 동일한 기준점 사용
+  // → solar_decay 등 시간 의존 변수가 컴퓨터 간 일치.
+  // forecast가 6시간 갱신이라 30분 버킷은 정확도 손실 없음(같은 예보 윈도우).
+  // 주의: 화면 시계·KPI는 양자화 안 함 — 예측 계산에만 적용.
+  const BUCKET_MS=30*60*1000;
+  const rawNow=(window._fixedNow||Date.now())+(futureMin||0)*60*1000;
+  const bucketed=Math.floor(rawNow/BUCKET_MS)*BUCKET_MS;
+  const target=new Date(bucketed);
   const today=target.toISOString().slice(0,10);
   const hr=target.getHours()+target.getMinutes()/60;
   const timeStr=String(target.getHours()).padStart(2,'0')+':'+String(target.getMinutes()).padStart(2,'0');
-  
+
   // 가상 r 객체 생성 (wx는 호출자가 미래 기상으로 설정한 상태여야 함)
+  // ★ Fix v1.1 #17: 실시간 경로이므로 liveMode=true (forecast-only, 결정론적)
   const r={
     air:wx.air, solar:wx.solar, hum:wx.hum, wind:wx.wind,
     time:timeStr, zone:z.id,
-    solar_decay:calcSolarDecay(today,Math.floor(hr),4,z.id),  // ★ v6.5+ zone 전달
-    solar_trend:calcSolarTrend(today,Math.floor(hr)),
-    precip_decay:calcPrecipDecay(today,Math.floor(hr),8),
-    hours_since_rain:calcHoursSinceRain(today,Math.floor(hr),24),
+    solar_decay:calcSolarDecay(today,Math.floor(hr),4,z.id,true),
+    solar_trend:calcSolarTrend(today,Math.floor(hr),true),
+    precip_decay:calcPrecipDecay(today,Math.floor(hr),8,true),
+    hours_since_rain:calcHoursSinceRain(today,Math.floor(hr),24,true),
     sprinkle_decay:calcSprinkleDecay(today,timeStr,z.id),
     min_since_sprinkle:calcMinSinceSprinkle(today,timeStr,z.id,24*60),
     cloud_cover:wx.cloud||0
@@ -2475,11 +2498,14 @@ function sensorCards(){
   const wDir=windDirInfo(wx.dir);
   const precipVal=wx.precip!=null?Number(wx.precip).toFixed(1):'0.0';
   // ★ 감쇠 누적 일사 계산 (선택된 구역 기준, 고정 시각 사용)
-  const _sNow=new Date(window._fixedNow||Date.now());
+  // ★ Fix v1.1 #17: 예측과 동일하게 forecast-only(liveMode) + 30분 버킷 → 표시/예측 일치
+  const BUCKET_MS=30*60*1000;
+  const _bucketed=Math.floor((window._fixedNow||Date.now())/BUCKET_MS)*BUCKET_MS;
+  const _sNow=new Date(_bucketed);
   const today=_sNow.toISOString().slice(0,10);
   const nowHr=_sNow.getHours();
   let solarDecayVal=0;
-  try{solarDecayVal=calcSolarDecay(today,nowHr,4,selectedZone||1);}catch(err){solarDecayVal=0;}
+  try{solarDecayVal=calcSolarDecay(today,nowHr,4,selectedZone||1,true);}catch(err){solarDecayVal=0;}
   // ★ 추세 계산 (이전값 대비)
   let trendArrow='→',trendVal='',trendColor='#666';
   if(_lastSolarDecay!=null&&isFinite(_lastSolarDecay)){
