@@ -1580,19 +1580,14 @@ if(state.logs&&state.logs.length){
   }
 }
 if(state.measurements&&state.measurements.length>=5){
-  // ★ v6.5+ D방식 — 회귀식 즉시 학습 후 바로 표시
-  // tfReady가 localStorage에서 true로 복원되어 있고 캐시된 _aiResidualCache가 있으면 깜빡임 없음
-  // 캐시 없으면 첫 화면은 회귀식, 1.5초 후 AI 학습 완료되면 자연스럽게 교체
-  trainAllModels(false);
-  setTimeout(async()=>{
-    try{
-      await trainTfModel(false);
-      sensorBarBuilt=false;
-      if(typeof render==='function')render();
-    }catch(err){
-      console.error('[AI 자동 학습 실패]',err);
-    }
-  },1500);
+  // ★ Fix v1.1: 페이지 로드(F5 포함) 시 TF.js 자동 재학습 제거
+  // 기존 버그: F5마다 trainAllModels + trainTfModel 실행
+  //           → TF.js 난수 초기화 → 매번 다른 가중치 수렴 → 예측값 계속 바뀜
+  // 수정: 선형회귀(결정론적)만 복원. TF.js는 재학습 버튼으로만 실행.
+  //       formulaModel은 메모리에 없으면 반드시 복원해야 예측 가능.
+  trainAllModels(false);  // 회귀식만 (runTf=false). 결정론적이라 F5해도 같은 결과.
+  // TF.js는 자동 실행 안 함 — 배너는 "재학습 필요" 상태 유지 (수정 C에서 설정됨)
+  // 운영자가 재학습 버튼을 눌러야만 trainTfModel() 실행
 }
 }
 function saveState(){
@@ -3317,9 +3312,16 @@ function findGraphPeak(options){
   const SAFE_AIR=[15,38],SAFE_SOLAR=[0.3,3.5],SAFE_HUM=[20,95],SAFE_WIND=[0.5,15];
   const startHr=options.afterTime!=null?Math.max(OP_START,options.afterTime):OP_START;
   const endHr=options.beforeTime!=null?Math.min(OP_END,options.beforeTime):OP_END;
+  // ★ Fix v1.1: futureMin 계산 기준 — 스캔 시각(h)과 현재 시각의 차이
+  // 기존 버그: calcPred(z) → futureMin=0 → 항상 현재 시각 기준 features
+  //           sin/cos(현재시각), solar_decay(현재시각) 고정 → wx.solar만 변화
+  //           → 일사 최대인 12~13시가 항상 피크 → 13:00 고정
+  // 수정: 스캔 시각 h에 맞는 futureMin 전달
+  //       → sin/cos(h시각), solar_decay(h 기준 과거4h) 정확하게 계산
+  const _n=new Date(window._fixedNow||Date.now());
+  const nowHr=_n.getHours()+_n.getMinutes()/60;
   let peakHr=null,peakTemp=-Infinity;
   for(let h=startHr;h<=endHr;h+=0.5){
-    // 제외 범위 체크
     if(options.excludeRange&&h>=options.excludeRange[0]&&h<=options.excludeRange[1])continue;
     const fwx=getForecastAt(today,h);
     if(!fwx)continue;
@@ -3327,7 +3329,10 @@ function findGraphPeak(options){
     wx.solar=Math.max(SAFE_SOLAR[0],Math.min(SAFE_SOLAR[1],fwx.solar));
     wx.hum=Math.max(SAFE_HUM[0],Math.min(SAFE_HUM[1],fwx.hum));
     wx.wind=Math.max(SAFE_WIND[0],Math.min(SAFE_WIND[1],fwx.wind));
-    let pt=calcPred(z).final;
+    if(fwx.precip!=null)wx.precip=fwx.precip;
+    if(fwx.cloud!=null)wx.cloud=fwx.cloud;
+    const futureMin=(h-nowHr)*60;  // 음수 가능 (이미 지난 시각 탐색 허용)
+    let pt=calcPred(z,futureMin).final;
     pt=Math.max(15,Math.min(65,pt));
     if(pt>peakTemp){peakTemp=pt;peakHr=h;}
   }
@@ -4013,8 +4018,8 @@ function confirmSprinkle(){
   if(state.measurements.length>=5){
     // ★ v6.7 새 데이터 추가 시 플래그 초기화 — 다음 학습에서 enrichRowForFeatures 재실행
     state.measurements.forEach(r=>{r._featuresEnriched=false;});
-    trainAllModels();
-    toast('구역 '+id+' 등록 완료. 모델 재학습됨 (R²='+metrics.formula.r2.toFixed(3)+')'+compareMsg);
+    trainAllModels(false)  // ★ Fix v1.1: 측정 등록 시 TF 재학습 제거 — 재학습 버튼으로만;
+    toast('구역 '+id+' 등록 완료. 상관식 갱신됨 (R²='+metrics.formula.r2.toFixed(3)+') — AI 재학습 권장'+compareMsg);
   } else {
     toast('구역 '+id+' 등록 완료. 학습 데이터 '+state.measurements.length+'건'+compareMsg);
   }
@@ -4203,8 +4208,8 @@ function confirmMeasure(){
   }
   if(state.measurements.length>=5){
     state.measurements.forEach(r=>{r._featuresEnriched=false;});
-    trainAllModels();
-    toast('구역 '+id+' 측정 등록 완료. 모델 재학습됨 (R²='+metrics.formula.r2.toFixed(3)+')'+compareMsg);
+    trainAllModels(false)  // ★ Fix v1.1: 측정 등록 시 TF 재학습 제거 — 재학습 버튼으로만;
+    toast('구역 '+id+' 측정 등록 완료. 상관식 갱신됨 (R²='+metrics.formula.r2.toFixed(3)+') — AI 재학습 권장'+compareMsg);
   } else {
     toast('구역 '+id+' 측정 등록 완료. 학습 데이터 '+state.measurements.length+'건'+compareMsg);
   }
@@ -4973,8 +4978,8 @@ function confirmBulkData(){
 
   // 모델 재학습
   if(state.measurements.length>=5){
-    trainAllModels();
-    toast(`✅ ${toAdd.length}건 일괄 등록 완료${spkRecords.length>0?` (살수 ${spkRecords.length}건)`:''} · 모델 재학습됨 (R²=${metrics.formula.r2.toFixed(3)})`);
+    trainAllModels(false)  // ★ Fix v1.1: 측정 등록 시 TF 재학습 제거 — 재학습 버튼으로만;
+    toast(`✅ ${toAdd.length}건 일괄 등록 완료${spkRecords.length>0?` (살수 ${spkRecords.length}건)`:''} · 상관식 갱신됨 (R²=${metrics.formula.r2.toFixed(3)}) — AI 재학습 권장`);
   } else {
     toast(`✅ ${toAdd.length}건 일괄 등록 완료 · 학습 데이터 ${state.measurements.length}건`);
   }
@@ -5022,7 +5027,7 @@ function deleteDataRow(idOrIdx){
   if(!confirm(`이 데이터를 삭제할까요?\n\n${r.date} ${r.time} - 구역 ${r.zone} - 포장온도 ${r.pt}℃`))return;
   state.measurements.splice(idx,1);
   saveState();
-  if(state.measurements.length>=5)trainAllModels();
+  if(state.measurements.length>=5)trainAllModels(false)  // ★ Fix v1.1: 측정 등록 시 TF 재학습 제거 — 재학습 버튼으로만;
   render();
   toast('삭제 완료');
 }
@@ -5113,7 +5118,7 @@ function confirmDataRow(){
   }
 
   saveState();
-  if(state.measurements.length>=5)trainAllModels();
+  if(state.measurements.length>=5)trainAllModels(false)  // ★ Fix v1.1: 측정 등록 시 TF 재학습 제거 — 재학습 버튼으로만;
   closeDataModal();
   render();
 }function renderAnalysis(){
@@ -5525,8 +5530,12 @@ document.addEventListener('change',e=>{
   if(e.target.id&&e.target.id.startsWith('opt-')){
     saveTrainOpts();
     if(state.measurements&&state.measurements.length>=5){
-      trainAllModels();render();
-      toast('옵션 변경 — 재학습 완료');
+      // ★ Fix v1.1: 옵션 변경 시 TF 자동 재학습 제거 → 재학습 버튼으로만
+      // 기존: trainAllModels() → TF.js 난수 재초기화 → 예측값 출렁임
+      // 수정: 회귀식만 갱신, AI는 재학습 버튼 유도
+      trainAllModels(false);render();
+      updateMonitorAiStatus('needs_retrain');
+      toast('옵션 변경 — 상관식 갱신 완료. AI 재학습이 필요합니다.');
     }
   }
 });
@@ -6075,7 +6084,9 @@ function loadExcel(e){
         mergeStats:mergeStats
       };
       saveState();
-      trainAllModels();
+      // ★ Fix v1.1: 엑셀 병합 시 TF 자동 재학습 제거 → 재학습 버튼으로만
+      trainAllModels(false);
+      updateMonitorAiStatus('needs_retrain');
       renderFileInfo();
       render();
       // ★ v6.5 병합 결과 표시
