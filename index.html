@@ -2167,11 +2167,11 @@ async function trainTfModel(show=true){
   tfModel.add(tf.layers.dense({inputShape:[cols],units:16,activation:'relu',kernelRegularizer:tf.regularizers.l2({l2:0.003})}));
   tfModel.add(tf.layers.dense({units:8,activation:'relu',kernelRegularizer:tf.regularizers.l2({l2:0.003})}));
   tfModel.add(tf.layers.dense({units:1}));
-
-  // ★ Fix v1.1: TF.js 가중 손실함수 (고온 구간 강조)
-  // 기존: meanSquaredError → 모든 구간 균등 → 50℃ 천장 편향
-  // 수정: 샘플별 가중치를 손실에 곱해 임계 구간(55~65℃) 오차를 더 크게 처벌
-  // 가중치는 선형회귀와 동일한 critWeight 기준 (일관성 유지)
+  // ★ Fix v1.1: meanSquaredError 유지 + sampleWeight로 고온 강조
+  // 기존 시도: weightedMSE 커스텀 손실함수 → batchSize vs n shape 불일치로 학습 실패
+  // 수정: model.fit의 sampleWeight 옵션 사용 (TF.js 공식 지원)
+  //       sampleWeight는 model.fit 내부에서 배치 단위로 자동 슬라이싱됨
+  tfModel.compile({optimizer:tf.train.adam(0.002),loss:'meanSquaredError'});
   const tfWeights=trainShuffled.map(r=>{
     const pt=Number(r.pt);
     if(pt>=60&&pt<65) return 4.0;
@@ -2180,20 +2180,7 @@ async function trainTfModel(show=true){
     if(pt>=50&&pt<55) return 1.5;
     return 1.0;
   });
-  // 가중치를 잔차 중심화 후 yStd로 정규화된 스케일에 맞게 텐서로 변환
-  const wMax=Math.max(...tfWeights);
-  const wNorm=tfWeights.map(w=>w/wMax);  // 0~1 정규화 (학습률 스케일 유지)
-  const sampleWeightTensor=tf.tensor1d(wNorm);
-
-  function weightedMSE(yTrue,yPred){
-    return tf.tidy(()=>{
-      const sq=tf.square(tf.sub(yTrue,yPred));   // (n,1)
-      const sqFlat=sq.flatten();                   // (n,)
-      const weighted=tf.mul(sqFlat,sampleWeightTensor);
-      return tf.mean(weighted);
-    });
-  }
-  tfModel.compile({optimizer:tf.train.adam(0.002),loss:weightedMSE});
+  const sampleWeightTensor=tf.tensor1d(tfWeights);
   const xs=tf.tensor2d(Xn),ys=tf.tensor2d(Yn,[Yn.length,1]);
 
   // ★ v6.7 학습 속도 최적화
@@ -2221,6 +2208,7 @@ async function trainTfModel(show=true){
       batchSize:BATCH,
       shuffle:true,
       validationSplit:0.15,
+      sampleWeight:sampleWeightTensor,  // ★ Fix v1.1: 고온 구간 가중치 (TF.js 공식 방법)
       verbose:0,
       callbacks:{
         onEpochEnd:(epoch,logs)=>{
