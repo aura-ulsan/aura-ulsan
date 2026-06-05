@@ -2049,17 +2049,25 @@ function manualBackfill(){
   // ★ v6.5+ 재계산 전 누락된 날짜의 historyCache 자동 로드
   const dates=[...new Set(all.map(r=>r.date))].sort();
   const today=new Date().toISOString().slice(0,10);
-  const needDates=dates.filter(d=>d<today&&(!historyCache[d]||Object.keys(historyCache[d]).length===0));
+  const pastDates=dates.filter(d=>d<today);
 
-  if(needDates.length>0){
-    toast(`Open-Meteo 과거 기상 조회 중... (${needDates.length}일)`);
-    const startDate=needDates[0];
-    const endDate=needDates[needDates.length-1];
+  // ★ Fix v1.1: _featuresEnriched 초기화 — 새 historyCache로 decay 재계산 강제
+  all.forEach(r=>{r._featuresEnriched=false;});
+
+  // ★ Fix v1.1: 과거 기상 항상 재조회 (부분 캐시 있어도 덮어씀)
+  // 기존 버그: historyCache가 부분적으로 있으면 API 호출 안 함
+  //           → 빈 시간대가 0으로 채워진 decay 붕괴값 고착
+  //           → 재계산 눌러도 -10~-18℃ 오차 그대로
+  // 수정: pastDates 전체 항상 재조회 → historyCache 완전히 덮어씀
+  if(pastDates.length>0){
+    toast(`Open-Meteo 과거 기상 재조회 중... (${pastDates.length}일) — decay 정확도 보정`);
+    const startDate=pastDates[0];
+    const endDate=pastDates[pastDates.length-1];
     fetchHistoryWeather(startDate,endDate).then(()=>{
-      toast(`기상 데이터 로드 완료 → 재계산 시작`);
+      toast('기상 데이터 재조회 완료 → 재계산 시작');
       _doBackfill(all,'재계산');
     }).catch(()=>{
-      toast('기상 조회 실패 — 기존 값으로 재계산');
+      toast('기상 재조회 실패 — 기존 캐시로 재계산');
       _doBackfill(all,'재계산');
     });
   } else {
