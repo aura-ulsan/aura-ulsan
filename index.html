@@ -1190,7 +1190,7 @@ const LS='rains_v1_state';let chart=null,analysisChart=null,currentZoneForModal=
 
 // ★ metrics localStorage 저장/복원 — F5 시 즉시 R² 표시
 const METRICS_KEY='rains_v1_metrics';
-const APP_VERSION='1.1';  // ★ Fix v1.1 수정 A: 버전 태그 — 버전 불일치 시 캐시 자동 무효화
+const APP_VERSION='1.1.1';  // ★ Fix v1.1.1: decay 프록시 고착 해소 패치 — 메트릭 캐시 무효화 + 재학습 유도
 function saveMetrics(){
   try{
     localStorage.setItem(METRICS_KEY,JSON.stringify({metrics,tfReady,savedAt:Date.now(),version:APP_VERSION}));
@@ -2061,16 +2061,16 @@ async function manualBackfill(){
     toast('① 최근 7일 재조회 실패 — 계속 진행');
   }
 
-  // ━━━ ② Archive — decay 없는 행(구버전)의 날짜, 캐시 없는 경우만 ━━━
-  // decay 컬럼 없는 행(v1.1 이전 파일)의 오래된 날짜만 대상
-  // 최근 7일은 ①에서 처리. decay 있고 오래된 행은 엑셀값 신뢰 → 스킵
-  const noDecayDates=[...new Set(
-    all.filter(r=>!isFinite(r.solar_decay)||r.solar_decay<=0)
-       .map(r=>r.date)
-       .filter(d=>d<sevenDaysAgo)
+  // ━━━ ② Archive — 7일 이전 모든 날짜, historyCache 없는 경우 ━━━
+  // ★ Fix v1.1.1 (프록시 고착 해소): 기존 버그 — decay 없는 행만 Archive 조회 대상으로
+  //   삼아, 프록시 decay(solar×accFactor)가 든 행을 "decay 있음"으로 스킵 → 실측 decay가
+  //   영구히 시스템에 진입하지 못하고 프록시가 고착됨. manualBackfill은 운영자가 명시적으로
+  //   누르는 재계산이므로, 7일 이전 전체 날짜를 대상으로 실측 기상을 확보한다(재현성보다 정확도 우선).
+  const oldDates=[...new Set(
+    all.map(r=>r.date).filter(d=>d<sevenDaysAgo&&d<today)
   )].sort();
-  const needArchive=noDecayDates.filter(d=>
-    d<today&&(!historyCache[d]||Object.keys(historyCache[d]).length===0)
+  const needArchive=oldDates.filter(d=>
+    !historyCache[d]||Object.keys(historyCache[d]).length===0
   );
   if(needArchive.length>0){
     const byYear={};
@@ -2089,6 +2089,20 @@ async function manualBackfill(){
     }
     toast(`② Archive 완료 (${ok}/${yearList.length}년${fail>0?' — '+fail+'년 실패':''})`);
   }
+
+  // ★ Fix v1.1.1 (프록시 고착 해소): historyCache가 확보된 행의 (프록시일 수 있는) decay를
+  // 비워서 trainAllModels의 enrichRowForFeatures가 실측 기반으로 재계산하도록 유도한다.
+  // enrich는 엑셀 decay 우선이라, 비우지 않으면 historyCache가 있어도 프록시가 유지됨.
+  // 페일세이프: history가 없는 날짜(Archive 실패 등)는 비우지 않으므로 기존 값 유지 — 더 나빠지지 않음.
+  let _healed=0;
+  all.forEach(r=>{
+    const hr=parseInt((r.time||'12:00').split(':')[0]);
+    if(historyCache[r.date]&&historyCache[r.date][hr]){
+      r.solar_decay=NaN; r.precip_decay=NaN; r.hours_since_rain=NaN;
+      r._featuresEnriched=false; _healed++;
+    }
+  });
+  if(_healed>0)console.log(`[Fix v1.1.1] history 확보된 ${_healed}건의 decay를 실측 재계산 대상으로 초기화`);
 
   // ━━━ ③ 회귀식 재학습 ━━━
   // decay 입력이 보정됐으니 회귀계수 재피팅
