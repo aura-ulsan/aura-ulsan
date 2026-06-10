@@ -2420,11 +2420,16 @@ async function trainTfModel(show=true){
     // 검증셋에서 AI가 상관식보다 나아야(약간의 여유 1.0배 = 더 나아야) 통과
     valGateOk=rmseAIV<=rmseBaseV;
     valInfo=`검증셋 RMSE: AI ${rmseAIV.toFixed(2)} vs 상관식 ${rmseBaseV.toFixed(2)}`;
+    // ★ Fix v1.1 수정 K: 게이트 판정 근거를 metrics에 저장 (성능 패널·완료 메시지 표시용)
+    // 학습셋 성능표(AI가 더 좋아 보임)와 fallback 판정이 모순으로 읽히는 문제 해소
+    metrics.val={rmseAI:+rmseAIV.toFixed(2),rmseFormula:+rmseBaseV.toFixed(2),
+      n:valIdx.length,days:valDateSet.size,from:[...valDateSet].sort()[0]||''};
     if(valGateOk)console.log(`[AI 검증셋 통과] ${valInfo} (n=${valIdx.length})`);
     else console.warn(`[AI 검증셋 미달 → 상관식 fallback] ${valInfo} (n=${valIdx.length})`);
   } else {
     // 검증셋이 너무 작으면(데이터 부족) 보수적으로 fallback
     valGateOk=false;
+    metrics.val=null;  // ★ 수정 K: 판정 근거 없음 표시
     console.warn(`[AI 검증셋 부족 → 상관식 fallback] valIdx=${valIdx.length}건 (<10)`);
   }
   // 최종 게이트: 검증셋 통과 + 임계영역 + 기본 건전성
@@ -2433,7 +2438,12 @@ async function trainTfModel(show=true){
   _aiCacheModelVer++;
   for(const k in _aiResidualCache)delete _aiResidualCache[k];
   if(!tfReady){metrics.ai={...metrics.ai,rmse:metrics.ai.rmse||metrics.formula.rmse,mae:metrics.ai.mae||metrics.formula.mae}}
-  document.getElementById('aiTrainMsg')&&(document.getElementById('aiTrainMsg').innerHTML=`학습 완료 · AI RMSE ${fmt(metrics.ai.rmse,2)}℃ / 상관식 RMSE ${fmt(metrics.formula.rmse,2)}℃ · ${tfReady?'AI 사용':'상관식 fallback'}`);
+  // ★ Fix v1.1 수정 K: 완료 메시지를 게이트 판정 기준(미학습 날짜 검증)으로 표시
+  // 기존: 학습셋 수치만 표시 → "AI 5.54 < 식 5.72인데 왜 fallback?" 모순으로 읽힘
+  document.getElementById('aiTrainMsg')&&(document.getElementById('aiTrainMsg').innerHTML=
+    metrics.val
+    ?`학습 완료 · 검증셋(미학습 ${metrics.val.days}일 ${metrics.val.n}건) RMSE: AI ${fmt(metrics.val.rmseAI,2)}℃ vs 상관식 ${fmt(metrics.val.rmseFormula,2)}℃ → <b>${tfReady?'AI 사용':'상관식 운전'}</b> <span style="color:#94a3b8">(학습셋 내 AI ${fmt(metrics.ai.rmse,2)}℃·참고용)</span>`
+    :`학습 완료 · 검증셋 부족(미학습 날짜 표본 <10건) → <b>상관식 운전</b> · 학습셋 AI ${fmt(metrics.ai.rmse,2)}℃`);
   document.getElementById('currentModelText')&&(document.getElementById('currentModelText').textContent=tfReady?'AI 보정모델 (TF.js)':'상관식 모델(fallback)');
   updateMonitorAiStatus(tfReady?'done_ok':'done_fallback');
   // ★ Fix v1.1 수정 G: 학습 결과 영속화
@@ -3094,7 +3104,17 @@ function updateMainStatus(){
     }).join('');
     cb.innerHTML=corrs;
   }
-}function perfRows(){return `<tr><td>상관식 모델</td><td>${fmt(metrics.formula.r2,3)}</td><td>${fmt(metrics.formula.rmse,2)}</td><td>${fmt(metrics.formula.mae,2)}</td></tr><tr><td class="blue">AI 모델 (TF.js)</td><td class="green"><b>${fmt(metrics.ai.r2,3)}</b></td><td class="green"><b>${fmt(metrics.ai.rmse,2)}</b></td><td class="green"><b>${fmt(metrics.ai.mae,2)}</b></td></tr>`}
+}function perfRows(){
+  // ★ Fix v1.1 수정 K: 위 두 행은 학습셋 성능(참고용). 운영 채택은 게이트(미학습 날짜
+  // 검증) 기준이므로 그 근거를 함께 표시 — 표와 판정이 모순으로 읽히는 것 방지
+  let h=`<tr><td>상관식 모델</td><td>${fmt(metrics.formula.r2,3)}</td><td>${fmt(metrics.formula.rmse,2)}</td><td>${fmt(metrics.formula.mae,2)}</td></tr><tr><td class="blue">AI 모델 (TF.js)</td><td class="green"><b>${fmt(metrics.ai.r2,3)}</b></td><td class="green"><b>${fmt(metrics.ai.rmse,2)}</b></td><td class="green"><b>${fmt(metrics.ai.mae,2)}</b></td></tr>`;
+  if(metrics.val){
+    h+=`<tr style="border-top:2px solid #cbd5e1"><td colspan="4" style="font-size:11px;color:#475569;padding-top:6px;line-height:1.5;">🔎 <b>운영 채택 판정</b> — 미학습 ${metrics.val.days}일(${metrics.val.from}~) ${metrics.val.n}건 검증: AI ${fmt(metrics.val.rmseAI,2)}℃ vs 상관식 ${fmt(metrics.val.rmseFormula,2)}℃ → <b>${tfReady?'AI 사용':'상관식 운전'}</b><br><span style="color:#94a3b8">※ 위 표는 학습셋 성능(참고용)이며, 운영 모델은 모델이 보지 못한 최신 날짜에서의 성능으로 결정됩니다</span></td></tr>`;
+  } else if(typeof tfReady!=='undefined'&&!tfReady){
+    h+=`<tr style="border-top:2px solid #cbd5e1"><td colspan="4" style="font-size:11px;color:#94a3b8;padding-top:6px;">🔎 운영 채택 판정 근거 없음(검증셋 부족 또는 미학습) → 상관식 운전</td></tr>`;
+  }
+  return h;
+}
 // ── 일일 추이 차트 (0~24시 자정 자동 리셋) ──────────────────────
 let dailyTempLog=[];  // [{hour:0-24, temp:℃, src:'measured'|'estimated'}]
 let dailyDate='';
