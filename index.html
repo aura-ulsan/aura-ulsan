@@ -965,7 +965,7 @@ pre{
   <hr style="border:0;border-top:1px solid #dce8f5;margin:10px 0;">
   <div style="font-size:11.5px;color:#5a6a7e;"><b>※ AI Fallback:</b> AI RMSE가 상관식보다 5% 이상 나쁘면 자동 회귀식 사용</div>
 </div></div><div class="panel"><div class="panel-head"><span>최근 살수 이행 기록</span><button class="small-btn" onclick="showPane('log')">더보기</button></div><table class="log-table"><thead><tr><th>시간</th><th>구역</th><th>살수량</th><th>작업 차량</th><th>작업자</th><th>비고</th></tr></thead><tbody id="recentLogs"></tbody></table></div></section></main>
-<main id="pane-ai" class="pane ai-pane"><div class="grid2"><div class="placeholder"><h2>🤖 TensorFlow.js AI 보정모델</h2><p>AI는 최종 온도를 직접 대체하지 않고, <b>상관식 예측 오차</b>를 학습합니다.</p><div class="tool-row"><label class="primary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><span>📂 엑셀 업로드</span><input type="file" accept=".xlsx,.xls" onchange="loadExcel(event)" style="display:none"></label><button class="ghost" onclick="trainTfModel()">🔄 AI 재학습</button><button class="ghost" onclick="if(confirm('학습 데이터와 모델을 모두 삭제할까요?')){state.measurements=[];state.fileInfo=null;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};localStorage.removeItem(METRICS_KEY);saveState();render();toast('초기화 완료');}">🗑️ 모델 삭제</button></div>
+<main id="pane-ai" class="pane ai-pane"><div class="grid2"><div class="placeholder"><h2>🤖 TensorFlow.js AI 보정모델</h2><p>AI는 최종 온도를 직접 대체하지 않고, <b>상관식 예측 오차</b>를 학습합니다.</p><div class="tool-row"><label class="primary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><span>📂 엑셀 업로드</span><input type="file" accept=".xlsx,.xls" onchange="loadExcel(event)" style="display:none"></label><button class="ghost" onclick="trainTfModel()">🔄 AI 재학습</button><button class="ghost" onclick="if(confirm('학습 데이터와 모델을 모두 삭제할까요?')){state.measurements=[];state.fileInfo=null;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;metrics={formula:{r2:0,rmse:0,mae:0},ai:{r2:0,rmse:0,mae:0}};localStorage.removeItem(METRICS_KEY);localStorage.removeItem(TF_NORM_KEY);if(tf&&tf.io&&tf.io.removeModel)tf.io.removeModel(TF_MODEL_KEY).catch(()=>{});saveState();render();toast('초기화 완료');}">🗑️ 모델 삭제</button></div>
 <div style="background:#fff8ed;border:1px solid #ffcc80;border-radius:7px;padding:10px 12px;margin:10px 0;">
 <div style="font-size:13px;font-weight:900;color:#c45d00;margin-bottom:6px;">⚙ 고급 학습 옵션</div>
 <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;margin-bottom:5px;cursor:pointer;"><input type="checkbox" id="opt-advanced" checked style="margin-top:3px;"><div><b>비선형/교호항 사용 (권장)</b><div style="color:#666;">일사량² + 풍속×일사량 추가 → 비선형 학습</div></div></label>
@@ -1191,6 +1191,14 @@ const LS='rains_v1_state';let chart=null,analysisChart=null,currentZoneForModal=
 // ★ metrics localStorage 저장/복원 — F5 시 즉시 R² 표시
 const METRICS_KEY='rains_v1_metrics';
 const APP_VERSION='1.1';  // ★ Fix v1.1 수정 A: 버전 태그 — 버전 불일치 시 캐시 자동 무효화
+// ★ Fix v1.1 수정 G: TF.js 모델 영속화 키
+// 문제: tfReady(localStorage)는 영속되는데 tfModel/normInfo는 메모리에만 존재
+//       → F5 후 tfReady=true + tfModel=null "좀비 상태" → AI 잔차가 조용히 0이 되어
+//         재학습 직후와 F5 후의 현재/예측 온도가 달라짐 (최대 ±12℃)
+// 해결: 학습 성공 시 모델 가중치+normInfo를 저장하고, 로드 시 복원.
+//       복원 성공 시에만 tfReady 유효 → "한 번 학습한 모델은 F5에도 동일" 보장
+const TF_MODEL_KEY='localstorage://rains_v1_tfmodel';
+const TF_NORM_KEY='rains_v1_tfnorm';
 function saveMetrics(){
   try{
     localStorage.setItem(METRICS_KEY,JSON.stringify({metrics,tfReady,savedAt:Date.now(),version:APP_VERSION}));
@@ -1586,6 +1594,9 @@ if(state.measurements&&state.measurements.length>=5){
   // 수정: 선형회귀(결정론적)만 복원. TF.js는 재학습 버튼으로만 실행.
   //       formulaModel은 메모리에 없으면 반드시 복원해야 예측 가능.
   trainAllModels(false);  // 회귀식만 (runTf=false). 결정론적이라 F5해도 같은 결과.
+  // ★ Fix v1.1 수정 G: 영속화된 TF 모델 복원 (비동기, 완료 시 render)
+  // 재학습 버튼 없이도 직전 학습 모델이 그대로 살아남 → F5 전후 예측 동일
+  restoreTfModel();
   // TF.js는 자동 실행 안 함 — 배너는 "재학습 필요" 상태 유지 (수정 C에서 설정됨)
   // 운영자가 재학습 버튼을 눌러야만 trainTfModel() 실행
 }
@@ -2393,6 +2404,22 @@ async function trainTfModel(show=true){
   document.getElementById('aiTrainMsg')&&(document.getElementById('aiTrainMsg').innerHTML=`학습 완료 · AI RMSE ${fmt(metrics.ai.rmse,2)}℃ / 상관식 RMSE ${fmt(metrics.formula.rmse,2)}℃ · ${tfReady?'AI 사용':'상관식 fallback'}`);
   document.getElementById('currentModelText')&&(document.getElementById('currentModelText').textContent=tfReady?'AI 보정모델 (TF.js)':'상관식 모델(fallback)');
   updateMonitorAiStatus(tfReady?'done_ok':'done_fallback');
+  // ★ Fix v1.1 수정 G: 학습 결과 영속화
+  // tfReady 통과 → 모델 가중치 + normInfo + 학습시점 데이터 지문 저장 (F5 복원용)
+  // tfReady 미달 → 이전에 저장된 모델 폐기 (구 모델이 F5 후 되살아나는 것 방지)
+  try{
+    if(tfReady&&tfModel){
+      await tfModel.save(TF_MODEL_KEY);
+      localStorage.setItem(TF_NORM_KEY,JSON.stringify({
+        normInfo,version:APP_VERSION,
+        nRows:(state.measurements||[]).length,savedAt:Date.now()
+      }));
+      console.log('[R.A.I.N.S] TF 모델 영속화 완료 (F5 후에도 동일 모델 사용)');
+    } else {
+      localStorage.removeItem(TF_NORM_KEY);
+      if(tf&&tf.io&&tf.io.removeModel)tf.io.removeModel(TF_MODEL_KEY).catch(()=>{});
+    }
+  }catch(e){console.warn('[R.A.I.N.S] TF 모델 영속화 실패:',e.message);}
   saveMetrics();  // ★ F5 후 즉시 표시를 위한 저장
   // ★ v6.4 AI 학습 완료 후에도 예측치 보강 재실행 (회귀식만으로 저장된 데이터를 AI 보정값으로 갱신)
   _backfillDone=false;  // 다시 실행 허용
@@ -2400,6 +2427,41 @@ async function trainTfModel(show=true){
   render();if(show)toast(tfReady?'TensorFlow.js AI 보정모델 학습 완료':'AI 성능 미달: 상관식 fallback 적용')
 }
 // ★ v6.7.1 페이지 최초 로드 시 배너 초기 상태 반영
+// ★ Fix v1.1 수정 G: 페이지 로드 시 영속화된 TF 모델 복원
+// 복원 성공 + tfReady(직전 학습 판정) 유효 → 재학습 직후와 동일한 예측 보장
+// 복원 실패/모델 없음 → tfReady=false 강제 (좀비 tfReady 차단: 모델 없는데
+// tfReady=true면 AI 잔차가 조용히 0이 되어 표시("AI 사용")와 실체(상관식)가 어긋남)
+async function restoreTfModel(){
+  if(typeof tf==='undefined'){tfReady=false;return false;}
+  try{
+    const rawN=localStorage.getItem(TF_NORM_KEY);
+    if(!rawN){tfReady=false;return false;}
+    const obj=JSON.parse(rawN);
+    if(obj.version!==APP_VERSION||!obj.normInfo){
+      localStorage.removeItem(TF_NORM_KEY);
+      tfReady=false;return false;
+    }
+    const m=await tf.loadLayersModel(TF_MODEL_KEY);
+    if(tfModel)tfModel.dispose();
+    tfModel=m;normInfo=obj.normInfo;
+    _aiCacheModelVer++;  // 복원 모델 기준으로 잔차 캐시 새 네임스페이스
+    // tfReady는 loadMetrics가 복원한 직전 학습 판정을 그대로 신뢰 (모델 실재 확인됨)
+    // 데이터 변경 감지: 학습시점 건수와 현재 건수가 다르면 배너로 재학습 권장
+    //   (예측은 직전 학습 모델로 결정론적 유지 — 측정 등록 시 TF 재학습 제거와 동일 철학)
+    const nNow=(state.measurements||[]).length;
+    const changed=nNow!==obj.nRows;
+    if(tfReady)updateMonitorAiStatus(changed?'needs_retrain':'done_ok');
+    console.log(`[R.A.I.N.S] TF 모델 복원 완료 (학습시점 ${obj.nRows}건 / 현재 ${nNow}건${changed?' → 데이터 변경, 재학습 권장':''})`);
+    render();
+    return true;
+  }catch(e){
+    console.warn('[R.A.I.N.S] TF 모델 복원 실패 → 상관식 기준 운전:',e.message);
+    tfReady=false;
+    updateMonitorAiStatus((state.measurements&&state.measurements.length)?'needs_retrain':'idle');
+    render();
+    return false;
+  }
+}
 function initMonitorAiStatus(){
   // ★ Fix v1.1 수정 C: 페이지 로드 시 항상 'needs_retrain' 상태로 시작
   // 기존 버그: tfReady=true(localStorage 복원)면 바로 'done_ok' 배너 표시
@@ -5498,7 +5560,7 @@ function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new Fi
       hours_since_rain:c.hours_since_rain?num(r[c.hours_since_rain])??NaN:NaN,
       sprinkle_decay:c.sprinkle_decay?num(r[c.sprinkle_decay])??NaN:NaN,
       _featuresEnriched:false
-    })).filter(r=>r.pt!==null&&isFinite(r.pt)&&r.pt>-20&&r.pt<100&&!isFutureDate(r.date));state.measurements=sortRowsLatest(state.measurements);saveState();state.measurements.forEach(r=>{r._featuresEnriched=false;});trainAllModels();render();toast(`엑셀 데이터 ${state.measurements.length}건 반영 완료`)};reader.readAsArrayBuffer(f)}function clearTrainingData(){if(confirm('학습 데이터를 모두 삭제할까요?\n(엑셀을 다시 업로드해야 합니다)')){state.measurements=[];state.fileInfo=null;formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};saveState();render();toast('초기화 완료')}}function downloadData(){
+    })).filter(r=>r.pt!==null&&isFinite(r.pt)&&r.pt>-20&&r.pt<100&&!isFutureDate(r.date));state.measurements=sortRowsLatest(state.measurements);saveState();state.measurements.forEach(r=>{r._featuresEnriched=false;});trainAllModels();render();toast(`엑셀 데이터 ${state.measurements.length}건 반영 완료`)};reader.readAsArrayBuffer(f)}function clearTrainingData(){if(confirm('학습 데이터를 모두 삭제할까요?\n(엑셀을 다시 업로드해야 합니다)')){state.measurements=[];state.fileInfo=null;formulaModel=null;tfModel&&tfModel.dispose();tfModel=null;tfReady=false;state.corr={1:0,2:0,3:0,4:0,5:0,6:0};localStorage.removeItem(TF_NORM_KEY);if(tf&&tf.io&&tf.io.removeModel)tf.io.removeModel(TF_MODEL_KEY).catch(()=>{});saveState();render();toast('초기화 완료')}}function downloadData(){
   // ★ v6.5 한글 컬럼 매핑 + 예측치 + 일기 포함
   // ★ Fix v1.1: decay 컬럼 추가 — 현재 세션 TAU로 계산
   // 목적: 다른 컴퓨터가 이 파일을 업로드하면 historyCache 없이도
