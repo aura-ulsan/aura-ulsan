@@ -2438,12 +2438,10 @@ async function trainTfModel(show=true){
   _aiCacheModelVer++;
   for(const k in _aiResidualCache)delete _aiResidualCache[k];
   if(!tfReady){metrics.ai={...metrics.ai,rmse:metrics.ai.rmse||metrics.formula.rmse,mae:metrics.ai.mae||metrics.formula.mae}}
-  // ★ Fix v1.1 수정 K: 완료 메시지를 게이트 판정 기준(미학습 날짜 검증)으로 표시
-  // 기존: 학습셋 수치만 표시 → "AI 5.54 < 식 5.72인데 왜 fallback?" 모순으로 읽힘
+  // ★ Fix v1.1 수정 K(단순화): 탭 메시지도 간결하게 — 채택 판정 근거는
+  // 바로 아래 성능 표의 "🔎 운영 채택 판정" 행에 표시됨 (중복 서술 제거)
   document.getElementById('aiTrainMsg')&&(document.getElementById('aiTrainMsg').innerHTML=
-    metrics.val
-    ?`학습 완료 · 검증셋(미학습 ${metrics.val.days}일 ${metrics.val.n}건) RMSE: AI ${fmt(metrics.val.rmseAI,2)}℃ vs 상관식 ${fmt(metrics.val.rmseFormula,2)}℃ → <b>${tfReady?'AI 사용':'상관식 운전'}</b> <span style="color:#94a3b8">(학습셋 내 AI ${fmt(metrics.ai.rmse,2)}℃·참고용)</span>`
-    :`학습 완료 · 검증셋 부족(미학습 날짜 표본 <10건) → <b>상관식 운전</b> · 학습셋 AI ${fmt(metrics.ai.rmse,2)}℃`);
+    `학습 완료 <span style="color:#94a3b8">— 상세 성능과 운영 채택 판정은 아래 표 참고</span>`);
   document.getElementById('currentModelText')&&(document.getElementById('currentModelText').textContent=tfReady?'AI 보정모델 (TF.js)':'상관식 모델(fallback)');
   updateMonitorAiStatus(tfReady?'done_ok':'done_fallback');
   // ★ Fix v1.1 수정 G: 학습 결과 영속화
@@ -3788,16 +3786,23 @@ function renderMeasureGuide(){
   const isHeat=heat.status!=='normal';
   const recommendedCount=isHeat?2:1;
 
-  // 정오 일사량 예보 (Open-Meteo)
-  const noonForecast=getForecastAt(today,12);
+  // ★ Fix v1.1: 하루 최고 일사량 예보 (기존: 정오 12시 고정값 — 최고치가 아니고
+  // 하루 종일 같은 숫자라 갱신 안 되는 것처럼 보임. 실제 피크는 보통 12:30~13시)
+  // 운영시간 내 예보를 훑어 최대값과 그 시각을 표시 — 포장 가열 잠재력에 직결되는 지표
+  let peakSol=null,peakHr=null;
+  for(let h=OP_START;h<=Math.min(OP_END,19);h++){
+    const f=getForecastAt(today,h);
+    if(f&&isFinite(f.solar)&&(peakSol===null||f.solar>peakSol)){peakSol=f.solar;peakHr=h;}
+  }
   let cloudStr='데이터 대기 중';
   let cloudColor='';
-  if(noonForecast){
-    const sol=noonForecast.solar;
-    if(sol>=2.5){cloudStr=`맑음 (정오 일사량 ${sol.toFixed(1)} MJ/㎡)`;cloudColor='warning';}
-    else if(sol>=1.5){cloudStr=`구름 조금 (정오 일사량 ${sol.toFixed(1)} MJ/㎡)`;cloudColor='';}
-    else if(sol>=0.5){cloudStr=`구름 많음 (정오 일사량 ${sol.toFixed(1)} MJ/㎡)`;cloudColor='';}
-    else {cloudStr=`흐림 (정오 일사량 ${sol.toFixed(1)} MJ/㎡)`;cloudColor='ok';}
+  if(peakSol!==null){
+    const sol=peakSol;
+    const hrTxt=`${peakHr}시 예상`;
+    if(sol>=2.5){cloudStr=`맑음 (최고 일사량 ${sol.toFixed(1)} MJ/㎡ · ${hrTxt})`;cloudColor='warning';}
+    else if(sol>=1.5){cloudStr=`구름 조금 (최고 일사량 ${sol.toFixed(1)} MJ/㎡ · ${hrTxt})`;cloudColor='';}
+    else if(sol>=0.5){cloudStr=`구름 많음 (최고 일사량 ${sol.toFixed(1)} MJ/㎡ · ${hrTxt})`;cloudColor='';}
+    else {cloudStr=`흐림 (최고 일사량 ${sol.toFixed(1)} MJ/㎡)`;cloudColor='ok';}
   }
 
   // 권장 측정 시간 — AI 예측 기반 동적 결정 (v6.3)
