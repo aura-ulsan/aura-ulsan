@@ -2741,14 +2741,21 @@ function updateMonitorAiStatus(state_, pct){
     wrap.style.borderTopColor='#a8e6c0';
     wrap.style.borderBottomColor='#a8e6c0';
     icon.textContent='✅';
-    text.textContent=`학습 완료 · AI RMSE ${fmt(metrics.ai.rmse,2)}℃ / 상관식 RMSE ${fmt(metrics.formula.rmse,2)}℃ · AI 사용`;
+    // ★ Fix v1.1 수정 K(추가): 모니터 배너도 게이트 판정 근거(미학습 날짜 검증)로 표시
+    text.textContent=metrics.val
+      ?`학습 완료 · 검증셋(미학습 ${metrics.val.days}일) RMSE: AI ${fmt(metrics.val.rmseAI,2)}℃ vs 상관식 ${fmt(metrics.val.rmseFormula,2)}℃ → AI 사용 (학습셋 AI ${fmt(metrics.ai.rmse,2)}℃·참고)`
+      :`학습 완료 · AI RMSE ${fmt(metrics.ai.rmse,2)}℃ / 상관식 RMSE ${fmt(metrics.formula.rmse,2)}℃ · AI 사용`;
     text.style.color='#0a7c3e';
   } else if(state_==='done_fallback'){
     wrap.style.background='#fff3f3';
     wrap.style.borderTopColor='#ffb3b3';
     wrap.style.borderBottomColor='#ffb3b3';
     icon.textContent='⚠️';
-    text.textContent=`학습 완료 · AI RMSE ${fmt(metrics.ai.rmse,2)}℃ / 상관식 RMSE ${fmt(metrics.formula.rmse,2)}℃ · 상관식 fallback`;
+    // ★ Fix v1.1 수정 K(추가): 판정에 쓰인 검증셋 수치 표시 — 학습셋 수치(AI가 더 좋아
+    // 보임)만 보여주면 "낮은 RMSE를 버렸다"는 모순으로 읽힘. 판정 근거를 명시.
+    text.textContent=metrics.val
+      ?`학습 완료 · 검증셋(미학습 ${metrics.val.days}일) RMSE: AI ${fmt(metrics.val.rmseAI,2)}℃ vs 상관식 ${fmt(metrics.val.rmseFormula,2)}℃ → 상관식 운전 (학습셋 AI ${fmt(metrics.ai.rmse,2)}℃·참고)`
+      :`학습 완료 · 검증셋 부족 → 상관식 운전 (학습셋 AI ${fmt(metrics.ai.rmse,2)}℃ / 상관식 ${fmt(metrics.formula.rmse,2)}℃·참고)`;
     text.style.color='#b91c1c';
   } else {
     // idle
