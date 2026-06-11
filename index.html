@@ -1205,6 +1205,12 @@ const TF_NORM_KEY='rains_v1_tfnorm';
 // 수정: 고정 시드 PRNG → 같은 데이터 = 같은 모델 (재학습 버튼이 재현 가능한 연산이 됨)
 const TF_SEED=42;
 function mulberry32(seed){let a=seed>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+// ★ Fix v1.1 수정 L: 로컬(KST) 날짜 문자열 — toISOString()은 UTC 기준이라
+// 한국시간 매일 00:00~09:00 사이 '오늘'이 어제로 계산됨.
+// → forecast fetch가 어제 날짜로 나가 오늘 캐시가 비고, 예측 경로의 날짜 조회가
+//   어긋나 solar_decay 추정 폴백 발동 → 예측 붕괴(0℃ 동결 사고, 06-11 08:49 실측).
+// 날짜 키 생성 35곳 전부 이 함수로 통일. (로그용 전체 ISO timestamp는 표준이라 유지)
+function localDateStr(d){d=d||new Date();const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 function saveMetrics(){
   try{
     localStorage.setItem(METRICS_KEY,JSON.stringify({metrics,tfReady,savedAt:Date.now(),version:APP_VERSION}));
@@ -1755,22 +1761,27 @@ function formulaFeaturesCurrent(z, futureMin){
   const rawNow=(window._fixedNow||Date.now())+(futureMin||0)*60*1000;
   const bucketed=Math.floor(rawNow/BUCKET_MS)*BUCKET_MS;
   const target=new Date(bucketed);
-  const today=target.toISOString().slice(0,10);
+  const today=localDateStr(target);
   const hr=target.getHours()+target.getMinutes()/60;
   const timeStr=String(target.getHours()).padStart(2,'0')+':'+String(target.getMinutes()).padStart(2,'0');
 
   // 가상 r 객체 생성 (wx는 호출자가 미래 기상으로 설정한 상태여야 함)
   // ★ Fix v1.1 #17: 실시간 경로이므로 liveMode=true (forecast-only, 결정론적)
+  // ★ Fix v1.1 수정 L: 입력 위생 한계 — 캐시 공백·외부 데이터 이상 시 폭주 차단.
+  // 실존 가능한 극한(폭염 45℃ 등)은 통과시키고 물리적 불능값만 컷 (좁은 SAFE
+  // 클램프는 위험 과소표시 우려가 있어 예측 본선에는 넓은 한계 적용)
+  const _g=(v,lo,hi,fb)=>{v=Number(v);return isFinite(v)?Math.max(lo,Math.min(hi,v)):fb;};
   const r={
-    air:wx.air, solar:wx.solar, hum:wx.hum, wind:wx.wind,
+    air:_g(wx.air,-15,45,20), solar:_g(wx.solar,0,SOLAR_MAX,0),
+    hum:_g(wx.hum,0,100,60), wind:_g(wx.wind,0,25,2),
     time:timeStr, zone:z.id,
-    solar_decay:calcSolarDecay(today,Math.floor(hr),4,z.id,true),
-    solar_trend:calcSolarTrend(today,Math.floor(hr),true),
+    solar_decay:_g(calcSolarDecay(today,Math.floor(hr),4,z.id,true),0,25,SOLAR_MAX*1.94),
+    solar_trend:_g(calcSolarTrend(today,Math.floor(hr),true),-5,5,0),
     precip_decay:calcPrecipDecay(today,Math.floor(hr),8,true),
     hours_since_rain:calcHoursSinceRain(today,Math.floor(hr),24,true),
     sprinkle_decay:calcSprinkleDecay(today,timeStr,z.id),
     min_since_sprinkle:calcMinSinceSprinkle(today,timeStr,z.id,24*60),
-    cloud_cover:wx.cloud||0
+    cloud_cover:_g(wx.cloud,0,100,0)
   };
   return features(r);
 }
@@ -2067,8 +2078,8 @@ async function manualBackfill(){
   // features 재계산 강제
   all.forEach(r=>{r._featuresEnriched=false;});
 
-  const today=new Date().toISOString().slice(0,10);
-  const sevenDaysAgo=new Date(Date.now()-7*24*60*60*1000).toISOString().slice(0,10);
+  const today=localDateStr();
+  const sevenDaysAgo=localDateStr(new Date(Date.now()-7*24*60*60*1000));
 
   // ━━━ ① Forecast past_days=7 — 최근 7일 decay 보정 ━━━
   // Archive는 5~7일 지연이라 최근 데이터가 없음 → Forecast past_days로 보완
@@ -2682,7 +2693,7 @@ function calcPred(z, futureMin){
    ════════════════════════════════════════════════════════════════ */
 function calcPred30min(z){
   const future=new Date((window._fixedNow||Date.now())+30*60*1000);
-  const today=future.toISOString().slice(0,10);
+  const today=localDateStr(future);
   const futureHr=future.getHours()+future.getMinutes()/60;
   const fwx=getForecastAt(today,futureHr);
   if(!fwx) return calcPred(z);
@@ -2772,7 +2783,7 @@ function sensorCards(){
   const BUCKET_MS=30*60*1000;
   const _bucketed=Math.floor((window._fixedNow||Date.now())/BUCKET_MS)*BUCKET_MS;
   const _sNow=new Date(_bucketed);
-  const today=_sNow.toISOString().slice(0,10);
+  const today=localDateStr(_sNow);
   const nowHr=_sNow.getHours();
   let solarDecayVal=0;
   try{solarDecayVal=calcSolarDecay(today,nowHr,4,selectedZone||1,true);}catch(err){solarDecayVal=0;}
@@ -3128,7 +3139,7 @@ function loadDailyLog(){
     const raw=localStorage.getItem(DAILY_KEY);
     if(!raw)return;
     const saved=JSON.parse(raw);
-    const today=new Date().toISOString().slice(0,10);
+    const today=localDateStr();
     if(saved.date===today){
       // ★ v6.5+ estimated는 항상 재계산 — measured만 복원
       // 클리핑 오류, 모델 변경 등 어떤 경우에도 항상 최신 코드로 계산
@@ -3142,13 +3153,13 @@ function loadDailyLog(){
       openMeteoTried=false;
       saveDailyLog();
     }
-  }catch(e){dailyTempLog=[];dailyDate=new Date().toISOString().slice(0,10);}
+  }catch(e){dailyTempLog=[];dailyDate=localDateStr();}
 }
 function saveDailyLog(){
   try{localStorage.setItem(DAILY_KEY,JSON.stringify({date:dailyDate,log:dailyTempLog,openMeteoTried:openMeteoTried}));}catch(e){}
 }
 function recordDailyTemp(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   // 자정 리셋
   if(dailyDate&&dailyDate!==today){
     dailyTempLog=[];
@@ -3176,7 +3187,7 @@ function recordDailyTemp(){
 // Open-Meteo로 빈 구간 추정 보충
 function fillDailyFromOpenMeteo(){
   if(openMeteoTried)return;
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   const nowHr=new Date().getHours();
   if(nowHr===0)return;
   openMeteoTried=true;
@@ -3195,12 +3206,16 @@ function fillDailyFromOpenMeteo(){
         wx.wind=hist.wind??savedWx.wind;
         // ★ v6.5+ 해당 시간의 시각으로 _fixedNow 설정
         // formulaFeaturesCurrent의 sin/cos/누적일사가 h시 기준으로 계산되도록
+        // ★ Fix v1.1 수정 L: 예외 시에도 반드시 복원 (누수 차단)
         const histDate=new Date(today+'T'+String(h).padStart(2,'0')+':00:00');
-        window._fixedNow=histDate.getTime();
-        const z=zones.find(x=>x.id==selectedZone)||zones[0];
-        pt=calcPred(z).final;
-        window._fixedNow=null;  // 복원
-        Object.assign(wx,savedWx);
+        try{
+          window._fixedNow=histDate.getTime();
+          const z=zones.find(x=>x.id==selectedZone)||zones[0];
+          pt=calcPred(z).final;
+        }finally{
+          window._fixedNow=null;  // 복원
+          Object.assign(wx,savedWx);
+        }
       } else {
         pt=(hist.air||20)+(hist.solar||0)*8;
       }
@@ -3246,7 +3261,7 @@ function drawChart(){
   // ★ 고정 시각 사용 — refreshPredCache와 동일한 시각 기준
   const _now=new Date(window._fixedNow||Date.now());
   const nowHr=_now.getHours()+_now.getMinutes()/60;
-  const today=_now.toISOString().slice(0,10);
+  const today=localDateStr(_now);
   const ACCURATE_HOURS=3;
   const accurateEnd=Math.min(OP_END,nowHr+ACCURATE_HOURS);
 
@@ -3283,28 +3298,34 @@ function drawChart(){
     const hasForecast=!!forecastCache[today];
     const SAFE_AIR=[15,38],SAFE_SOLAR=[0.3,3.5],SAFE_HUM=[20,95],SAFE_WIND=[0.5,15];
 
-    for(let fh=startFh;fh<=OP_END;fh+=0.5){
-      // ★ 각 시점의 시각으로 _fixedNow 설정 (features 계산 일관성)
-      window._fixedNow=_now.getTime()+(fh-nowHr)*3600*1000;
-      if(hasForecast){
-        const fwx=getForecastAt(today,fh);
-        if(fwx){
-          wx.air=Math.max(SAFE_AIR[0],Math.min(SAFE_AIR[1],fwx.air));
-          wx.solar=Math.max(SAFE_SOLAR[0],Math.min(SAFE_SOLAR[1],fwx.solar));
-          wx.hum=Math.max(SAFE_HUM[0],Math.min(SAFE_HUM[1],fwx.hum));
-          wx.wind=Math.max(SAFE_WIND[0],Math.min(SAFE_WIND[1],fwx.wind));
+    // ★ Fix v1.1 수정 L: _fixedNow 누수 수정 — 기존엔 루프 후 null이 아닌
+    // _now.getTime()으로 "복원"해 차트를 그린 시각에 영구 동결됨. 이후 모든 예측이
+    // 그 시각 버킷으로 계산되는 누수(06-11 probe에서 동결값 실측). try/finally로
+    // 예외 시에도 반드시 null 복원.
+    try{
+      for(let fh=startFh;fh<=OP_END;fh+=0.5){
+        // ★ 각 시점의 시각으로 _fixedNow 설정 (features 계산 일관성)
+        window._fixedNow=_now.getTime()+(fh-nowHr)*3600*1000;
+        if(hasForecast){
+          const fwx=getForecastAt(today,fh);
+          if(fwx){
+            wx.air=Math.max(SAFE_AIR[0],Math.min(SAFE_AIR[1],fwx.air));
+            wx.solar=Math.max(SAFE_SOLAR[0],Math.min(SAFE_SOLAR[1],fwx.solar));
+            wx.hum=Math.max(SAFE_HUM[0],Math.min(SAFE_HUM[1],fwx.hum));
+            wx.wind=Math.max(SAFE_WIND[0],Math.min(SAFE_WIND[1],fwx.wind));
+          }
+        } else {
+          wx.solar=estimateSolarAt(fh);
         }
-      } else {
-        wx.solar=estimateSolarAt(fh);
+        let pt=calcPred(z).final;
+        pt=Math.max(15,Math.min(65,pt));
+        if(fh<=accurateEnd) futureData.push({x:fh,y:pt});
+        else futureRefData.push({x:fh,y:pt});
       }
-      let pt=calcPred(z).final;
-      pt=Math.max(15,Math.min(65,pt));
-      if(fh<=accurateEnd) futureData.push({x:fh,y:pt});
-      else futureRefData.push({x:fh,y:pt});
+    }finally{
+      window._fixedNow=null;
+      Object.assign(wx,savedWx);
     }
-    // ★ _fixedNow 복원 (현재 시각으로)
-    window._fixedNow=_now.getTime();
-    Object.assign(wx,savedWx);
 
     // 부드러운 연결 (10℃ 이상 점프만 완화)
     if(futureData.length>=2){
@@ -3564,7 +3585,7 @@ function updateSunAnnotation(c,sun){
 async function manualRefreshForecast(){
   toast('Open-Meteo 갱신 중...');
   try{
-    const today=new Date().toISOString().slice(0,10);
+    const today=localDateStr();
     await fetchForecastWeather(today);
     drawChart();
     toast('갱신 완료');
@@ -3590,7 +3611,7 @@ function findGraphPeak(options){
   // forecast 데이터로 운영시간 내 최고온도 시각 찾기
   // options: {afterTime: 이 시각 이후만 탐색, beforeTime: 이 시각 이전만 탐색, excludeRange: [s,e] 제외}
   options=options||{};
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   if(!forecastCache[today]||!formulaModel)return null;
   const z=zones.find(x=>x.id==selectedZone)||zones[0];
   const savedWx={...wx};
@@ -3635,7 +3656,7 @@ function round30(h){return Math.round(h*2)/2;}
 
 function getLastSprinkleHour(){
   // 오늘 가장 최근 살수 시각(소수시간) 반환, 없으면 null
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   const todaySpks=(state.measurements||[]).filter(m=>m.date===today&&m.spk==1);
   if(!todaySpks.length)return null;
   // 시각 순 정렬, 가장 최근
@@ -3650,7 +3671,7 @@ function getLastSprinkleHour(){
 function getRecommendedTimes(){
   const heat=getCurrentHeatStatus();
   const isHeat=heat.status!=='normal';
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   
   // 폴백 1: 예보 또는 모델 없음 → 표준 시각
   if(!forecastCache[today]||!formulaModel){
@@ -3682,7 +3703,7 @@ function getRecommendedTimes(){
   const lastSpkHr=getLastSprinkleHour();
   if(lastSpkHr!=null){
     // 1차 측정 = 살수 시각 (실측 데이터 기반)
-    const today2=new Date().toISOString().slice(0,10);
+    const today2=localDateStr();
     const spkRecord=(state.measurements||[]).filter(m=>m.date===today2&&m.spk==1)
       .sort((a,b)=>String(b.time||'').localeCompare(String(a.time||'')))[0];
     const spkPt=spkRecord?spkRecord.pt:null;
@@ -3733,7 +3754,7 @@ function fmtHr(h){
 }
 
 function countTodayMeasurements(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   return (state.measurements||[]).filter(m=>m.date===today&&(m.source==='manual'||m.imputedSrc==='manual')).length;
 }
 
@@ -3780,7 +3801,7 @@ function renderMeasureGuide(){
   const el=document.getElementById('measureGuide');
   if(!el)return;
   const heat=getCurrentHeatStatus();
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   const dt=dailyTempCache[today];
   const measCount=countTodayMeasurements();
   const isHeat=heat.status!=='normal';
@@ -3879,7 +3900,7 @@ function renderMeasureGuide(){
 
 /* 폭염 수동 설정 모달 */
 function openHeatModal(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   const auto=autoDetectHeatStatus(today)||'normal';
   const current=getCurrentHeatStatus();
   const isManual=current.source==='manual';
@@ -3929,7 +3950,7 @@ function closeHeatModal(){
 function applyHeatOverride(){
   const sel=document.querySelector('input[name="heatRadio"]:checked');
   if(!sel){toast('선택해주세요');return;}
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   if(sel.value==='auto'){
     delete state.heatOverride;
   } else {
@@ -3944,7 +3965,7 @@ function applyHeatOverride(){
 /* 측정 알림 타이머 */
 let measureAlertSent={};  // {hr_minus30: true, hr_now: true}
 function checkMeasureAlerts(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   const heat=getCurrentHeatStatus();
   const isHeat=heat.status!=='normal';
   const measCount=countTodayMeasurements();
@@ -3982,7 +4003,7 @@ setInterval(()=>{
   if(now.getHours()===0&&now.getMinutes()<5){
     measureAlertSent={};
     if(state.heatOverride){
-      const today=now.toISOString().slice(0,10);
+      const today=localDateStr(now);
       if(state.heatOverride.date!==today){
         delete state.heatOverride;
         saveState();
@@ -4064,7 +4085,7 @@ function openSprinkle(id){
   const z=zones.find(zo=>zo.id==id);
   const now=new Date();
   document.getElementById('modalTitle').textContent=`구역 ${id} 살수 이행 (${z?z.sub:''})`;
-  document.getElementById('mDate').value=now.toISOString().slice(0,10);
+  document.getElementById('mDate').value=localDateStr(now);
   document.getElementById('mTime').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
   document.getElementById('mZone').value=`구역 ${id}`;
   document.getElementById('mPt').value='';
@@ -4338,7 +4359,7 @@ function openMeasure(id){
   const z=zones.find(zo=>zo.id==id);
   const now=new Date();
   document.querySelector('#measureModal h2').innerHTML=`구역 ${id} 측정 입력 <span style="font-size:13px;font-weight:600;color:#5a6a7e;">(${z?z.sub:''})</span>`;
-  document.getElementById('meDate').value=now.toISOString().slice(0,10);
+  document.getElementById('meDate').value=localDateStr(now);
   document.getElementById('meTime').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
   document.getElementById('meZone').value=`구역 ${id}`;
   document.getElementById('mePt').value='';
@@ -4482,7 +4503,7 @@ function confirmMeasure(){
 
   saveState();
   // ★ v6.5+ 오늘 측정이면 그래프에 주황 실측 포인트 추가
-  const todayStr=new Date().toISOString().slice(0,10);
+  const todayStr=localDateStr();
   if(date===todayStr){
     const hrVal=parseInt(time.split(':')[0])+parseInt(time.split(':')[1])/60;
     const idx=dailyTempLog.findIndex(d=>Math.abs(d.hour-hrVal)<0.1);
@@ -4843,7 +4864,7 @@ function applyDataFilter(rows){
     else if(dataFilter.period==='30')cutoff=new Date(now.getTime()-30*24*60*60*1000);
     else if(dataFilter.period==='year')cutoff=new Date(now.getFullYear(),0,1);
     if(cutoff){
-      const cutoffStr=cutoff.toISOString().slice(0,10);
+      const cutoffStr=localDateStr(cutoff);
       result=result.filter(r=>(r.date||'')>=cutoffStr);
     }
   }
@@ -4935,7 +4956,7 @@ function openDataModal(){
   editingRowIdx=-1;
   document.getElementById('dataModalTitle').textContent='현장 데이터 입력';
   const now=new Date();
-  document.getElementById('dDate').value=now.toISOString().slice(0,10);
+  document.getElementById('dDate').value=localDateStr(now);
   document.getElementById('dTime').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
   document.getElementById('dZone').value='1';
   document.getElementById('dWarn').value='0';
@@ -4957,7 +4978,7 @@ function openDataModal(){
    ════════════════════════════════════════════════════════════════ */
 function openBulkDataModal(){
   const now=new Date();
-  document.getElementById('bkDate').value=now.toISOString().slice(0,10);
+  document.getElementById('bkDate').value=localDateStr(now);
   document.getElementById('bkTime').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
   document.getElementById('bkWarn').value='0';
   document.getElementById('bkAir').value=wx.air.toFixed(1);
@@ -5011,7 +5032,7 @@ async function fetchBulkWeather(){
   if(!date||!time){toast('일자와 시간을 먼저 입력하세요');return;}
 
   const hr=parseInt(time.split(':')[0]);
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
 
   // 현재 기상값 있는지 확인
   const curAir=document.getElementById('bkAir').value;
@@ -5256,7 +5277,7 @@ function confirmBulkData(){
   saveState();
   
   // ★ v6.5+ 오늘 측정이면 그래프에 주황 실측 포인트 추가
-  const todayStr2=new Date().toISOString().slice(0,10);
+  const todayStr2=localDateStr();
   if(date===todayStr2){
     toAdd.forEach(r=>{
       const hrVal=parseInt(r.time.split(':')[0])+parseInt(r.time.split(':')[1])/60;
@@ -5685,7 +5706,7 @@ function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new Fi
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(exportRows),'training_data');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(state.systemLogs||[]),'operation_logs');
-  const today=new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const today=localDateStr().replace(/-/g,'');
   XLSX.writeFile(wb,`RAINS_data_${today}.xlsx`);
   toast('엑셀 다운로드 완료 (예측치 + 일기 포함)');
 }function openApi(){
@@ -5751,6 +5772,14 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 
 // ★ v6.5+ 예측 캐시 1회 계산 — render/selectZone/좌우키 모두 동일한 값 사용
 function refreshPredCache(){
+  // ★ Fix v1.1 수정 L: 오늘 forecast 캐시 부재 시 자동 재조회 (1회, 중복 방지)
+  // 캐시 공백이 87℃(상방)·0℃(하방) 두 사고의 공통 뿌리 — 부재를 즉시 자가 치유
+  const _td=localDateStr();
+  if(!forecastCache[_td]&&!window._fcRefetching&&typeof fetchForecastWeather==='function'){
+    window._fcRefetching=true;
+    console.warn(`[자가치유] 오늘(${_td}) forecast 캐시 없음 → 재조회`);
+    Promise.resolve(fetchForecastWeather(_td)).catch(()=>{}).finally(()=>{window._fcRefetching=false;});
+  }
   window._cachedPreds={};
   window._cachedPreds30={};
   // ★ 시각 고정 — 이 함수 안에서만 동일한 시각으로 계산
@@ -5901,7 +5930,7 @@ function autoDetectHeatStatus(date){
 
 // 현재 적용 중인 폭염 상태 (자동 또는 수동)
 function getCurrentHeatStatus(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   // 수동 설정이 있고 오늘 것이면 우선
   if(state.heatOverride&&state.heatOverride.date===today){
     return {status:state.heatOverride.status,source:'manual'};
@@ -6018,7 +6047,7 @@ function fetchForecastWeather(date){
 
 // Open-Meteo Forecast의 현재 시각 데이터를 wx에 반영
 function updateWxFromForecast(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   const nowHr=new Date().getHours()+new Date().getMinutes()/60;
   const fwx=getForecastAt(today,nowHr);
 
@@ -6093,7 +6122,7 @@ function isForecastFresh(){
 }
 
 async function ensureForecastFresh(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   if(forecastCache[today]&&isForecastFresh()){
     // 캐시 있으면 wx만 현재 시각 기준 갱신
     updateWxFromForecast();
@@ -6569,7 +6598,7 @@ document.addEventListener('keydown',function(e){
   const nowHr=new Date().getHours();
   if(nowHr>=OP_START&&nowHr<=OP_END){
     try{
-      const today=new Date().toISOString().slice(0,10);
+      const today=localDateStr();
       await fetchForecastWeather(today);
       // ★ KPI 박스 강제 갱신 + 전체 재렌더
       sensorBarBuilt=false;
@@ -6583,7 +6612,7 @@ document.addEventListener('keydown',function(e){
 
 // 안전망: 3초 후 한번 더 강제 갱신 (혹시 race condition)
 setTimeout(()=>{
-  const today=new Date().toISOString().slice(0,10);
+  const today=localDateStr();
   if(forecastCache[today]){
     updateWxFromForecast();
     sensorBarBuilt=false;
