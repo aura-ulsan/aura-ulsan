@@ -5579,6 +5579,13 @@ function loadExcel(e){const f=e.target.files[0];if(!f)return;const reader=new Fi
       precip_decay:col(sample,['감쇠누적강수']),
       hours_since_rain:col(sample,['비후경과시간']),
       sprinkle_decay:col(sample,['살수감쇠']),
+      // ★ Fix v1.1 수정 M: 운량·강수·일기코드 매핑 추가
+      // 기존엔 이 세 컬럼을 임포트에서 아예 읽지 않아 매 임포트마다 null이 되고,
+      // historyCache에 없는 날짜는 전부 0 기본값으로 전멸 → 06-11 오염 사고
+      // (운량 1,862건·강수 556건이 0으로 덮인 근본 원인)
+      precip:col(sample,['강수량']),
+      cloud:col(sample,['운량']),
+      wcode:col(sample,['일기코드']),
       tau_solar:col(sample,['TAU_solar']),
       tau_water:col(sample,['TAU_water']),
       // ★ Fix v1.1: corr 컬럼 매핑
@@ -5886,7 +5893,9 @@ function fetchHistoryWeather(startDate,endDate){
           hum: h.relative_humidity_2m[i]!==null?+h.relative_humidity_2m[i].toFixed(1):null,
           wind: h.wind_speed_10m[i]!==null?+h.wind_speed_10m[i].toFixed(2):null,
           // ★ v6.5 강수/구름/일기
-          precip: h.precipitation&&h.precipitation[i]!==null?+h.precipitation[i].toFixed(2):0,
+          // ★ Fix v1.1 수정 M: 강수 결손을 0으로 둔갑시키던 기본값 제거 — null 유지
+          // (0으로 저장되면 하위 가드(!=null)를 통과해 실측 강수를 0으로 덮어씀)
+          precip: h.precipitation&&h.precipitation[i]!==null?+h.precipitation[i].toFixed(2):null,
           cloud: h.cloud_cover&&h.cloud_cover[i]!==null?+h.cloud_cover[i].toFixed(0):null,
           wcode: h.weather_code&&h.weather_code[i]!==null?h.weather_code[i]:null
         };
@@ -6288,6 +6297,10 @@ function loadExcel(e){
         wind:c.wind?(num(r[c.wind])??null):null,
         pt:num(r[c.pt]),
         spk:(num(r[c.spk])||0)>0?1:0,
+        // ★ Fix v1.1 수정 M: 엑셀의 운량·강수·일기코드 값을 그대로 읽음 (null=결손)
+        precip:c.precip?(num(r[c.precip])??null):null,
+        cloud:c.cloud?(num(r[c.cloud])??null):null,
+        wcode:c.wcode?(num(r[c.wcode])??null):null,
         vol:c.vol?num(r[c.vol]):null,
         after:c.after?(num(r[c.after])??''):'',
         hr:hr,
@@ -6329,13 +6342,15 @@ function loadExcel(e){
             if(imputed){src='api';imputedAPI++;}
           }
         }
-        // ★ v6.5 일기/강수/구름도 historyCache에서 가져오기 (항상 시도)
+        // ★ v6.5 일기/강수/구름도 historyCache에서 가져오기
+        // ★ Fix v1.1 수정 M: "항상 덮어쓰기" → "결손(null)일 때만 보충"으로 변경
+        // 엑셀에 실린 실측·확정 기상값이 캐시값으로 무단 교체되던 경로 차단
         if(historyCache[r.date]){
           const hist=getHistoryWeather(r.date,r.hr);
           if(hist){
-            if(hist.precip!=null)r.precip=hist.precip;
-            if(hist.cloud!=null)r.cloud=hist.cloud;
-            if(hist.wcode!=null)r.wcode=hist.wcode;
+            if(r.precip==null&&hist.precip!=null)r.precip=hist.precip;
+            if(r.cloud==null&&hist.cloud!=null)r.cloud=hist.cloud;
+            if(r.wcode==null&&hist.wcode!=null)r.wcode=hist.wcode;
           }
         }
         // 평균 fallback
@@ -6376,15 +6391,21 @@ function loadExcel(e){
       }));
 
       // ★ v6.5 병합/덮어쓰기 모드 결정
+      // ★ Fix v1.1 수정 M: 병합 키 정규화 — 시간 포맷 차이('13:8' vs '13:08' 등)로
+      // 같은 측정이 다른 키가 되어 중복 167건이 누적되던 구멍 차단.
+      // 덮어쓰기 경로에도 동일 키 중복 제거 적용 (파일 자체에 중복이 있어도 정화)
+      const _nt=t=>{const p=String(t||'').split(':');return String(p[0]||'12').padStart(2,'0')+':'+String(p[1]||'00').padStart(2,'0');};
+      const _mk=r=>`${String(r.date).slice(0,10)}|${_nt(r.time)}|${Number(r.zone)}`;
+      const _dedup=arr=>{const m=new Map();arr.forEach(r=>m.set(_mk(r),r));return Array.from(m.values());};
       const existingCount=(state.measurements||[]).length;
       let mergeMode='merge';  // 기본값: 병합
       let mergeStats={added:0,skipped:0,total:0};
       
       if(existingCount===0){
-        // 기존 데이터 없음 → 그냥 덮어쓰기
-        state.measurements=newRows;
-        mergeStats.added=newRows.length;
-        mergeStats.total=newRows.length;
+        // 기존 데이터 없음 → 그냥 덮어쓰기 (★수정 M: 파일 내 중복 제거)
+        state.measurements=_dedup(newRows);
+        mergeStats.added=state.measurements.length;
+        mergeStats.total=state.measurements.length;
       } else {
         // 기존 데이터 있음 → 사용자에게 선택
         const msg=`기존 데이터 ${existingCount}건이 있습니다.\n신규 ${newRows.length}건을 어떻게 처리할까요?\n\n` +
@@ -6402,12 +6423,11 @@ function loadExcel(e){
           const map=new Map();
           // 기존 데이터 먼저 등록 (보호)
           (state.measurements||[]).forEach(r=>{
-            const key=`${r.date}|${r.time}|${r.zone}`;
-            map.set(key,r);
+            map.set(_mk(r),r);  // ★수정 M: 정규화 키
           });
           // 신규 데이터 추가 (중복은 기존 유지)
           newRows.forEach(r=>{
-            const key=`${r.date}|${r.time}|${r.zone}`;
+            const key=_mk(r);  // ★수정 M: 정규화 키
             if(!map.has(key)){
               map.set(key,r);
               mergeStats.added++;
@@ -6418,10 +6438,10 @@ function loadExcel(e){
           state.measurements=Array.from(map.values());
           mergeStats.total=state.measurements.length;
         } else {
-          // 덮어쓰기 모드
+          // 덮어쓰기 모드 (★수정 M: 파일 내 중복 제거)
           mergeMode='overwrite';
-          state.measurements=newRows;
-          mergeStats.added=newRows.length;
+          state.measurements=_dedup(newRows);
+          mergeStats.added=state.measurements.length;
           mergeStats.skipped=existingCount;  // 기존 데이터 삭제됨
           mergeStats.total=newRows.length;
         }
